@@ -1,0 +1,11 @@
+.DS_Store
+build/
+Sources/node_modules/
+Sources/.svelte-kit/
+Sources/build/
+Sources/src-tauri/target/
+
+# IDE user state
+*.xcuserstate
+*.xcuserdatad/
+*.vcxproj.user
