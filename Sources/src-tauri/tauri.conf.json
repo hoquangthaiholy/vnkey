@@ -14,9 +14,9 @@
       {
         "label": "main",
         "title": "VNKey",
-        "width": 800,
+        "width": 900,
         "height": 700,
-        "minWidth": 720,
+        "minWidth": 800,
         "minHeight": 560,
         "center": true,
         "titleBarStyle": "Transparent",
@@ -25,10 +25,14 @@
       {
         "label": "clipboard",
         "title": "Bảng nhớ",
-        "width": 460,
-        "height": 400,
-        "resizable": false,
+        "width": 380,
+        "height": 540,
+        "minWidth": 380,
+        "minHeight": 300,
+        "resizable": true,
         "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": false,
@@ -48,7 +52,13 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPCONFIG/clipboard_images/**"
+        ]
+      }
     }
   },
   "bundle": {

@@ -52,6 +52,7 @@ extern "C" {
     fn vnkey_save_macros(path: *const c_char);
     fn vnkey_load_macros(path: *const c_char);
     fn vnkey_set_custom_english_words(content: *const c_char);
+    fn vnkey_default_english_words() -> *mut c_char;
     fn vnkey_convert_text(
         source: *const c_char,
         from_code: c_int,
@@ -182,6 +183,7 @@ pub fn load_macros(path: &str) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn convert_text(
     source: &str,
     from_code: i32,
@@ -211,6 +213,10 @@ pub fn set_custom_english_words(content: &str) {
     if let Ok(c_content) = CString::new(content) {
         unsafe { vnkey_set_custom_english_words(c_content.as_ptr()) };
     }
+}
+
+pub fn default_english_words() -> String {
+    unsafe { take_string(vnkey_default_english_words()).unwrap_or_default() }
 }
 
 #[cfg(target_os = "macos")]

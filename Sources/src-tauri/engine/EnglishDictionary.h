@@ -15,5 +15,6 @@
  */
 bool isProtectedEnglishWord(const std::string& word);
 void setCustomEnglishWords(const std::string& content);
+const std::string& getDefaultEnglishWords();
 
 #endif /* EnglishDictionary_h */

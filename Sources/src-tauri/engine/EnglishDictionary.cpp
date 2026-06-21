@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <unordered_set>
 
@@ -160,7 +161,9 @@ std::string lowerAscii(const std::string &word) {
   return normalized;
 }
 
-std::unordered_set<std::string> gCustomEnglishWords;
+using EnglishWordSet = std::unordered_set<std::string>;
+std::shared_ptr<const EnglishWordSet> gCustomEnglishWords =
+    std::make_shared<const EnglishWordSet>();
 
 } // namespace
 
@@ -173,11 +176,12 @@ bool isProtectedEnglishWord(const std::string &word) {
                          std::end(kProtectedEnglishWords), normalized)) {
     return true;
   }
-  return gCustomEnglishWords.count(normalized) > 0;
+  const auto customWords = std::atomic_load(&gCustomEnglishWords);
+  return customWords->count(normalized) > 0;
 }
 
 void setCustomEnglishWords(const std::string& content) {
-  gCustomEnglishWords.clear();
+  auto customWords = std::make_shared<EnglishWordSet>();
   std::stringstream ss(content);
   std::string word;
   while (ss >> word) {
@@ -189,7 +193,24 @@ void setCustomEnglishWords(const std::string& content) {
     }
     std::string normalized = lowerAscii(word);
     if (!normalized.empty()) {
-      gCustomEnglishWords.insert(normalized);
+      customWords->insert(normalized);
     }
   }
+  std::atomic_store(
+      &gCustomEnglishWords,
+      std::static_pointer_cast<const EnglishWordSet>(customWords));
+}
+
+const std::string& getDefaultEnglishWords() {
+  static const std::string words = [] {
+    std::string result;
+    for (const char *word : kProtectedEnglishWords) {
+      if (!result.empty()) {
+        result.push_back('\n');
+      }
+      result.append(word);
+    }
+    return result;
+  }();
+  return words;
 }

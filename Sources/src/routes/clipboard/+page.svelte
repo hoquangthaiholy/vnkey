@@ -3,6 +3,7 @@
   import { invoke, convertFileSrc } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { tooltip } from "$lib/tooltip";
 
   interface ClipboardItem {
     id: string;
@@ -57,8 +58,6 @@
       if (settings) {
         isPin = settings.clipboard_pin_on_top === 1;
         autoHide = settings.clipboard_auto_hide === 1;
-        const appWindow = getCurrentWindow();
-        await appWindow.setAlwaysOnTop(isPin);
       }
     } catch (e) {
       console.error("Failed to load settings in clipboard:", e);
@@ -67,14 +66,13 @@
 
   async function toggleAlwaysOnTop() {
     if (!settings) return;
-    isPin = !isPin;
-    const appWindow = getCurrentWindow();
-    await appWindow.setAlwaysOnTop(isPin);
-
-    settings.clipboard_pin_on_top = isPin ? 1 : 0;
+    const nextPin = !isPin;
+    settings.clipboard_pin_on_top = nextPin ? 1 : 0;
     try {
       await invoke("update_settings", { settings });
+      isPin = nextPin;
     } catch (e) {
+      settings.clipboard_pin_on_top = isPin ? 1 : 0;
       console.error("Failed to update always on top setting:", e);
     }
   }
@@ -270,8 +268,10 @@
 
 <div class="clipboard-picker" onkeydown={handleKeydown} role="presentation">
   <!-- Header Bar -->
-  <header class="clipboard-header">
-    <div class="header-left">
+  <header class="clipboard-header" data-tauri-drag-region>
+    <div class="traffic-light-space" data-tauri-drag-region></div>
+
+    <div class="header-title" data-tauri-drag-region>
       <span class="header-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
@@ -285,11 +285,12 @@
     </div>
     
     <div class="header-right">
-      <button 
+      <button
         class="header-btn" 
         class:active={isPin} 
         onclick={toggleAlwaysOnTop} 
-        title={isPin ? "Bỏ ghim trên cùng" : "Ghim trên cùng (Always on Top)"}
+        use:tooltip={isPin ? "Bỏ ghim trên cùng" : "Ghim cửa sổ trên cùng"}
+        aria-label={isPin ? "Bỏ ghim trên cùng" : "Ghim cửa sổ trên cùng"}
       >
         {#if isPin}
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -308,7 +309,8 @@
         class="header-btn" 
         class:active={autoHide} 
         onclick={toggleAutoHide} 
-        title={autoHide ? "Tắt tự động ẩn khi mất focus" : "Bật tự động ẩn khi mất focus"}
+        use:tooltip={autoHide ? "Tắt tự động ẩn khi mất tiêu điểm" : "Bật tự động ẩn khi mất tiêu điểm"}
+        aria-label={autoHide ? "Tắt tự động ẩn" : "Bật tự động ẩn"}
       >
         {#if autoHide}
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -329,7 +331,8 @@
         <button 
           class="header-btn delete-all-btn" 
           onclick={clearAll} 
-          title="Xóa tất cả lịch sử"
+          use:tooltip={"Xóa tất cả lịch sử"}
+          aria-label="Xóa tất cả lịch sử"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 6h18"/>
@@ -340,18 +343,6 @@
           </svg>
         </button>
       {/if}
-
-      <button 
-        class="header-btn close-btn" 
-        onclick={() => invoke("hide_clipboard_picker_window")} 
-        title="Đóng (Esc)"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="m15 9-6 6"/>
-          <path d="m9 9 6 6"/>
-        </svg>
-      </button>
     </div>
   </header>
 
@@ -369,10 +360,9 @@
       placeholder="Tìm kiếm bảng nhớ..."
       bind:value={searchQuery}
       autocomplete="off"
-      autofocus
     />
     {#if searchQuery}
-      <button class="clear-search-btn" onclick={() => searchQuery = ""} title="Xóa tìm kiếm" aria-label="Xóa tìm kiếm">
+      <button class="clear-search-btn" onclick={() => searchQuery = ""} use:tooltip={"Xóa tìm kiếm"} aria-label="Xóa tìm kiếm">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
         </svg>
@@ -397,6 +387,12 @@
           class:selected={index === selectedIndex}
           onmouseenter={() => selectedIndex = index}
           onclick={() => pasteItem(item)}
+          onkeydown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              pasteItem(item);
+            }
+          }}
           role="button"
           tabindex="0"
         >
@@ -498,7 +494,8 @@
             {#if item.content_type === "text" && item.html}
               <button
                 class="action-btn strip-btn"
-                title="Tẩy định dạng (Văn bản thô)"
+                use:tooltip={"Chuyển sang văn bản thô"}
+                aria-label="Chuyển sang văn bản thô"
                 onclick={(e) => stripFormatting(item.id, e)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -510,7 +507,8 @@
             {/if}
             <button
               class="action-btn delete-btn"
-              title="Xóa mục này"
+              use:tooltip={"Xóa mục này"}
+              aria-label="Xóa mục này"
               onclick={(e) => removeItem(item.id, e)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -578,18 +576,28 @@
 
   /* Header Bar Styles */
   .clipboard-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
+    min-height: 38px;
+    padding: 0 10px;
     border-bottom: 1px solid var(--border-color);
+    -webkit-app-region: drag;
   }
 
-  .header-left {
+  .traffic-light-space {
+    min-width: 72px;
+    height: 100%;
+  }
+
+  .header-title {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     color: var(--text-primary);
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   .header-icon {
@@ -620,7 +628,9 @@
   .header-right {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 4px;
+    -webkit-app-region: no-drag;
   }
 
   .header-btn {
@@ -651,13 +661,35 @@
     background: rgba(0, 122, 255, 0.1);
   }
 
-  .header-btn.close-btn {
-    color: var(--text-secondary);
+  :global(.custom-floating-tooltip) {
+    position: absolute;
+    z-index: 9999;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(28, 28, 30, 0.96);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: white;
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1), transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   }
 
-  .header-btn.close-btn:hover {
-    color: #ff453a;
-    background: rgba(255, 69, 58, 0.1);
+  :global(.light .custom-floating-tooltip) {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #1c1c1e;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  :global(.custom-floating-tooltip.visible) {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .header-btn.delete-all-btn:hover {
@@ -1020,6 +1052,8 @@
   .clipboard-footer {
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 16px;
     padding: 8px 14px;
     border-top: 1px solid var(--border-color);

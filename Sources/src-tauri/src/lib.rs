@@ -19,6 +19,7 @@ static CLIPBOARD_PIN_ON_TOP: std::sync::atomic::AtomicBool = std::sync::atomic::
 static CLIPBOARD_AUTO_HIDE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 static CLIPBOARD_MAX_ITEMS: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(30);
 static CLIPBOARD_HOTKEY: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0x76000109); // Default: Ctrl + V
+static LAST_CHANGE_COUNT: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 
 fn default_switch_key() -> i32 {
     #[cfg(target_os = "macos")]
@@ -89,6 +90,12 @@ pub struct ClipboardItem {
     pub file_paths: Option<Vec<String>>,
     pub app_name: Option<String>,
     pub app_pid: Option<i32>,
+}
+
+#[derive(serde::Serialize)]
+struct EnglishDictionary {
+    default_words: Vec<String>,
+    custom_words: Vec<String>,
 }
 
 static CLIPBOARD_HISTORY: OnceLock<Mutex<Vec<ClipboardItem>>> = OnceLock::new();
@@ -455,6 +462,9 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
     if settings.switch_key_status == 0 {
         settings.switch_key_status = default_switch_key();
     }
+    settings.input_type = settings.input_type.clamp(0, 3);
+    settings.code_table = settings.code_table.clamp(0, 4);
+    settings.clipboard_max_items = settings.clipboard_max_items.clamp(5, 200);
     let previous_code_table = unsafe { engine::vCodeTable };
     unsafe {
         engine::vLanguage = settings.language;
@@ -499,6 +509,9 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
     CLIPBOARD_PIN_ON_TOP.store(settings.clipboard_pin_on_top == 1, std::sync::atomic::Ordering::Relaxed);
     CLIPBOARD_AUTO_HIDE.store(settings.clipboard_auto_hide == 1, std::sync::atomic::Ordering::Relaxed);
     CLIPBOARD_MAX_ITEMS.store(settings.clipboard_max_items, std::sync::atomic::Ordering::Relaxed);
+    if let Some(window) = handle.get_webview_window("clipboard") {
+        let _ = window.set_always_on_top(settings.clipboard_pin_on_top == 1);
+    }
     if settings.clipboard_hotkey != 0 {
         CLIPBOARD_HOTKEY.store(settings.clipboard_hotkey, std::sync::atomic::Ordering::Relaxed);
     }
@@ -551,7 +564,7 @@ fn load_english_dict_from_disk(handle: &tauri::AppHandle) {
                 engine::set_custom_english_words(&content);
             }
         } else {
-            let default_content = "# Thêm các từ tiếng Anh cần bảo vệ vào đây (mỗi dòng một từ hoặc cách nhau bằng dấu cách)\n# Ví dụ:\n# source\n# rust\n# test\n";
+            let default_content = "# Từ tùy chỉnh của bạn. Danh sách mặc định được tích hợp trong VNKey.\n";
             let _ = std::fs::write(&path, default_content);
             engine::set_custom_english_words(default_content);
         }
@@ -559,23 +572,40 @@ fn load_english_dict_from_disk(handle: &tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn get_custom_english_words(handle: tauri::AppHandle) -> Result<String, String> {
-    if let Some(path) = get_english_dict_path(&handle) {
-        if path.exists() {
-            std::fs::read_to_string(&path).map_err(|e| e.to_string())
-        } else {
-            Ok(String::new())
-        }
-    } else {
-        Err("Không thể truy cập thư mục cấu hình.".into())
-    }
+fn get_english_dictionary(handle: tauri::AppHandle) -> Result<EnglishDictionary, String> {
+    let custom_content = get_english_dict_path(&handle)
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .unwrap_or_default();
+    Ok(EnglishDictionary {
+        default_words: parse_english_words(&engine::default_english_words()),
+        custom_words: parse_english_words(&custom_content),
+    })
+}
+
+fn parse_english_words(content: &str) -> Vec<String> {
+    let mut words: Vec<String> = content
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .flat_map(str::split_whitespace)
+        .filter_map(|word| {
+            let normalized = word.to_ascii_lowercase();
+            normalized
+                .bytes()
+                .all(|byte| byte.is_ascii_alphabetic())
+                .then_some(normalized)
+        })
+        .collect();
+    words.sort_unstable();
+    words.dedup();
+    words
 }
 
 #[tauri::command]
 fn save_custom_english_words(words: String, handle: tauri::AppHandle) -> Result<(), String> {
     if let Some(path) = get_english_dict_path(&handle) {
-        std::fs::write(&path, &words).map_err(|e| e.to_string())?;
-        engine::set_custom_english_words(&words);
+        let normalized = parse_english_words(&words).join("\n");
+        std::fs::write(&path, &normalized).map_err(|e| e.to_string())?;
+        engine::set_custom_english_words(&normalized);
         Ok(())
     } else {
         Err("Không thể truy cập thư mục cấu hình.".into())
@@ -1007,7 +1037,7 @@ pub extern "C" fn rust_onQuickConvert() {
 pub extern "C" fn rust_onToggleClipboardPicker() {
     if let Some(handle) = APP_HANDLE.get() {
         let _ = handle.run_on_main_thread(move || {
-            toggle_clipboard_picker(&handle);
+            toggle_clipboard_picker(handle);
         });
     }
 }
@@ -1103,6 +1133,9 @@ fn paste_clipboard_item(id: String, prev_pid: i32, _handle: tauri::AppHandle) {
                 item.image_path.as_deref(),
                 files_joined.as_deref(),
             );
+            // Update LAST_CHANGE_COUNT immediately to prevent duplicate copy event on polling
+            let new_count = engine::clipboard_get_change_count();
+            LAST_CHANGE_COUNT.store(new_count, std::sync::atomic::Ordering::Relaxed);
         }
     }
 }
@@ -1149,7 +1182,7 @@ pub fn run() {
             check_accessibility,
             request_accessibility,
             trigger_quick_convert,
-            get_custom_english_words,
+            get_english_dictionary,
             save_custom_english_words,
             quit,
             get_clipboard_items,
@@ -1165,10 +1198,10 @@ pub fn run() {
             let _ = APP_HANDLE.set(handle.clone());
 
             load_clipboard_from_disk(&handle);
+            LAST_CHANGE_COUNT.store(engine::clipboard_get_change_count(), std::sync::atomic::Ordering::Relaxed);
 
             let handle_poll = handle.clone();
             std::thread::spawn(move || {
-                let mut last_change_count = engine::clipboard_get_change_count();
                 loop {
                     std::thread::sleep(std::time::Duration::from_millis(250));
                     
@@ -1177,8 +1210,9 @@ pub fn run() {
                     }
                     
                     let change_count = engine::clipboard_get_change_count();
-                    if change_count != last_change_count {
-                        last_change_count = change_count;
+                    let last_count = LAST_CHANGE_COUNT.load(std::sync::atomic::Ordering::Relaxed);
+                    if change_count != last_count {
+                        LAST_CHANGE_COUNT.store(change_count, std::sync::atomic::Ordering::Relaxed);
                         
                         if engine::clipboard_is_sensitive() {
                             continue;

@@ -100,9 +100,19 @@
   let searchQuery = $state("");
 
   // English Dictionary state
-  let customEnglishWords = $state("");
+  let defaultEnglishWords = $state<string[]>([]);
+  let customEnglishWords = $state<string[]>([]);
+  let dictionarySearch = $state("");
+  let newEnglishWord = $state("");
+  let dictionaryError = $state("");
   let savingDict = $state(false);
   let saveDictSuccess = $state(false);
+  let filteredEnglishWords = $derived(
+    [
+      ...defaultEnglishWords.map((word) => ({ word, isDefault: true })),
+      ...customEnglishWords.map((word) => ({ word, isDefault: false }))
+    ].filter(({ word }) => word.includes(dictionarySearch.trim().toLowerCase()))
+  );
   let newShortcut = $state("");
   let newContent = $state("");
   let macroError = $state("");
@@ -235,7 +245,9 @@
 
   async function loadCustomEnglishWords() {
     try {
-      customEnglishWords = await invoke<string>("get_custom_english_words");
+      const dictionary = await invoke<{ default_words: string[]; custom_words: string[] }>("get_english_dictionary");
+      defaultEnglishWords = dictionary.default_words;
+      customEnglishWords = dictionary.custom_words;
     } catch (e) {
       console.error("Failed to load custom English words:", e);
     }
@@ -245,7 +257,7 @@
     savingDict = true;
     saveDictSuccess = false;
     try {
-      await invoke("save_custom_english_words", { words: customEnglishWords });
+      await invoke("save_custom_english_words", { words: customEnglishWords.join("\n") });
       saveDictSuccess = true;
       setTimeout(() => {
         saveDictSuccess = false;
@@ -255,6 +267,27 @@
     } finally {
       savingDict = false;
     }
+  }
+
+  async function addEnglishWord() {
+    dictionaryError = "";
+    const word = newEnglishWord.trim().toLowerCase();
+    if (!/^[a-z]+$/.test(word)) {
+      dictionaryError = "Chỉ nhập một từ gồm các chữ cái tiếng Anh a-z.";
+      return;
+    }
+    if (defaultEnglishWords.includes(word) || customEnglishWords.includes(word)) {
+      dictionaryError = "Từ này đã có trong từ điển.";
+      return;
+    }
+    customEnglishWords = [...customEnglishWords, word].sort();
+    newEnglishWord = "";
+    await saveCustomEnglishWords();
+  }
+
+  async function deleteEnglishWord(word: string) {
+    customEnglishWords = customEnglishWords.filter((item) => item !== word);
+    await saveCustomEnglishWords();
   }
 
   async function addMacro() {
@@ -704,7 +737,7 @@
             <h3>Quy tắc gõ dấu</h3>
             <div class="toggles-grid">
               <label class="toggle-container">
-                <span class="toggle-text">Cho phép bỏ dấu tự do</span>
+                <span class="toggle-text">Cho phép bỏ dấu tự do <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Cho phép đặt dấu ở vị trí linh hoạt hơn khi thứ tự phím gõ không chuẩn.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.free_mark === 1} onchange={(e) => handleCheckboxChange('free_mark', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -712,7 +745,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Đặt dấu oà, uý (thay vì òa, úy)</span>
+                <span class="toggle-text">Đặt dấu oà, uý (thay vì òa, úy) <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng quy tắc đặt dấu hiện đại cho các cụm oa, oe, uy.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_modern_orthography === 1} onchange={(e) => handleCheckboxChange('use_modern_orthography', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -728,7 +761,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Cho phép gõ tắt Telex nhanh</span>
+                <span class="toggle-text">Cho phép gõ tắt Telex nhanh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Bật các chuỗi Telex rút gọn. Có thể xung đột với một số từ tiếng Anh.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.quick_telex === 1} onchange={(e) => handleCheckboxChange('quick_telex', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -756,7 +789,7 @@
           <div class="card mt-20">
             <h3>Chính tả & Kiểm tra</h3>
             <label class="toggle-container mb-15">
-              <span class="toggle-text font-bold">Bật kiểm tra chính tả</span>
+                <span class="toggle-text font-bold">Bật kiểm tra chính tả <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Theo dõi cấu trúc âm tiết tiếng Việt để hạn chế chuyển đổi sai.">?</span></span>
               <div class="switch">
                 <input type="checkbox" checked={settings.check_spelling === 1} onchange={(e) => handleCheckboxChange('check_spelling', (e.target as HTMLInputElement).checked)} />
                 <span class="slider"></span>
@@ -765,7 +798,7 @@
 
             <div class="sub-toggles-grid" class:disabled-zone={settings.check_spelling !== 1}>
               <label class="toggle-container">
-                <span class="toggle-text">Khôi phục từ khi gõ sai chính tả</span>
+                  <span class="toggle-text">Khôi phục từ khi gõ sai chính tả <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Trả lại chuỗi phím gốc nếu kết quả không tạo thành âm tiết tiếng Việt hợp lệ.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.check_spelling !== 1} checked={settings.restore_if_wrong_spelling === 1} onchange={(e) => handleCheckboxChange('restore_if_wrong_spelling', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -789,7 +822,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Sử dụng từ điển tiếng Anh</span>
+                  <span class="toggle-text">Sử dụng từ điển tiếng Anh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Giữ nguyên các từ tiếng Anh dễ bị Telex biến đổi. Danh sách mặc định nằm trong VNKey và bạn có thể thêm từ riêng.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.check_spelling !== 1} checked={settings.use_english_dictionary === 1} onchange={(e) => handleCheckboxChange('use_english_dictionary', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -799,19 +832,54 @@
               {#if settings.check_spelling === 1 && settings.use_english_dictionary === 1}
                 <div class="dict-editor-container">
                   <div class="dict-editor-header">
-                    <span>Danh sách từ tiếng Anh cần bảo vệ (cách nhau bởi khoảng trắng hoặc xuống dòng):</span>
+                    <div>
+                      <strong>Từ điển tiếng Anh</strong>
+                      <p>{defaultEnglishWords.length} từ mặc định · {customEnglishWords.length} từ tùy chỉnh</p>
+                    </div>
                   </div>
-                  <textarea 
-                    bind:value={customEnglishWords}
-                    placeholder="# Thêm các từ tiếng Anh cần bảo vệ tại đây&#10;# Ví dụ:&#10;source&#10;rust&#10;test"
-                    class="dict-textarea"
-                  ></textarea>
+                  <div class="dict-toolbar">
+                    <input
+                      type="search"
+                      placeholder="Tìm trong từ điển..."
+                      bind:value={dictionarySearch}
+                      aria-label="Tìm trong từ điển tiếng Anh"
+                    />
+                    <div class="dict-add-row">
+                      <input
+                        type="text"
+                        placeholder="Thêm từ mới"
+                        bind:value={newEnglishWord}
+                        onkeydown={(event) => event.key === "Enter" && addEnglishWord()}
+                        aria-label="Từ tiếng Anh mới"
+                      />
+                      <button class="btn btn-primary" onclick={addEnglishWord} disabled={savingDict}>Thêm</button>
+                    </div>
+                  </div>
+                  {#if dictionaryError}
+                    <p class="form-error">{dictionaryError}</p>
+                  {/if}
+                  <div class="dict-list" aria-label="Danh sách từ tiếng Anh">
+                    {#each filteredEnglishWords as entry (entry.word)}
+                      <div class="dict-word">
+                        <span>{entry.word}</span>
+                        {#if entry.isDefault}
+                          <span class="dict-badge">Mặc định</span>
+                        {:else}
+                          <button
+                            class="dict-delete"
+                            onclick={() => deleteEnglishWord(entry.word)}
+                            aria-label={`Xóa từ ${entry.word}`}
+                            data-tooltip="Xóa từ tùy chỉnh"
+                          >×</button>
+                        {/if}
+                      </div>
+                    {:else}
+                      <div class="dict-empty">Không tìm thấy từ phù hợp.</div>
+                    {/each}
+                  </div>
                   <div class="dict-editor-actions">
-                    <button class="btn btn-primary" onclick={saveCustomEnglishWords} disabled={savingDict}>
-                      {savingDict ? 'Đang lưu...' : 'Lưu danh sách'}
-                    </button>
                     {#if saveDictSuccess}
-                      <span class="save-status success">Lưu thành công!</span>
+                      <span class="save-status success">Đã đồng bộ từ điển.</span>
                     {/if}
                   </div>
                 </div>
@@ -1080,7 +1148,7 @@
             <h3>Tích hợp ứng dụng</h3>
             <div class="toggles-grid">
               <label class="toggle-container">
-                <span class="toggle-text">Chuyển chế độ gõ thông minh theo từng ứng dụng</span>
+                <span class="toggle-text">Chuyển chế độ gõ thông minh theo từng ứng dụng <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Ghi nhớ VI/EN riêng cho từng ứng dụng khi bạn chuyển cửa sổ.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_smart_switch_key === 1} onchange={(e) => handleCheckboxChange('use_smart_switch_key', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1088,7 +1156,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Tự động nhớ bảng mã riêng cho từng ứng dụng</span>
+                <span class="toggle-text">Tự động nhớ bảng mã riêng cho từng ứng dụng <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Khôi phục bảng mã đã dùng gần nhất khi quay lại ứng dụng.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.remember_code === 1} onchange={(e) => handleCheckboxChange('remember_code', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1130,7 +1198,7 @@
             <h3>Khắc phục lỗi & Tương thích</h3>
             <div class="toggles-grid">
               <label class="toggle-container">
-                <span class="toggle-text">Sửa lỗi gõ trên thanh địa chỉ của trình duyệt</span>
+                <span class="toggle-text">Sửa lỗi gõ trên thanh địa chỉ của trình duyệt <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng cách thay thế văn bản tương thích với ô gợi ý và thanh địa chỉ. Có thể làm thao tác thay chữ chậm hơn một chút.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.fix_recommend_browser === 1} onchange={(e) => handleCheckboxChange('fix_recommend_browser', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1138,7 +1206,7 @@
               </label>
 
               <label class="toggle-container" class:disabled-zone={settings.fix_recommend_browser !== 1}>
-                <span class="toggle-text">Sửa lỗi trình duyệt Google Chrome/Chromium</span>
+                  <span class="toggle-text">Sửa lỗi trình duyệt Google Chrome/Chromium <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng lựa chọn văn bản thay cho backspace trong một số ô nhập Chromium.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.fix_recommend_browser !== 1} checked={settings.fix_chromium_browser === 1} onchange={(e) => handleCheckboxChange('fix_chromium_browser', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1146,7 +1214,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Gửi phím từng bước (sửa lỗi lặp từ trên trình duyệt Chrome/Safari)</span>
+                <span class="toggle-text">Gửi phím từng bước <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Gửi từng ký tự riêng để tương thích với ứng dụng lỗi, nhưng chậm hơn chế độ gửi cả chuỗi. Chỉ bật khi gặp lặp hoặc mất chữ.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.send_key_step_by_step === 1} onchange={(e) => handleCheckboxChange('send_key_step_by_step', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1154,7 +1222,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Tương thích với các bố cục (layout) bàn phím khác hệ Mỹ</span>
+                <span class="toggle-text">Tương thích với bố cục bàn phím khác hệ Mỹ <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Đọc ký tự theo layout hiện tại thay vì keycode bàn phím Mỹ. Bật khi dùng AZERTY, Dvorak hoặc layout tùy chỉnh.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.perform_layout_compat === 1} onchange={(e) => handleCheckboxChange('perform_layout_compat', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1176,7 +1244,7 @@
             <h3>Cấu hình Bảng nhớ</h3>
             <div class="toggles-grid">
               <label class="toggle-container">
-                <span class="toggle-text">Kích hoạt Bảng nhớ</span>
+                <span class="toggle-text">Kích hoạt Bảng nhớ <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Theo dõi nội dung sao chép để hiển thị lại nhanh. Dữ liệu nhạy cảm từ ứng dụng hỗ trợ cờ bảo mật sẽ bị bỏ qua.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.clipboard_enabled === 1} onchange={(e) => handleCheckboxChange('clipboard_enabled', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1184,7 +1252,7 @@
               </label>
 
               <label class="toggle-container" class:disabled-zone={settings.clipboard_enabled !== 1}>
-                <span class="toggle-text">Tự động ẩn cửa sổ sau khi chọn dán</span>
+                  <span class="toggle-text">Tự động ẩn cửa sổ sau khi chọn dán <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Đóng Bảng nhớ sau khi dán hoặc khi cửa sổ mất tiêu điểm.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.clipboard_enabled !== 1} checked={settings.clipboard_auto_hide === 1} onchange={(e) => handleCheckboxChange('clipboard_auto_hide', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1192,7 +1260,7 @@
               </label>
 
               <label class="toggle-container" class:disabled-zone={settings.clipboard_enabled !== 1}>
-                <span class="toggle-text">Ghim cửa sổ Bảng nhớ luôn nổi lên trên</span>
+                  <span class="toggle-text">Ghim cửa sổ Bảng nhớ luôn nổi lên trên <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Giữ Bảng nhớ phía trên các cửa sổ khác cho đến khi bạn bỏ ghim.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.clipboard_enabled !== 1} checked={settings.clipboard_pin_on_top === 1} onchange={(e) => handleCheckboxChange('clipboard_pin_on_top', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1884,8 +1952,8 @@
 
   /* Convert Tool text areas layout */
   .editors-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
   }
 
@@ -2031,19 +2099,106 @@
     font-weight: 500;
   }
 
-  .dict-textarea {
-    width: 100%;
-    height: 120px;
-    padding: 8px;
+  .dict-editor-header p {
+    margin: 3px 0 0;
+    font-size: 11.5px;
+    font-weight: 400;
+  }
+
+  .dict-toolbar,
+  .dict-add-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dict-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .dict-toolbar > input,
+  .dict-add-row {
+    flex: 1 1 220px;
+  }
+
+  .dict-add-row input {
+    flex: 1;
+  }
+
+  .dict-toolbar input {
+    min-width: 0;
+    padding: 8px 10px;
     background-color: var(--bg-input);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
     outline: none;
     font-size: 13px;
-    font-family: var(--font-mono, monospace);
-    resize: vertical;
     box-sizing: border-box;
+  }
+
+  .dict-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
+    padding: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+  }
+
+  .dict-word {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+    border-radius: 5px;
+    background: rgba(128, 128, 128, 0.08);
+    font-size: 12.5px;
+  }
+
+  .dict-word > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .dict-badge {
+    color: var(--text-secondary);
+    font-size: 9.5px;
+  }
+
+  .dict-delete {
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .dict-delete:hover {
+    color: #ff453a;
+    background: rgba(255, 69, 58, 0.1);
+  }
+
+  .dict-empty {
+    grid-column: 1 / -1;
+    padding: 18px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .form-error {
+    margin: 0;
+    color: #ff453a;
+    font-size: 12px;
   }
 
   .dict-editor-actions {
@@ -2060,5 +2215,55 @@
 
   .save-status.success {
     color: var(--color-success);
+  }
+
+  [data-tooltip] {
+    position: relative;
+  }
+
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 100;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    width: max-content;
+    max-width: 260px;
+    padding: 7px 9px;
+    border-radius: 6px;
+    background: rgba(28, 28, 30, 0.96);
+    color: white;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    white-space: normal;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    transform: translate(-50%, 4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .help-tooltip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin-left: 5px;
+    border: 1px solid var(--text-secondary);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: help;
+    vertical-align: 1px;
   }
 </style>

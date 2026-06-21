@@ -64,6 +64,8 @@ extern "C" {
     vKeyHookState* pData;
     CGEventRef eventBackSpaceDown;
     CGEventRef eventBackSpaceUp;
+    CGEventRef unicodeEventDown;
+    CGEventRef unicodeEventUp;
     UniChar _newChar, _newCharHi;
     CGEventRef _newEventDown, _newEventUp;
     CGKeyCode _keycode;
@@ -104,6 +106,14 @@ extern "C" {
             CFRelease(myEventSource);
             myEventSource = NULL;
         }
+        if (unicodeEventDown) {
+            CFRelease(unicodeEventDown);
+            unicodeEventDown = NULL;
+        }
+        if (unicodeEventUp) {
+            CFRelease(unicodeEventUp);
+            unicodeEventUp = NULL;
+        }
     }
 
     void VNKeyInit() {
@@ -114,6 +124,8 @@ extern "C" {
 
         eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
         eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
+        unicodeEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
+        unicodeEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
 
         //init and load macro data
         NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
@@ -156,7 +168,13 @@ extern "C" {
         NSRunningApplication *application = [[NSWorkspace sharedWorkspace] frontmostApplication];
         NSString *bundleIdentifier = application.bundleIdentifier;
         if (bundleIdentifier == nil || [bundleIdentifier compare:VNKEY_BUNDLE] != 0) {
-            _frontMostApp = bundleIdentifier ?: application.localizedName ?: @"UnknownApp";
+            if (bundleIdentifier != nil) {
+                _frontMostApp = bundleIdentifier;
+            } else if (application.localizedName != nil) {
+                _frontMostApp = application.localizedName;
+            } else {
+                _frontMostApp = @"UnknownApp";
+            }
         }
         _frontMostAppCheckedAt = CFAbsoluteTimeGetCurrent();
     }
@@ -288,16 +306,21 @@ extern "C" {
     void InsertKeyLength(const Uint8& len) {
         _syncKey.push_back(len);
     }
+
+    bool PostUnicodeString(const UniChar *characters, UniCharCount length) {
+        if (unicodeEventDown == NULL || unicodeEventUp == NULL ||
+            characters == NULL || length == 0) {
+            return false;
+        }
+        CGEventKeyboardSetUnicodeString(unicodeEventDown, length, characters);
+        CGEventKeyboardSetUnicodeString(unicodeEventUp, length, characters);
+        CGEventTapPostEvent(_proxy, unicodeEventDown);
+        CGEventTapPostEvent(_proxy, unicodeEventUp);
+        return true;
+    }
     
     void SendPureCharacter(const Uint16& ch) {
-        _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-        _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-        CGEventKeyboardSetUnicodeString(_newEventDown, 1, &ch);
-        CGEventKeyboardSetUnicodeString(_newEventUp, 1, &ch);
-        CGEventTapPostEvent(_proxy, _newEventDown);
-        CGEventTapPostEvent(_proxy, _newEventUp);
-        CFRelease(_newEventDown);
-        CFRelease(_newEventUp);
+        PostUnicodeString(&ch, 1);
         if (IS_DOUBLE_CODE(vCodeTable)) {
             InsertKeyLength(1);
         }
@@ -326,33 +349,16 @@ extern "C" {
             CGEventTapPostEvent(_proxy, _newEventUp);
         } else {
             if (vCodeTable == 0) { //unicode 2 bytes code
-                _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-                _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-                CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
-                CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
-                CGEventTapPostEvent(_proxy, _newEventDown);
-                CGEventTapPostEvent(_proxy, _newEventUp);
+                PostUnicodeString(&_newChar, 1);
             } else if (vCodeTable == 1 || vCodeTable == 2 || vCodeTable == 4) { //others such as VNI Windows, TCVN3: 1 byte code
                 _newCharHi = HIBYTE(_newChar);
                 _newChar = LOBYTE(_newChar);
                 
-                _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-                _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-                CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
-                CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
-                CGEventTapPostEvent(_proxy, _newEventDown);
-                CGEventTapPostEvent(_proxy, _newEventUp);
+                PostUnicodeString(&_newChar, 1);
                 if (_newCharHi > 32) {
                     if (vCodeTable == 2) //VNI
                         InsertKeyLength(2);
-                    CFRelease(_newEventDown);
-                    CFRelease(_newEventUp);
-                    _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-                    _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-                    CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newCharHi);
-                    CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newCharHi);
-                    CGEventTapPostEvent(_proxy, _newEventDown);
-                    CGEventTapPostEvent(_proxy, _newEventUp);
+                    PostUnicodeString(&_newCharHi, 1);
                 } else {
                     if (vCodeTable == 2) //VNI
                         InsertKeyLength(1);
@@ -363,16 +369,17 @@ extern "C" {
                 _uniChar[0] = _newChar;
                 _uniChar[1] = _newCharHi > 0 ? (_unicodeCompoundMark[_newCharHi - 1]) : 0;
                 InsertKeyLength(_newCharHi > 0 ? 2 : 1);
-                _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-                _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-                CGEventKeyboardSetUnicodeString(_newEventDown, (_newCharHi > 0 ? 2 : 1), _uniChar);
-                CGEventKeyboardSetUnicodeString(_newEventUp, (_newCharHi > 0 ? 2 : 1), _uniChar);
-                CGEventTapPostEvent(_proxy, _newEventDown);
-                CGEventTapPostEvent(_proxy, _newEventUp);
+                PostUnicodeString(_uniChar, (_newCharHi > 0 ? 2 : 1));
             }
         }
-        CFRelease(_newEventDown);
-        CFRelease(_newEventUp);
+        if (_newEventDown) {
+            CFRelease(_newEventDown);
+            _newEventDown = NULL;
+        }
+        if (_newEventUp) {
+            CFRelease(_newEventUp);
+            _newEventUp = NULL;
+        }
     }
     
     void SendEmptyCharacter() {
@@ -384,14 +391,7 @@ extern "C" {
             _newChar = 0x200C; //Unicode character with empty space
         }
         
-        _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-        _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-        CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
-        CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
-        CGEventTapPostEvent(_proxy, _newEventDown);
-        CGEventTapPostEvent(_proxy, _newEventUp);
-        CFRelease(_newEventDown);
-        CFRelease(_newEventUp);
+        PostUnicodeString(&_newChar, 1);
     }
     
     void SendVirtualKey(const Byte& vKey) {
@@ -409,7 +409,7 @@ extern "C" {
         CGEventTapPostEvent(_proxy, eventBackSpaceDown);
         CGEventTapPostEvent(_proxy, eventBackSpaceUp);
         
-        if (IS_DOUBLE_CODE(vCodeTable)) { //VNI or Unicode Compound
+        if (IS_DOUBLE_CODE(vCodeTable) && !_syncKey.empty()) { //VNI or Unicode Compound
             if (_syncKey.back() > 1) {
                 if (!(vCodeTable == 3 && containUnicodeCompoundApp(FRONT_APP))) {
                     CGEventTapPostEvent(_proxy, eventBackSpaceDown);
@@ -431,7 +431,7 @@ extern "C" {
         CGEventTapPostEvent(_proxy, eventVkeyDown);
         CGEventTapPostEvent(_proxy, eventVkeyUp);
         
-        if (IS_DOUBLE_CODE(vCodeTable)) { //VNI or Unicode Compound
+        if (IS_DOUBLE_CODE(vCodeTable) && !_syncKey.empty()) { //VNI or Unicode Compound
             if (_syncKey.back() > 1) {
                 if (!(vCodeTable == 3 && containUnicodeCompoundApp(FRONT_APP))) {
                     CGEventTapPostEvent(_proxy, eventVkeyDown);
@@ -532,14 +532,9 @@ extern "C" {
             startNewSession();
         }
         
-        _newEventDown = CGEventCreateKeyboardEvent(myEventSource, 0, true);
-        _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
-        CGEventKeyboardSetUnicodeString(_newEventDown, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
-        CGEventKeyboardSetUnicodeString(_newEventUp, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
-        CGEventTapPostEvent(_proxy, _newEventDown);
-        CGEventTapPostEvent(_proxy, _newEventUp);
-        CFRelease(_newEventDown);
-        CFRelease(_newEventUp);
+        PostUnicodeString(
+            _newCharString,
+            _willContinuteSending ? 16 : _newCharSize - offset);
 
         if (_willContinuteSending) {
             SendNewCharString(dataFromMacro, dataFromMacro ? _k : 16);
@@ -1137,6 +1132,22 @@ extern "C" {
             }
             
             // Check direct image data in pasteboard
+            NSArray *images = [pb readObjectsForClasses:@[[NSImage class]] options:nil];
+            if ([images count] > 0) {
+                NSImage *image = images[0];
+                CGImageRef imageCG = [image CGImageForProposedRect:NULL context:nil hints:nil];
+                if (imageCG) {
+                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageCG];
+                    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+                    if (png) {
+                        *len = (int)[png length];
+                        uint8_t *buf = (uint8_t*)malloc(*len);
+                        memcpy(buf, [png bytes], *len);
+                        return buf;
+                    }
+                }
+            }
+
             NSArray *types = [pb types];
             NSData *imgData = nil;
             BOOL isPNG = NO;
@@ -1249,7 +1260,6 @@ extern "C" {
                     [fileItem setString:[fileURL absoluteString] forType:NSPasteboardTypeFileURL];
                     [pbItems addObject:fileItem];
                 }
-                [pb setPropertyList:activeFilePaths forType:@"NSFilenamesPboardType"];
                 hasData = YES;
             }
             
@@ -1283,6 +1293,9 @@ extern "C" {
             
             if (hasData) {
                 [pb writeObjects:pbItems];
+                if ([activeFilePaths count] > 0) {
+                    [pb setPropertyList:activeFilePaths forType:@"NSFilenamesPboardType"];
+                }
             }
             
             // Activate the previous application
