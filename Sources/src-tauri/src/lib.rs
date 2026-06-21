@@ -14,6 +14,17 @@ static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static TRAY_ICON: OnceLock<TrayIcon<tauri::Wry>> = OnceLock::new();
 static GRAY_ICON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
+fn default_switch_key() -> i32 {
+    #[cfg(target_os = "macos")]
+    {
+        0x20000C31 // cmd + shift + space
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        0x20000920 // ctrl + shift + space
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct Settings {
     pub language: i32,
@@ -43,6 +54,15 @@ pub struct Settings {
     pub fix_chromium_browser: i32,
     pub perform_layout_compat: i32,
     pub gray_icon: i32,
+    pub convert_tool_dont_alert: i32,
+    pub convert_tool_to_all_caps: i32,
+    pub convert_tool_to_all_non_caps: i32,
+    pub convert_tool_to_caps_first_letter: i32,
+    pub convert_tool_to_caps_each_word: i32,
+    pub convert_tool_remove_mark: i32,
+    pub convert_tool_from_code: i32,
+    pub convert_tool_to_code: i32,
+    pub convert_tool_hotkey: i32,
 }
 
 #[derive(serde::Deserialize)]
@@ -63,8 +83,13 @@ fn get_settings() -> Settings {
     unsafe {
         let mut switch_key = engine::vSwitchKeyStatus;
         if switch_key == 0 {
-            switch_key = 0x7A000206; // Default to Option + Z
+            switch_key = default_switch_key();
             engine::vSwitchKeyStatus = switch_key;
+        }
+        let mut convert_hotkey = engine::get_convert_tool_hotkey();
+        if convert_hotkey == 0 {
+            convert_hotkey = 0xFE0000FEu32 as i32; // EMPTY_HOTKEY
+            engine::set_convert_tool_hotkey(convert_hotkey);
         }
         Settings {
             language: engine::vLanguage,
@@ -94,6 +119,15 @@ fn get_settings() -> Settings {
             fix_chromium_browser: engine::vFixChromiumBrowser,
             perform_layout_compat: engine::vPerformLayoutCompat,
             gray_icon: if GRAY_ICON.load(std::sync::atomic::Ordering::Relaxed) { 1 } else { 0 },
+            convert_tool_dont_alert: engine::get_convert_tool_dont_alert(),
+            convert_tool_to_all_caps: engine::get_convert_tool_to_all_caps(),
+            convert_tool_to_all_non_caps: engine::get_convert_tool_to_all_non_caps(),
+            convert_tool_to_caps_first_letter: engine::get_convert_tool_to_caps_first_letter(),
+            convert_tool_to_caps_each_word: engine::get_convert_tool_to_caps_each_word(),
+            convert_tool_remove_mark: engine::get_convert_tool_remove_mark(),
+            convert_tool_from_code: engine::get_convert_tool_from_code(),
+            convert_tool_to_code: engine::get_convert_tool_to_code(),
+            convert_tool_hotkey: convert_hotkey,
         }
     }
 }
@@ -117,7 +151,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                     if let Ok(settings) = serde_json::from_str::<Settings>(&content) {
                         let mut switch_key = settings.switch_key_status;
                         if switch_key == 0 {
-                            switch_key = 0x7A000206; // Default to Option + Z
+                            switch_key = default_switch_key();
                         }
                         unsafe {
                             engine::vLanguage = settings.language;
@@ -146,6 +180,15 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             engine::vSendKeyStepByStep = settings.send_key_step_by_step;
                             engine::vFixChromiumBrowser = settings.fix_chromium_browser;
                             engine::vPerformLayoutCompat = settings.perform_layout_compat;
+                            engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
+                            engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
+                            engine::set_convert_tool_to_all_non_caps(settings.convert_tool_to_all_non_caps);
+                            engine::set_convert_tool_to_caps_first_letter(settings.convert_tool_to_caps_first_letter);
+                            engine::set_convert_tool_to_caps_each_word(settings.convert_tool_to_caps_each_word);
+                            engine::set_convert_tool_remove_mark(settings.convert_tool_remove_mark);
+                            engine::set_convert_tool_from_code(settings.convert_tool_from_code);
+                            engine::set_convert_tool_to_code(settings.convert_tool_to_code);
+                            engine::set_convert_tool_hotkey(settings.convert_tool_hotkey);
                         }
                         GRAY_ICON.store(settings.gray_icon == 1, std::sync::atomic::Ordering::Relaxed);
                     }
@@ -168,7 +211,7 @@ fn save_settings_to_disk(handle: &tauri::AppHandle, settings: &Settings) {
 #[tauri::command]
 fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
     if settings.switch_key_status == 0 {
-        settings.switch_key_status = 0x7A000206; // Default to Option + Z
+        settings.switch_key_status = default_switch_key();
     }
     let previous_code_table = unsafe { engine::vCodeTable };
     unsafe {
@@ -198,6 +241,15 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
+        engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
+        engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
+        engine::set_convert_tool_to_all_non_caps(settings.convert_tool_to_all_non_caps);
+        engine::set_convert_tool_to_caps_first_letter(settings.convert_tool_to_caps_first_letter);
+        engine::set_convert_tool_to_caps_each_word(settings.convert_tool_to_caps_each_word);
+        engine::set_convert_tool_remove_mark(settings.convert_tool_remove_mark);
+        engine::set_convert_tool_from_code(settings.convert_tool_from_code);
+        engine::set_convert_tool_to_code(settings.convert_tool_to_code);
+        engine::set_convert_tool_hotkey(settings.convert_tool_hotkey);
         engine::startNewSession();
     }
     GRAY_ICON.store(settings.gray_icon == 1, std::sync::atomic::Ordering::Relaxed);
@@ -226,6 +278,51 @@ fn load_macros_from_disk(handle: &tauri::AppHandle) {
         if path.exists() {
             engine::load_macros(&path.to_string_lossy());
         }
+    }
+}
+
+fn get_english_dict_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
+    let mut path = handle.path().app_config_dir().ok()?;
+    create_dir_all(&path).ok()?;
+    path.push("english.txt");
+    Some(path)
+}
+
+fn load_english_dict_from_disk(handle: &tauri::AppHandle) {
+    if let Some(path) = get_english_dict_path(handle) {
+        if path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                engine::set_custom_english_words(&content);
+            }
+        } else {
+            let default_content = "# Thêm các từ tiếng Anh cần bảo vệ vào đây (mỗi dòng một từ hoặc cách nhau bằng dấu cách)\n# Ví dụ:\n# source\n# rust\n# test\n";
+            let _ = std::fs::write(&path, default_content);
+            engine::set_custom_english_words(default_content);
+        }
+    }
+}
+
+#[tauri::command]
+fn get_custom_english_words(handle: tauri::AppHandle) -> Result<String, String> {
+    if let Some(path) = get_english_dict_path(&handle) {
+        if path.exists() {
+            std::fs::read_to_string(&path).map_err(|e| e.to_string())
+        } else {
+            Ok(String::new())
+        }
+    } else {
+        Err("Không thể truy cập thư mục cấu hình.".into())
+    }
+}
+
+#[tauri::command]
+fn save_custom_english_words(words: String, handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(path) = get_english_dict_path(&handle) {
+        std::fs::write(&path, &words).map_err(|e| e.to_string())?;
+        engine::set_custom_english_words(&words);
+        Ok(())
+    } else {
+        Err("Không thể truy cập thư mục cấu hình.".into())
     }
 }
 
@@ -339,16 +436,10 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
         return menu;
     }
 
-    let language_label = unsafe {
-        if engine::vLanguage == 1 {
-            "Tiếng Anh (English)"
-        } else {
-            "Tiếng Việt"
-        }
-    };
-
-    let toggle_lang = MenuItemBuilder::new(language_label)
+    let is_vietnamese = unsafe { engine::vLanguage == 1 };
+    let toggle_lang = CheckMenuItemBuilder::new("Bật Tiếng Việt")
         .id("toggle_language")
+        .checked(is_vietnamese)
         .build(handle)
         .unwrap();
 
@@ -365,27 +456,63 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
         let _ = input_type_menu.append(&item);
     }
 
-    let code_table_menu = SubmenuBuilder::new(handle, "Bảng mã").build().unwrap();
     let current_code_table = unsafe { engine::vCodeTable };
-    let ct_labels = [
-        "Unicode dựng sẵn",
-        "TCVN3 (ABC)",
-        "VNI Windows",
-        "Unicode tổ hợp",
-        "Vietnamese Locale CP1258",
+
+    let mnu_unicode = CheckMenuItemBuilder::new("Unicode dựng sẵn")
+        .id("code_table_0")
+        .checked(current_code_table == 0)
+        .build(handle)
+        .unwrap();
+
+    let mnu_tcvn = CheckMenuItemBuilder::new("TCVN3 (ABC)")
+        .id("code_table_1")
+        .checked(current_code_table == 1)
+        .build(handle)
+        .unwrap();
+
+    let mnu_vni_windows = CheckMenuItemBuilder::new("VNI Windows")
+        .id("code_table_2")
+        .checked(current_code_table == 2)
+        .build(handle)
+        .unwrap();
+
+    let other_code_menu = SubmenuBuilder::new(handle, "Bảng mã khác").build().unwrap();
+    let other_ct_labels = [
+        ("Unicode tổ hợp", 3),
+        ("Vietnamese Locale CP1258", 4),
     ];
-    for (i, label) in ct_labels.iter().enumerate() {
-        let checked = current_code_table == i as i32;
+    for (label, i) in other_ct_labels.iter() {
+        let checked = current_code_table == *i;
         let item = CheckMenuItemBuilder::new(*label)
             .id(format!("code_table_{}", i))
             .checked(checked)
             .build(handle)
             .unwrap();
-        let _ = code_table_menu.append(&item);
+        let _ = other_code_menu.append(&item);
     }
+
+    let convert_tool = MenuItemBuilder::new("Công cụ chuyển mã...")
+        .id("convert_tool")
+        .build(handle)
+        .unwrap();
+
+    let quick_convert = MenuItemBuilder::new("Chuyển mã nhanh")
+        .id("quick_convert")
+        .build(handle)
+        .unwrap();
 
     let control_panel = MenuItemBuilder::new("Bảng điều khiển...")
         .id("control_panel")
+        .build(handle)
+        .unwrap();
+
+    let macro_settings = MenuItemBuilder::new("Gõ tắt...")
+        .id("macro_settings")
+        .build(handle)
+        .unwrap();
+
+    let about = MenuItemBuilder::new("Giới thiệu")
+        .id("about")
         .build(handle)
         .unwrap();
 
@@ -397,10 +524,25 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
     let menu = Menu::new(handle).unwrap();
     let _ = menu.append(&toggle_lang);
     let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
+    
     let _ = menu.append(&input_type_menu);
-    let _ = menu.append(&code_table_menu);
     let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
+    
+    let _ = menu.append(&mnu_unicode);
+    let _ = menu.append(&mnu_tcvn);
+    let _ = menu.append(&mnu_vni_windows);
+    let _ = menu.append(&other_code_menu);
+    let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
+    
+    let _ = menu.append(&convert_tool);
+    let _ = menu.append(&quick_convert);
+    let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
+    
     let _ = menu.append(&control_panel);
+    let _ = menu.append(&macro_settings);
+    let _ = menu.append(&about);
+    let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
+    
     let _ = menu.append(&quit);
 
     menu
@@ -455,6 +597,18 @@ pub extern "C" fn rust_onQuickConvert() {
     }
 }
 
+#[tauri::command]
+fn disable_hotkeys(disable: bool) {
+    unsafe {
+        engine::vDisableHotkeys = if disable { 1 } else { 0 };
+    }
+}
+
+#[tauri::command]
+fn trigger_quick_convert() {
+    rust_onQuickConvert();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize C++ input engine
@@ -465,12 +619,16 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_settings,
             update_settings,
+            disable_hotkeys,
             list_macros,
             upsert_macro,
             remove_macro,
             convert_text,
             check_accessibility,
             request_accessibility,
+            trigger_quick_convert,
+            get_custom_english_words,
+            save_custom_english_words,
             quit
         ])
         .setup(|app| {
@@ -481,6 +639,7 @@ pub fn run() {
             if has_access {
                 load_settings_from_disk(&handle);
                 load_macros_from_disk(&handle);
+                load_english_dict_from_disk(&handle);
                 unsafe {
                     engine::start_event_tap();
                 }
@@ -495,6 +654,7 @@ pub fn run() {
                             let _ = handle_clone.run_on_main_thread(move || {
                                 load_settings_from_disk(&handle_clone_2);
                                 load_macros_from_disk(&handle_clone_2);
+                                load_english_dict_from_disk(&handle_clone_2);
                                 unsafe {
                                     engine::start_event_tap();
                                 }
@@ -528,7 +688,29 @@ pub fn run() {
                     "control_panel" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show().and_then(|_| window.set_focus());
+                            let _ = window.emit("show-tab", 0);
                         }
+                    }
+                    "macro_settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show().and_then(|_| window.set_focus());
+                            let _ = window.emit("show-tab", 1);
+                        }
+                    }
+                    "convert_tool" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show().and_then(|_| window.set_focus());
+                            let _ = window.emit("show-tab", 2);
+                        }
+                    }
+                    "about" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show().and_then(|_| window.set_focus());
+                            let _ = window.emit("show-tab", 4);
+                        }
+                    }
+                    "quick_convert" => {
+                        rust_onQuickConvert();
                     }
                     "quit" => {
                         unsafe {

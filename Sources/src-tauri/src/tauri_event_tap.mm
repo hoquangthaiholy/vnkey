@@ -50,6 +50,7 @@ extern "C" {
     extern int vSendKeyStepByStep;
     extern int vFixChromiumBrowser;
     extern int vPerformLayoutCompat;
+    extern int vDisableHotkeys;
     //app which must sent special empty character
     NSArray* _niceSpaceApp = @[@"com.sublimetext.3",
                                @"com.sublimetext.2",
@@ -512,13 +513,14 @@ extern "C" {
     bool checkHotKey(int hotKeyData, bool checkKeyCode=true) {
         if ((hotKeyData & (~0x8000)) == EMPTY_HOTKEY)
             return false;
-        if (HAS_CONTROL(hotKeyData) ^ GET_BOOL(_lastFlag & kCGEventFlagMaskControl))
+        CGEventFlags flagToCheck = checkKeyCode ? _flag : _lastFlag;
+        if (HAS_CONTROL(hotKeyData) ^ GET_BOOL(flagToCheck & kCGEventFlagMaskControl))
             return false;
-        if (HAS_OPTION(hotKeyData) ^ GET_BOOL(_lastFlag & kCGEventFlagMaskAlternate))
+        if (HAS_OPTION(hotKeyData) ^ GET_BOOL(flagToCheck & kCGEventFlagMaskAlternate))
             return false;
-        if (HAS_COMMAND(hotKeyData) ^ GET_BOOL(_lastFlag & kCGEventFlagMaskCommand))
+        if (HAS_COMMAND(hotKeyData) ^ GET_BOOL(flagToCheck & kCGEventFlagMaskCommand))
             return false;
-        if (HAS_SHIFT(hotKeyData) ^ GET_BOOL(_lastFlag & kCGEventFlagMaskShift))
+        if (HAS_SHIFT(hotKeyData) ^ GET_BOOL(flagToCheck & kCGEventFlagMaskShift))
             return false;
         if (checkKeyCode) {
             if (GET_SWITCH_KEY(hotKeyData) != _keycode)
@@ -611,49 +613,56 @@ extern "C" {
         
         //switch language shortcut; convert hotkey
         if (type == kCGEventKeyDown) {
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode) {
-                _lastFlag = 0;
-            } else {
-                if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
-                    switchLanguage();
+            if (!vDisableHotkeys) {
+                if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode) {
                     _lastFlag = 0;
-                    _hasJustUsedHotKey = true;
-                    return NULL;
+                } else {
+                    if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
+                        switchLanguage();
+                        _lastFlag = 0;
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
+                    if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)){
+                        rust_onQuickConvert();
+                        _lastFlag = 0;
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
                 }
-                if (GET_SWITCH_KEY(convertToolHotKey) == _keycode && checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)){
-                    rust_onQuickConvert();
-                    _lastFlag = 0;
-                    _hasJustUsedHotKey = true;
-                    return NULL;
-                }
+                _hasJustUsedHotKey = _lastFlag != 0;
             }
-            _hasJustUsedHotKey = _lastFlag != 0;
         } else if (type == kCGEventFlagsChanged) {
-            if (_lastFlag == 0 || _lastFlag < _flag) {
-                _lastFlag = _flag;
-            } else if (_lastFlag > _flag)  {
-                //check switch
-                if (checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
-                    _lastFlag = 0;
-                    switchLanguage();
-                    _hasJustUsedHotKey = true;
-                    return NULL;
-                }
-                if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
-                    _lastFlag = 0;
-                    rust_onQuickConvert();
-                    _hasJustUsedHotKey = true;
-                    return NULL;
-                }
-                //check temporarily turn off spell checking
-                if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskControl) {
-                    vTempOffSpellChecking();
-                }
-                if (vTempOffVNKey && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskCommand) {
-                    vTempOffEngine();
-                }
+            if (vDisableHotkeys) {
                 _lastFlag = 0;
                 _hasJustUsedHotKey = false;
+            } else {
+                if (_lastFlag == 0 || _lastFlag < _flag) {
+                    _lastFlag = _flag;
+                } else if (_lastFlag > _flag)  {
+                    //check switch
+                    if (checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
+                        _lastFlag = 0;
+                        switchLanguage();
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
+                    if (checkHotKey(convertToolHotKey, GET_SWITCH_KEY(convertToolHotKey) != 0xFE)) {
+                        _lastFlag = 0;
+                        rust_onQuickConvert();
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
+                    //check temporarily turn off spell checking
+                    if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskControl) {
+                        vTempOffSpellChecking();
+                    }
+                    if (vTempOffVNKey && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskCommand) {
+                        vTempOffEngine();
+                    }
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = false;
+                }
             }
         }
 

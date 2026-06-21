@@ -14,5 +14,6 @@
  * intentionally excluded.
  */
 bool isProtectedEnglishWord(const std::string& word);
+void setCustomEnglishWords(const std::string& content);
 
 #endif /* EnglishDictionary_h */

@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "../engine/EnglishDictionary.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -15,7 +16,7 @@ extern "C" {
     int vInputType = 0;
     int vFreeMark = 0;
     int vCodeTable = 0;
-    int vSwitchKeyStatus = 0x7A000206; // DEFAULT_SWITCH_STATUS (Option + Z)
+    int vSwitchKeyStatus = 0x20000C31; // DEFAULT_SWITCH_STATUS (Cmd + Shift + Space)
     int vCheckSpelling = 1;
     int vUseModernOrthography = 0;
     int vQuickTelex = 0;
@@ -33,6 +34,7 @@ extern "C" {
     int vRememberCode = 1;
     int vOtherLanguage = 1;
     int vTempOffVNKey = 0;
+    int vDisableHotkeys = 0;
 
     char* vnkey_copy_string(const std::string& value) {
         char* result = static_cast<char*>(malloc(value.size() + 1));
@@ -114,6 +116,14 @@ extern "C" {
         initMacroMap(data.data(), static_cast<int>(data.size()));
     }
 
+    void vnkey_set_custom_english_words(const char* content) {
+        if (content == nullptr) {
+            setCustomEnglishWords("");
+        } else {
+            setCustomEnglishWords(content);
+        }
+    }
+
     char* vnkey_convert_text(
         const char* source,
         int from_code,
@@ -136,6 +146,33 @@ extern "C" {
         convertToolRemoveMark = remove_mark;
         return vnkey_copy_string(convertUtil(source));
     }
+
+    int get_convert_tool_dont_alert() { return convertToolDontAlertWhenCompleted ? 1 : 0; }
+    void set_convert_tool_dont_alert(int val) { convertToolDontAlertWhenCompleted = (val != 0); }
+
+    int get_convert_tool_to_all_caps() { return convertToolToAllCaps ? 1 : 0; }
+    void set_convert_tool_to_all_caps(int val) { convertToolToAllCaps = (val != 0); }
+
+    int get_convert_tool_to_all_non_caps() { return convertToolToAllNonCaps ? 1 : 0; }
+    void set_convert_tool_to_all_non_caps(int val) { convertToolToAllNonCaps = (val != 0); }
+
+    int get_convert_tool_to_caps_first_letter() { return convertToolToCapsFirstLetter ? 1 : 0; }
+    void set_convert_tool_to_caps_first_letter(int val) { convertToolToCapsFirstLetter = (val != 0); }
+
+    int get_convert_tool_to_caps_each_word() { return convertToolToCapsEachWord ? 1 : 0; }
+    void set_convert_tool_to_caps_each_word(int val) { convertToolToCapsEachWord = (val != 0); }
+
+    int get_convert_tool_remove_mark() { return convertToolRemoveMark ? 1 : 0; }
+    void set_convert_tool_remove_mark(int val) { convertToolRemoveMark = (val != 0); }
+
+    int get_convert_tool_from_code() { return convertToolFromCode; }
+    void set_convert_tool_from_code(int val) { convertToolFromCode = static_cast<Uint8>(val); }
+
+    int get_convert_tool_to_code() { return convertToolToCode; }
+    void set_convert_tool_to_code(int val) { convertToolToCode = static_cast<Uint8>(val); }
+
+    int get_convert_tool_hotkey() { return convertToolHotKey; }
+    void set_convert_tool_hotkey(int val) { convertToolHotKey = val; }
 
 #if !defined(__APPLE__)
     bool start_event_tap() {

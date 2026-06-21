@@ -13,11 +13,12 @@
     "windows": [
       {
         "title": "VNKey",
-        "width": 980,
+        "width": 800,
         "height": 700,
-        "minWidth": 780,
+        "minWidth": 720,
         "minHeight": 560,
-        "center": true
+        "center": true,
+        "titleBarStyle": "Transparent"
       }
     ],
     "security": {

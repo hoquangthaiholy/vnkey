@@ -31,6 +31,7 @@ extern "C" {
     pub static mut vRememberCode: c_int;
     pub static mut vOtherLanguage: c_int;
     pub static mut vTempOffVNKey: c_int;
+    pub static mut vDisableHotkeys: c_int;
     pub static mut vSendKeyStepByStep: c_int;
     pub static mut vFixChromiumBrowser: c_int;
     pub static mut vPerformLayoutCompat: c_int;
@@ -50,6 +51,7 @@ extern "C" {
     fn vnkey_on_code_table_changed();
     fn vnkey_save_macros(path: *const c_char);
     fn vnkey_load_macros(path: *const c_char);
+    fn vnkey_set_custom_english_words(content: *const c_char);
     fn vnkey_convert_text(
         source: *const c_char,
         from_code: c_int,
@@ -61,6 +63,25 @@ extern "C" {
         remove_mark: bool,
     ) -> *mut c_char;
     fn vnkey_free_string(value: *mut c_char);
+
+    pub fn get_convert_tool_dont_alert() -> c_int;
+    pub fn set_convert_tool_dont_alert(val: c_int);
+    pub fn get_convert_tool_to_all_caps() -> c_int;
+    pub fn set_convert_tool_to_all_caps(val: c_int);
+    pub fn get_convert_tool_to_all_non_caps() -> c_int;
+    pub fn set_convert_tool_to_all_non_caps(val: c_int);
+    pub fn get_convert_tool_to_caps_first_letter() -> c_int;
+    pub fn set_convert_tool_to_caps_first_letter(val: c_int);
+    pub fn get_convert_tool_to_caps_each_word() -> c_int;
+    pub fn set_convert_tool_to_caps_each_word(val: c_int);
+    pub fn get_convert_tool_remove_mark() -> c_int;
+    pub fn set_convert_tool_remove_mark(val: c_int);
+    pub fn get_convert_tool_from_code() -> c_int;
+    pub fn set_convert_tool_from_code(val: c_int);
+    pub fn get_convert_tool_to_code() -> c_int;
+    pub fn set_convert_tool_to_code(val: c_int);
+    pub fn get_convert_tool_hotkey() -> c_int;
+    pub fn set_convert_tool_hotkey(val: c_int);
 
     #[cfg(target_os = "macos")]
     fn get_macos_status_icon(vietnamese: bool, gray: bool, len: *mut c_int) -> *const u8;
@@ -151,6 +172,12 @@ pub fn convert_text(
             caps_each_word,
             remove_mark,
         ))
+    }
+}
+
+pub fn set_custom_english_words(content: &str) {
+    if let Ok(c_content) = CString::new(content) {
+        unsafe { vnkey_set_custom_english_words(c_content.as_ptr()) };
     }
 }
 

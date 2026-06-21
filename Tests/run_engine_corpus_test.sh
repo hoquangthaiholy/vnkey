@@ -19,4 +19,4 @@ clang++ -std=c++14 $FLAGS \
   "$ROOT/Sources/src-tauri/engine/ConvertTool.cpp" \
   -o "$OUT"
 
-"$OUT"
+"$OUT" "$@"

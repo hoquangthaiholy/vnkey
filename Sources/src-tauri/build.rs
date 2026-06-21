@@ -3,6 +3,10 @@ fn main() {
     let mut builder = cc::Build::new();
     builder
         .cpp(true)
+        // The event-tap callback runs on every keystroke. Keep the native
+        // engine optimized for speed even when the Rust shell uses
+        // `opt-level = "z"` to reduce the final Tauri bundle size.
+        .opt_level(2)
         .file("engine/ConvertTool.cpp")
         .file("engine/Engine.cpp")
         .file("engine/EnglishDictionary.cpp")

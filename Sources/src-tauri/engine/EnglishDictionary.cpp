@@ -8,127 +8,188 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
+#include <sstream>
+#include <unordered_set>
 
 namespace {
 
 // Keep sorted for binary_search. This is a protected lexicon, not a complete
 // English dictionary: only words that are common in Vietnamese technical text
 // and are vulnerable to Telex transformations belong here.
-const char* const kProtectedEnglishWords[] = {
-    "api",
+const char *const kProtectedEnglishWords[] = {
+    "alert",
     "are",
-    "backend",
+    "array",
+    "async",
+    "await",
     "base",
     "benchmark",
     "browser",
-    "button",
+    "buffer",
     "care",
     "case",
     "checkbox",
-    "chrome",
-    "code",
+    "class",
     "coffee",
-    "cpu",
+    "color",
     "dashboard",
     "database",
-    "deadline",
-    "debug",
+    "destroy",
+    "diff",
+    "display",
     "docker",
-    "documentation",
     "download",
     "dropdown",
-    "email",
-    "engine",
+    "error",
     "example",
     "expected",
+    "export",
+    "extension",
     "fare",
+    "feature",
     "feedback",
-    "file",
+    "filter",
+    "focus",
     "for",
+    "fork",
     "form",
+    "format",
     "framework",
     "free",
-    "frontend",
-    "github",
     "google",
-    "gpu",
+    "handler",
+    "header",
+    "helper",
     "her",
     "here",
-    "http",
-    "input",
+    "history",
+    "host",
+    "hover",
+    "import",
+    "index",
+    "interface",
+    "internet",
     "issue",
     "javascript",
-    "json",
+    "keyboard",
     "kubernetes",
-    "laptop",
+    "library",
     "linux",
-    "login",
-    "logout",
+    "logger",
     "macos",
-    "median",
     "meeting",
-    "modal",
-    "mode",
+    "memory",
+    "message",
     "more",
+    "mouse",
     "network",
-    "notion",
-    "online",
-    "output",
+    "parameter",
     "password",
-    "production",
+    "port",
+    "post",
+    "process",
+    "project",
+    "promise",
+    "proxy",
+    "push",
     "python",
+    "query",
+    "queue",
+    "read",
     "regression",
+    "release",
     "render",
-    "review",
+    "request",
+    "response",
+    "restart",
+    "router",
     "rust",
     "screen",
     "search",
+    "server",
+    "service",
     "share",
-    "slack",
     "software",
+    "sort",
+    "source",
+    "status",
+    "success",
     "support",
     "swift",
-    "telegram",
+    "system",
+    "target",
+    "task",
+    "terminal",
+    "text",
+    "theme",
     "there",
     "these",
+    "thread",
+    "token",
+    "tool",
+    "true",
     "typescript",
-    "upload",
+    "undefined",
     "url",
     "user",
-    "vscode",
+    "variable",
+    "version",
+    "warning",
     "was",
     "website",
     "websocket",
     "were",
     "where",
+    "width",
     "wifi",
     "windows",
     "word",
     "workflow",
     "write",
-    "wrong"
-};
+    "wrong"};
 
-std::string lowerAscii(const std::string& word) {
-    std::string normalized;
-    normalized.reserve(word.size());
-    for (const unsigned char character : word) {
-        if (!std::isalpha(character)) {
-            return std::string();
-        }
-        normalized.push_back(static_cast<char>(std::tolower(character)));
+std::string lowerAscii(const std::string &word) {
+  std::string normalized;
+  normalized.reserve(word.size());
+  for (const unsigned char character : word) {
+    if (!std::isalpha(character)) {
+      return std::string();
     }
-    return normalized;
+    normalized.push_back(static_cast<char>(std::tolower(character)));
+  }
+  return normalized;
 }
+
+std::unordered_set<std::string> gCustomEnglishWords;
 
 } // namespace
 
-bool isProtectedEnglishWord(const std::string& word) {
-    const std::string normalized = lowerAscii(word);
-    if (normalized.empty()) {
-        return false;
+bool isProtectedEnglishWord(const std::string &word) {
+  const std::string normalized = lowerAscii(word);
+  if (normalized.empty()) {
+    return false;
+  }
+  if (std::binary_search(std::begin(kProtectedEnglishWords),
+                         std::end(kProtectedEnglishWords), normalized)) {
+    return true;
+  }
+  return gCustomEnglishWords.count(normalized) > 0;
+}
+
+void setCustomEnglishWords(const std::string& content) {
+  gCustomEnglishWords.clear();
+  std::stringstream ss(content);
+  std::string word;
+  while (ss >> word) {
+    if (word.empty()) continue;
+    if (word[0] == '#') {
+      std::string comment;
+      std::getline(ss, comment);
+      continue;
     }
-    return std::binary_search(std::begin(kProtectedEnglishWords),
-                              std::end(kProtectedEnglishWords),
-                              normalized);
+    std::string normalized = lowerAscii(word);
+    if (!normalized.empty()) {
+      gCustomEnglishWords.insert(normalized);
+    }
+  }
 }

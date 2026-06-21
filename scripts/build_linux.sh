@@ -15,6 +15,16 @@ npm ci
 npm run check
 npm run tauri build
 
+BUILD_OUT_DIR="$WORKSPACE_ROOT/.build"
+mkdir -p "$BUILD_OUT_DIR"
+echo "=== Copying Linux build artifacts to $BUILD_OUT_DIR ==="
+if [ -d "$TAURI_DIR/src-tauri/target/release/bundle/deb" ]; then
+    cp "$TAURI_DIR/src-tauri/target/release/bundle/deb"/*.deb "$BUILD_OUT_DIR/" 2>/dev/null || true
+fi
+if [ -d "$TAURI_DIR/src-tauri/target/release/bundle/appimage" ]; then
+    cp "$TAURI_DIR/src-tauri/target/release/bundle/appimage"/*.AppImage "$BUILD_OUT_DIR/" 2>/dev/null || true
+fi
+
 echo ""
 echo "=== Build finished ==="
-echo "Bundles: $TAURI_DIR/src-tauri/target/release/bundle"
+echo "Artifacts copied to: $BUILD_OUT_DIR"

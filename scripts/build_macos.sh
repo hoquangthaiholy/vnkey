@@ -49,6 +49,15 @@ APP_PATH="$TAURI_DIR/src-tauri/target/release/bundle/macos/VNKey.app"
 codesign --force --deep --sign - "$APP_PATH"
 codesign --verify --deep --strict "$APP_PATH"
 
+BUILD_OUT_DIR="$WORKSPACE_ROOT/.build"
+mkdir -p "$BUILD_OUT_DIR"
+echo "=== Copying macOS build artifacts to $BUILD_OUT_DIR ==="
+rm -rf "$BUILD_OUT_DIR/VNKey.app"
+cp -R "$APP_PATH" "$BUILD_OUT_DIR/"
+if [ -d "$TAURI_DIR/src-tauri/target/release/bundle/dmg" ]; then
+    cp "$TAURI_DIR/src-tauri/target/release/bundle/dmg"/*.dmg "$BUILD_OUT_DIR/" 2>/dev/null || true
+fi
+
 if [ "$ACTION" = "install" ]; then
     echo "=== Installing VNKey.app to /Applications ==="
     echo "Closing currently running VNKey app..."
@@ -66,7 +75,4 @@ fi
 
 echo ""
 echo "=== Build finished ==="
-echo "Application: $APP_PATH"
-if [ "$ACTION" = "dmg" ]; then
-    echo "DMG folder: $TAURI_DIR/src-tauri/target/release/bundle/dmg"
-fi
+echo "Application bundle & artifacts copied to: $BUILD_OUT_DIR"
