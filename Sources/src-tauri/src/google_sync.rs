@@ -6,10 +6,15 @@ use crate::db;
 use crate::cloud_sync::{get_sync_payload, apply_sync_payload};
 
 const CLIENT_ID: Option<&str> = option_env!("GOOGLE_CLIENT_ID");
+const CLIENT_SECRET: Option<&str> = option_env!("GOOGLE_CLIENT_SECRET");
 const SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 
 fn get_client_id() -> Result<&'static str, String> {
     CLIENT_ID.ok_or_else(|| "Google Client ID chưa được cấu hình khi biên dịch".to_string())
+}
+
+fn get_client_secret() -> Result<&'static str, String> {
+    CLIENT_SECRET.ok_or_else(|| "Google Client Secret chưa được cấu hình khi biên dịch".to_string())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -40,17 +45,25 @@ pub async fn start_device_auth() -> Result<DeviceAuthResponse, Box<dyn Error>> {
         .send()
         .await?;
         
+    let status = res.status();
     let text = res.text().await?;
-    let auth_res: DeviceAuthResponse = serde_json::from_str(&text)?;
-    Ok(auth_res)
+    
+    if status.is_success() {
+        let auth_res: DeviceAuthResponse = serde_json::from_str(&text)?;
+        Ok(auth_res)
+    } else {
+        Err(format!("Lỗi cấu hình Google API ({}): {}", status, text).into())
+    }
 }
 
 pub async fn poll_device_auth(device_code: &str) -> Result<TokenResponse, String> {
     let client_id = get_client_id()?;
+    let client_secret = get_client_secret()?;
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/token")
         .form(&[
             ("client_id", client_id),
+            ("client_secret", client_secret),
             ("device_code", device_code),
             ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
         ])
@@ -69,10 +82,12 @@ pub async fn poll_device_auth(device_code: &str) -> Result<TokenResponse, String
 
 pub async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
     let client_id = get_client_id()?;
+    let client_secret = get_client_secret()?;
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/token")
         .form(&[
             ("client_id", client_id),
+            ("client_secret", client_secret),
             ("refresh_token", refresh_token),
             ("grant_type", "refresh_token"),
         ])

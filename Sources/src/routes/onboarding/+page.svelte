@@ -36,7 +36,7 @@
 
 <div class="onboarding-container" data-tauri-drag-region>
   <header class="header" data-tauri-drag-region>
-    <img src="/logo.png" alt="VNKey Logo" class="logo" data-tauri-drag-region />
+    <img src="/favicon.png" alt="VNKey Logo" class="logo" data-tauri-drag-region />
     <h1>Kích hoạt VNKey</h1>
     <p class="subtitle">Bộ gõ tiếng Việt mã nguồn mở thế hệ mới</p>
   </header>

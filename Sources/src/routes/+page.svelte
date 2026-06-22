@@ -989,7 +989,7 @@
     <!-- Left Sidebar -->
     <aside class="sidebar" data-tauri-drag-region>
       <div class="sidebar-header" data-tauri-drag-region>
-        <span class="logo">V</span>
+        <img src="/favicon.png" alt="VNKey" class="logo" />
         <span class="title">VNKey</span>
       </div>
 
@@ -1396,9 +1396,9 @@
                 </select>
               </label>
 
-              <div class="form-group mt-15" style="border-top: 1px solid var(--border-color);">
+              <div class="form-group mt-15">
                 <h3>Tùy chọn văn bản đầu ra</h3>
-                <div class="toggles-grid-compact mt-5">
+                <div class="toggles-grid-compact">
                   <label class="toggle-container">
                     <span class="toggle-text">Chuyển sang CHỮ HOA</span>
                     <div class="switch">
@@ -1431,8 +1431,8 @@
                     </div>
                   </label>
 
-                  <label class="toggle-container pt-5">
-                    <span class="toggle-text font-bold">Loại bỏ hoàn toàn dấu Tiếng Việt</span>
+                  <label class="toggle-container">
+                    <span class="toggle-text">Loại bỏ hoàn toàn dấu Tiếng Việt</span>
                     <div class="switch">
                       <input type="checkbox" checked={settings.convert_tool_remove_mark === 1} onchange={(e) => handleCheckboxChange('convert_tool_remove_mark', (e.target as HTMLInputElement).checked)} />
                       <span class="slider"></span>
@@ -1530,10 +1530,10 @@
           <div class="card">
             <div class="sub-tabs-container mb-15">
               <button class="sub-tab-item" class:active={syncMethod === 'gdrive'} onclick={() => {syncMethod = 'gdrive'; saveCloudSettings();}}>
-                <span style="margin-right: 6px;">☁️</span> Google Drive
+                Google Drive
               </button>
               <button class="sub-tab-item" class:active={syncMethod === 'r2'} onclick={() => {syncMethod = 'r2'; saveCloudSettings();}}>
-                <span style="margin-right: 6px;">🌩️</span> Cloudflare R2
+                Cloudflare R2
               </button>
             </div>
             
@@ -1561,9 +1561,13 @@
                 {:else if isPollingGdrive}
                   <div style="background: rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; text-align: center;">
                     <h3 style="margin-top:0">Xác thực Google Drive</h3>
-                    <p>Mã xác nhận: <strong style="font-size: 24px; letter-spacing: 2px; color: var(--accent-color);">{gdriveAuthCode}</strong></p>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px;">
+                      <span style="font-size: 15px;">Mã xác nhận:</span>
+                      <strong style="font-size: 24px; letter-spacing: 2px; color: var(--color-accent);">{gdriveAuthCode}</strong>
+                      <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; margin-left: 4px;" onclick={() => { navigator.clipboard.writeText(gdriveAuthCode); alert("Đã copy mã vào clipboard!"); }} title="Copy mã">Copy</button>
+                    </div>
                     <button class="btn btn-primary" onclick={openGdriveAuthUrl}>Mở Trình duyệt để Nhập Mã</button>
-                    <p style="font-size: 13px; color: #666; margin-top: 10px;">Đang đợi bạn xác nhận trên trình duyệt...</p>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px;">Đang đợi bạn xác nhận trên trình duyệt...</p>
                     <button class="btn btn-secondary" onclick={cancelGdriveAuth} style="margin-top: 10px;">Huỷ</button>
                   </div>
                 {:else}
@@ -2060,7 +2064,7 @@
 
           <div class="card info-card">
             <div class="info-header">
-              <div class="app-icon">V</div>
+              <img src="/favicon.png" alt="VNKey" class="app-icon" />
               <div>
                 <h3>VNKey</h3>
                 <p class="version">Phiên bản 2.0.0 (Tauri Native Build)</p>
@@ -2376,16 +2380,10 @@
   }
 
   .sidebar-header .logo {
-    width: 24px;
-    height: 24px;
-    background-color: var(--color-accent);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 32px;
+    height: 32px;
     border-radius: 6px;
-    font-weight: bold;
-    font-size: 14px;
+    object-fit: contain;
   }
 
   .sidebar-header .title {
@@ -2667,7 +2665,7 @@
   }
 
   .form-group-inline select {
-    flex: 0 0 160px;
+    flex: 0 0 200px;
     min-width: 0;
   }
 
@@ -3105,14 +3103,8 @@
   .app-icon {
     width: 44px;
     height: 44px;
-    background-color: var(--color-accent);
-    color: white;
     border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
+    object-fit: contain;
   }
 
   .desc {
@@ -3384,7 +3376,7 @@
   }
 
   .sub-tab-item:hover {
-    color: var(--text-color);
+    color: var(--text-primary);
     background: rgba(0, 0, 0, 0.03);
   }
 
@@ -3393,12 +3385,14 @@
   }
 
   .sub-tab-item.active {
-    background: var(--bg-color);
-    color: var(--text-color);
+    background: var(--bg-card);
+    color: var(--color-accent);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
   }
 
   :global(body.dark-mode) .sub-tab-item.active {
+    background: var(--bg-input);
+    color: var(--color-accent);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 </style>
