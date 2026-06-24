@@ -6,6 +6,9 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { Terminal, Copyright } from '@lucide/svelte';
+  import VietnamFlag from './VietnamFlag.svelte';
+  import USFlag from './USFlag.svelte';
 
   interface Settings {
     language: number;
@@ -142,9 +145,9 @@
 
   // FSM Priority drag-and-drop — vertical-only, bounded within container
   const FSM_DEFS = [
-    { id: 0, emoji: '🇻🇳', name: 'Tiếng Việt',  desc: 'Kiểm tra âm tiết tiếng Việt' },
-    { id: 1, emoji: '🇬🇧', name: 'Tiếng Anh',   desc: 'FSM âm vị học + từ điển tùy chỉnh' },
-    { id: 2, emoji: '💻',  name: 'Lập trình',   desc: 'Keyword, camelCase, snake_case, ALL_CAPS' },
+    { id: 0, icon: VietnamFlag, name: 'Tiếng Việt',  desc: 'Kiểm tra âm tiết tiếng Việt' },
+    { id: 1, icon: USFlag, name: 'Tiếng Anh',   desc: 'FSM âm vị học + từ điển tùy chỉnh' },
+    { id: 2, icon: Terminal,  name: 'Lập trình',   desc: 'Keyword, camelCase, snake_case, ALL_CAPS' },
   ];
   let fsmDragIndex    = $state<number | null>(null);
   let fsmDragOverIndex = $state<number | null>(null);
@@ -1500,7 +1503,9 @@
                 >
                   <span class="fsm-order-drag-handle" aria-hidden="true">⠿</span>
                   <span class="fsm-order-rank">{index + 1}</span>
-                  <span class="fsm-order-emoji">{item.emoji}</span>
+                  <div class="fsm-order-emoji" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: 12px; color: var(--text-color);">
+                    <svelte:component this={item.icon} size={20} strokeWidth={1.5} />
+                  </div>
                   <div class="fsm-order-info">
                     <span class="fsm-order-name">{item.name}</span>
                     <span class="fsm-order-desc">{item.desc}</span>
@@ -2443,7 +2448,9 @@
             </div>
 
             <div class="info-footer pt-15 mt-10" style="border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-              <span class="text-secondary" style="font-size: 13px;">Copyright © 2026 theodore & OpenKey Contributors</span>
+              <span class="text-secondary" style="font-size: 13px; display: flex; align-items: center; gap: 4px;">
+                Copyright <Copyright size={14} strokeWidth={2} /> 2026 theodore & OpenKey Contributors
+              </span>
               <button class="btn btn-secondary" onclick={() => alert("Ứng dụng đang ở phiên bản mới nhất!")}>Kiểm tra cập nhật</button>
             </div>
           </div>
@@ -2494,13 +2501,13 @@
           <h3 style="margin-bottom: 20px;">{newShortcut && macrosList.some(m => m.shortcut === newShortcut) ? 'Chỉnh sửa từ gõ tắt' : 'Thêm từ gõ tắt mới'}</h3>
           
           <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px;">Từ viết tắt</label>
-            <input type="text" placeholder="Ví dụ: ok" bind:value={newShortcut} class="form-input" style="width: 100%; box-sizing: border-box;" />
+            <label for="shortcut-input" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px;">Từ viết tắt</label>
+            <input id="shortcut-input" type="text" placeholder="Ví dụ: ok" bind:value={newShortcut} class="form-input" style="width: 100%; box-sizing: border-box;" />
           </div>
 
           <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px;">Nội dung thay thế</label>
-            <textarea placeholder="Nội dung thay thế (hỗ trợ nhập nhiều dòng)..." bind:value={newContent} rows="4" class="form-input" style="width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; font-family: inherit; padding: 10px;"></textarea>
+            <label for="content-input" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px;">Nội dung thay thế</label>
+            <textarea id="content-input" placeholder="Nội dung thay thế (hỗ trợ nhập nhiều dòng)..." bind:value={newContent} rows="4" class="form-input" style="width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; font-family: inherit; padding: 10px;"></textarea>
           </div>
 
           {#if macroError}

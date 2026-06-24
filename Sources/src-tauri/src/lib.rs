@@ -1282,7 +1282,7 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
     menu
 }
 
-static LAST_TRAY_STATE: OnceLock<Mutex<(i32, bool, bool, i32, i32)>> = OnceLock::new();
+static LAST_TRAY_STATE: OnceLock<Mutex<(i32, bool, bool, i32, i32, bool)>> = OnceLock::new();
 
 fn update_tray_icon<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) {
     if let Some(tray) = TRAY_ICON.get() {
@@ -1291,13 +1291,14 @@ fn update_tray_icon<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) {
         let show_label = SHOW_INPUT_TYPE_ON_TRAY.load(std::sync::atomic::Ordering::Relaxed);
         let input_type = unsafe { engine::vInputType };
         let code_table = unsafe { engine::vCodeTable };
+        let is_english = unsafe { engine::macos_is_current_input_source_english() };
 
-        let state_mutex = LAST_TRAY_STATE.get_or_init(|| Mutex::new((-1, false, false, -1, -1)));
+        let state_mutex = LAST_TRAY_STATE.get_or_init(|| Mutex::new((-1, false, false, -1, -1, false)));
         if let Ok(mut last_state) = state_mutex.lock() {
-            if *last_state == (lang, gray, show_label, input_type, code_table) {
+            if *last_state == (lang, gray, show_label, input_type, code_table, is_english) {
                 return;
             }
-            *last_state = (lang, gray, show_label, input_type, code_table);
+            *last_state = (lang, gray, show_label, input_type, code_table, is_english);
         }
 
         let icon = get_tray_icon(lang);

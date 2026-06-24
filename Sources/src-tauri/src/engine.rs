@@ -134,8 +134,8 @@ extern "C" {
     pub fn macos_get_application_info_by_name_json(name_cstr: *const c_char) -> *mut c_char;
     #[cfg(target_os = "macos")]
     pub fn macos_is_another_instance_running() -> bool;
-    #[cfg(target_os = "macos")]
     pub fn macos_activate_other_instance();
+    pub fn macos_is_current_input_source_english() -> bool;
 }
 
 #[cfg(target_os = "macos")]

@@ -101,6 +101,7 @@ static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
 static bool _hasHandleQuickConsonant;
 static bool _willTempOffEngine = false;
+static bool _liveProgrammingContext = false;
 
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
@@ -187,6 +188,7 @@ void* vKeyInit() {
     _typingStates.clear();
     _longWordHelper.clear();
     _rawTyping.clear();
+    _liveProgrammingContext = false;
     return &HookState;
 }
 
@@ -1472,6 +1474,14 @@ void vKeyHandleEvent(const vKeyEvent& event,
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
     const bool wordBreak = isWordBreak(event, state, data);
+    
+    if (wordBreak) {
+        if (data == KEY_MINUS && capsStatus == 1) {
+            _liveProgrammingContext = true;
+        } else if (data == KEY_SPACE || data == KEY_ENTER || data == KEY_RETURN || data == KEY_TAB || data == KEY_ESC) {
+            _liveProgrammingContext = false;
+        }
+    }
     if ((IS_NUMBER_KEY(data) && capsStatus == 1)
         || otherControlKey || wordBreak || (_index == 0 && IS_NUMBER_KEY(data))) {
         hCode = vDoNothing;
@@ -1649,7 +1659,32 @@ void vKeyHandleEvent(const vKeyEvent& event,
         _rawTyping.push_back(data | (_isCaps ? CAPS_MASK : 0));
         insertState(data, _isCaps); //save state
         
-        if (!IS_SPECIALKEY(data) || tempDisableKey) { //do nothing
+        bool autoDisableVietnamese = false;
+        if (_liveProgrammingContext) {
+            autoDisableVietnamese = true;
+        } else {
+            std::string rawWord;
+            rawWord.reserve(_rawTyping.size());
+            for (size_t k = 0; k < _rawTyping.size(); k++) {
+                Uint16 character = keyCodeToCharacter(_rawTyping[k]);
+                if (character != 0) {
+                    rawWord.push_back(static_cast<char>(character));
+                }
+            }
+            
+            bool hasLower = false;
+            for (size_t k = 0; k < rawWord.size(); ++k) {
+                char c = rawWord[k];
+                if (c >= 'a' && c <= 'z') {
+                    hasLower = true;
+                } else if (hasLower && c >= 'A' && c <= 'Z') {
+                    autoDisableVietnamese = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!IS_SPECIALKEY(data) || tempDisableKey || autoDisableVietnamese) { //do nothing
             if (vQuickTelex && IS_QUICK_TELEX_KEY(data)) {
                 handleQuickTelex(data, _isCaps);
                 return;

@@ -54,6 +54,7 @@ static CGEventMask        eventMask = 0;
 static CFRunLoopSourceRef runLoopSource = NULL;
 static bool               _isInited = false;
 static id                 activeAppObserver = nil;
+static double             _lastAppSwitchTime = 0.0;
 
 extern "C" {
     extern int vSendKeyStepByStep;
@@ -604,6 +605,9 @@ extern "C" {
         
         //send backspace
         if (pData->backspaceCount > 0) {
+            if (CFAbsoluteTimeGetCurrent() - _lastAppSwitchTime < 0.5) {
+                usleep(15000); // 15ms delay to let the new app settle
+            }
             for (int i = 0; i < pData->backspaceCount; i++) {
                 SendBackspace();
             }
@@ -936,6 +940,7 @@ extern "C" {
                 } else {
                     _frontMostApp = @"UnknownApp";
                 }
+                _lastAppSwitchTime = CFAbsoluteTimeGetCurrent();
                 OnActiveAppChanged();
             }
         }];
@@ -996,7 +1001,7 @@ extern "C" {
 
     const uint8_t* get_macos_status_icon(bool vietnamese, bool gray, int inputType, int* len) {
         @autoreleasepool {
-            BOOL isNotEnglish = vOtherLanguage && !_currentInputSourceIsEnglish;
+            BOOL isNotEnglish = !_currentInputSourceIsEnglish;
 
             // When inputType < 0, don't show input type label (show original small icon)
             if (inputType < 0) {
@@ -1536,7 +1541,6 @@ extern "C" {
             return false;
         }
     }
-
     void macos_activate_other_instance() {
         @autoreleasepool {
             NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.theodore.vnkey"];
@@ -1548,6 +1552,10 @@ extern "C" {
                 }
             }
         }
+    }
+
+    bool macos_is_current_input_source_english() {
+        return _currentInputSourceIsEnglish;
     }
 
     void free_macos_status_icon(const uint8_t* bytes) {
