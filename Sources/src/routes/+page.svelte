@@ -16,7 +16,6 @@
     check_spelling: number;
     use_modern_orthography: number;
     quick_telex: number;
-    restore_if_wrong_spelling: number;
     use_english_dictionary: number;
     check_programming_keywords: number;
     fsm_priority_order: number[];
@@ -63,7 +62,6 @@
     check_spelling: 1,
     use_modern_orthography: 0,
     quick_telex: 0,
-    restore_if_wrong_spelling: 0,
     use_english_dictionary: 1,
     check_programming_keywords: 1,
     fsm_priority_order: [0, 1, 2],
@@ -564,7 +562,6 @@
       check_spelling: settings.check_spelling,
       use_modern_orthography: settings.use_modern_orthography,
       quick_telex: settings.quick_telex,
-      restore_if_wrong_spelling: settings.restore_if_wrong_spelling,
       use_english_dictionary: settings.use_english_dictionary,
       use_macro: settings.use_macro,
       use_macro_in_english_mode: settings.use_macro_in_english_mode,
@@ -1293,7 +1290,7 @@
             <h3>Quy tắc gõ dấu</h3>
             <div class="toggles-grid">
               <label class="toggle-container">
-                <span class="toggle-text">Cho phép bỏ dấu tự do <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Cho phép đặt dấu ở vị trí linh hoạt hơn khi thứ tự phím gõ không chuẩn.">?</span></span>
+                <span class="toggle-text">Bỏ dấu tự do <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Cho phép đặt dấu ở vị trí linh hoạt hơn khi thứ tự phím gõ không chuẩn.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.free_mark === 1} onchange={(e) => handleCheckboxChange('free_mark', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1317,7 +1314,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Cho phép gõ tắt Telex nhanh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Bật các chuỗi Telex rút gọn. Có thể xung đột với một số từ tiếng Anh.">?</span></span>
+                <span class="toggle-text">Gõ tắt Telex nhanh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Bật các chuỗi Telex rút gọn. Có thể xung đột với một số từ tiếng Anh.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.quick_telex === 1} onchange={(e) => handleCheckboxChange('quick_telex', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1339,6 +1336,13 @@
                   <span class="slider"></span>
                 </div>
               </label>
+              <label class="toggle-container">
+                <span class="toggle-text">Gõ tự do các phụ âm [z, f, w, j] đầu từ</span>
+                <div class="switch">
+                  <input type="checkbox" checked={settings.allow_consonant_zfwj === 1} onchange={(e) => handleCheckboxChange('allow_consonant_zfwj', (e.target as HTMLInputElement).checked)} />
+                  <span class="slider"></span>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -1356,14 +1360,6 @@
             {#if settings.check_spelling === 1}
             <div class="sub-toggles-grid" transition:slide={{ duration: 250 }}>
               <label class="toggle-container">
-                <span class="toggle-text">Khôi phục từ khi gõ sai chính tả <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Trả lại chuỗi phím gốc nếu kết quả không tạo thành âm tiết tiếng Việt hợp lệ.">?</span></span>
-                <div class="switch">
-                  <input type="checkbox" disabled={settings.check_spelling !== 1} checked={settings.restore_if_wrong_spelling === 1} onchange={(e) => handleCheckboxChange('restore_if_wrong_spelling', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-
-              <label class="toggle-container">
                 <span class="toggle-text">Tự động ngắt chính tả khi gõ chữ và số</span>
                 <div class="switch">
                   <input type="checkbox" disabled={settings.check_spelling !== 1} checked={settings.temp_off_spelling === 1} onchange={(e) => handleCheckboxChange('temp_off_spelling', (e.target as HTMLInputElement).checked)} />
@@ -1371,14 +1367,8 @@
                 </div>
               </label>
 
-              <label class="toggle-container">
-                <span class="toggle-text">Cho phép gõ tự do các phụ âm [z, f, w, j] đầu từ</span>
-                <div class="switch">
-                  <input type="checkbox" disabled={settings.check_spelling !== 1} checked={settings.allow_consonant_zfwj === 1} onchange={(e) => handleCheckboxChange('allow_consonant_zfwj', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
             </div>
+
             {/if}
           </div>
 
@@ -2066,7 +2056,8 @@
                 <li>Đặt lại thiết lập Bảng ghi nhớ</li>
                 <li>Đặt lại phím tắt chuyển đổi, công cụ chuyển mã, Bảng ghi nhớ</li>
                 <li>Khôi phục từ điển tiếng Anh về danh sách mặc định ban đầu</li>
-                <li>Khôi phục từ khóa lập trình về danh sách mặc định ban đầu</li>
+                <li>Xóa toàn bộ từ khóa lập trình (vì đã có bộ từ khóa tích hợp)</li>
+                <li>Đặt lại thứ tự ưu tiên ngôn ngữ về mặc định</li>
               </ul>
               <div class="modal-actions">
                 <button class="btn btn-secondary" onclick={() => showResetModal = false}>Hủy</button>
@@ -2345,6 +2336,13 @@
                           <span class="slider"></span>
                         </div>
                       </label>
+                      <label class="toggle-container">
+                        <span class="toggle-text">Cho phép gõ tự do phụ âm zfwj</span>
+                        <div class="switch">
+                          <input type="checkbox" checked={appConfigs[selectedApp].allow_consonant_zfwj === 1} onchange={(e) => updateAppConfigField('allow_consonant_zfwj', (e.target as HTMLInputElement).checked ? 1 : 0)} />
+                          <span class="slider"></span>
+                        </div>
+                      </label>
                     </div>
                   </div>
 
@@ -2360,13 +2358,6 @@
                         </div>
                       </label>
 
-                      <label class="toggle-container">
-                        <span class="toggle-text">Khôi phục từ khi gõ sai chính tả</span>
-                        <div class="switch">
-                          <input type="checkbox" checked={appConfigs[selectedApp].restore_if_wrong_spelling === 1} onchange={(e) => updateAppConfigField('restore_if_wrong_spelling', (e.target as HTMLInputElement).checked ? 1 : 0)} />
-                          <span class="slider"></span>
-                        </div>
-                      </label>
 
                       <label class="toggle-container">
                         <span class="toggle-text">Tự động ngắt chính tả khi gõ chữ và số</span>
@@ -2376,13 +2367,6 @@
                         </div>
                       </label>
 
-                      <label class="toggle-container">
-                        <span class="toggle-text">Cho phép gõ tự do phụ âm zfwj</span>
-                        <div class="switch">
-                          <input type="checkbox" checked={appConfigs[selectedApp].allow_consonant_zfwj === 1} onchange={(e) => updateAppConfigField('allow_consonant_zfwj', (e.target as HTMLInputElement).checked ? 1 : 0)} />
-                          <span class="slider"></span>
-                        </div>
-                      </label>
 
                       <label class="toggle-container">
                         <span class="toggle-text">Sử dụng từ điển tiếng Anh</span>

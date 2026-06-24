@@ -16,7 +16,6 @@ extern "C" {
     pub static mut vCheckSpelling: c_int;
     pub static mut vUseModernOrthography: c_int;
     pub static mut vQuickTelex: c_int;
-    pub static mut vRestoreIfWrongSpelling: c_int;
     pub static mut vUseEnglishDictionary: c_int;
     pub static mut vFixRecommendBrowser: c_int;
     pub static mut vUseMacro: c_int;

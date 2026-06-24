@@ -56,7 +56,6 @@ fn default_settings() -> Settings {
         check_spelling: 1,
         use_modern_orthography: 0,
         quick_telex: 0,
-        restore_if_wrong_spelling: 0,
         use_english_dictionary: 1,
         fix_recommend_browser: 1,
         use_macro: 1,
@@ -105,7 +104,6 @@ pub struct Settings {
     pub check_spelling: i32,
     pub use_modern_orthography: i32,
     pub quick_telex: i32,
-    pub restore_if_wrong_spelling: i32,
     pub use_english_dictionary: i32,
     pub check_programming_keywords: i32,
     pub fix_recommend_browser: i32,
@@ -402,7 +400,6 @@ fn get_settings() -> Settings {
             check_spelling: engine::vCheckSpelling,
             use_modern_orthography: engine::vUseModernOrthography,
             quick_telex: engine::vQuickTelex,
-            restore_if_wrong_spelling: engine::vRestoreIfWrongSpelling,
             use_english_dictionary: engine::vUseEnglishDictionary,
             check_programming_keywords: engine::vCheckProgrammingKeywords,
             fix_recommend_browser: engine::vFixRecommendBrowser,
@@ -493,7 +490,6 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             engine::vCheckSpelling = settings.check_spelling;
                             engine::vUseModernOrthography = settings.use_modern_orthography;
                             engine::vQuickTelex = settings.quick_telex;
-                            engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
                             engine::vUseEnglishDictionary = settings.use_english_dictionary;
                             engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
                             let order = &settings.fsm_priority_order;
@@ -609,7 +605,6 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vCheckSpelling = settings.check_spelling;
         engine::vUseModernOrthography = settings.use_modern_orthography;
         engine::vQuickTelex = settings.quick_telex;
-        engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
         engine::vUseEnglishDictionary = settings.use_english_dictionary;
         engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
         let order = &settings.fsm_priority_order;
@@ -706,8 +701,15 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vCheckSpelling = settings.check_spelling;
         engine::vUseModernOrthography = settings.use_modern_orthography;
         engine::vQuickTelex = settings.quick_telex;
-        engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
         engine::vUseEnglishDictionary = settings.use_english_dictionary;
+        engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
+        let order = &settings.fsm_priority_order;
+        let fsm_order: [i32; 3] = [
+            order.get(0).copied().unwrap_or(0),
+            order.get(1).copied().unwrap_or(1),
+            order.get(2).copied().unwrap_or(2),
+        ];
+        engine::set_fsm_priority_order(&fsm_order);
         engine::vFixRecommendBrowser = settings.fix_recommend_browser;
         engine::vUseMacro = settings.use_macro;
         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
@@ -1457,7 +1459,6 @@ pub struct AppConfig {
     pub check_spelling: i32,
     pub use_modern_orthography: i32,
     pub quick_telex: i32,
-    pub restore_if_wrong_spelling: i32,
     pub use_english_dictionary: i32,
     pub use_macro: i32,
     pub use_macro_in_english_mode: i32,
@@ -1648,7 +1649,6 @@ fn apply_app_config_by_bundle_id(handle: &tauri::AppHandle, bundle_id: &str) {
             engine::vCheckSpelling = config.check_spelling;
             engine::vUseModernOrthography = config.use_modern_orthography;
             engine::vQuickTelex = config.quick_telex;
-            engine::vRestoreIfWrongSpelling = config.restore_if_wrong_spelling;
             engine::vUseEnglishDictionary = config.use_english_dictionary;
             engine::vUseMacro = config.use_macro;
             engine::vUseMacroInEnglishMode = config.use_macro_in_english_mode;

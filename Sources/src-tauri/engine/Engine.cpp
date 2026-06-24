@@ -1302,7 +1302,7 @@ static bool restoreRawTyping(const int& handleCode) {
     return true;
 }
 
-bool checkRestoreIfWrongSpelling(const int& handleCode) {
+bool applyFsmRestorations(const int& handleCode) {
     // 1. Check if the word has any Telex transformations (tone marks or accents)
     bool hasTransform = false;
     for (ii = 0; ii < _index; ii++) {
@@ -1318,9 +1318,9 @@ bool checkRestoreIfWrongSpelling(const int& handleCode) {
 
     // 2. Construct the raw English word string
     std::string rawWord;
-    rawWord.reserve(_index);
-    for (ii = 0; ii < _index; ii++) {
-        Uint16 character = keyCodeToCharacter(_rawTyping[ii]);
+    rawWord.reserve(_rawTyping.size());
+    for (size_t i = 0; i < _rawTyping.size(); i++) {
+        Uint16 character = keyCodeToCharacter(_rawTyping[i]);
         if (character == 0) {
             return false;
         }
@@ -1328,29 +1328,39 @@ bool checkRestoreIfWrongSpelling(const int& handleCode) {
     }
 
     // 3. Apply FSM checks in user-configured priority order
-    // FSM IDs: 0 = Vietnamese (tempDisableKey), 1 = English, 2 = Programming
+    // FSM IDs: 0 = Vietnamese, 1 = English, 2 = Programming
     for (int _pri = 0; _pri < 3; ++_pri) {
         const int fsmId = vFsmPriorityOrder[_pri];
         if (fsmId == 0) {
-            // Vietnamese FSM: invalid Vietnamese spelling detected -> restore
-            if (tempDisableKey) {
-                return restoreRawTyping(handleCode);
+            // Vietnamese FSM
+            if (!tempDisableKey) {
+                // Valid Vietnamese spelling -> VN FSM wins! Keep Vietnamese transformation.
+                return false;
             }
+            // If it is INVALID Vietnamese, we just continue checking lower priority FSMs.
         } else if (fsmId == 1) {
-            // English FSM: valid English word or protected dictionary
+            // English FSM
             if (vUseEnglishDictionary &&
                 (isProtectedEnglishWord(rawWord) || vnkey::isValidEnglishWord(rawWord))) {
+                // Valid English word -> EN FSM wins! Restore raw typing.
                 return restoreRawTyping(handleCode);
             }
         } else if (fsmId == 2) {
-            // Programming FSM: recognized keyword or identifier pattern
+            // Programming FSM
             if (vCheckProgrammingKeywords && vnkey::isValidProgrammingKeyword(rawWord)) {
+                // Valid Programming keyword -> PROG FSM wins! Restore raw typing.
                 return restoreRawTyping(handleCode);
             }
         }
     }
 
-    return false;
+    // 4. Fallback
+    // If we reach here, it means:
+    // - English and Programming didn't match (or were disabled).
+    // - Vietnamese was evaluated but it was INVALID (tempDisableKey = true).
+    // Since Vietnamese is invalid and "Restore if wrong spelling" is active,
+    // the default behavior is to restore.
+    return restoreRawTyping(handleCode);
 }
 
 void vTempOffSpellChecking() {
@@ -1466,11 +1476,11 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
-        } else if (vRestoreIfWrongSpelling && wordBreak) { //restore key check with break-key
+        } else if (wordBreak) { // FSM restoration check with break-key
             if (vCheckSpelling) {
                 checkSpelling(true); //force check spelling
             }
-            if (checkRestoreIfWrongSpelling(vRestoreAndStartNewSession)) {
+            if (applyFsmRestorations(vRestoreAndStartNewSession)) {
                 // Restored successfully!
             } else if (tempDisableKey) {
                 hCode = vDoNothing;
@@ -1518,6 +1528,10 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 _upperCaseStatus = 0;
         }
     } else if (data == KEY_SPACE) {
+        hCode = vDoNothing;
+        hBPC = 0;
+        hNCC = 0;
+        hExt = 1; //word break
         if (!tempDisableKey && vCheckSpelling) {
             checkSpelling(true); //force check spelling
         }
@@ -1528,8 +1542,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && checkQuickConsonant()) {
             _spaceCount++;
-        } else if (vRestoreIfWrongSpelling && !_hasHandledMacro) { //restore key check
-            if (checkRestoreIfWrongSpelling(vRestore)) {
+        } else if (!_hasHandledMacro) { // FSM restoration check
+            if (applyFsmRestorations(vRestore)) {
                 // Restored successfully!
             } else if (tempDisableKey) {
                 hCode = vDoNothing;

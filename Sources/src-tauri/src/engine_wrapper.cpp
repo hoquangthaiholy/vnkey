@@ -21,7 +21,6 @@ extern "C" {
     int vCheckSpelling = 1;
     int vUseModernOrthography = 0;
     int vQuickTelex = 0;
-    int vRestoreIfWrongSpelling = 0;
     int vUseEnglishDictionary = 1;
     int vCheckProgrammingKeywords = 1;
     int vUseMacro = 1;

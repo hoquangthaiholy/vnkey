@@ -94,16 +94,8 @@ extern int vUseModernOrthography;
 extern int vQuickTelex;
 
 /**
- * Work together with vCheckSpelling
- * 0: No
- * 1: Yes
- *
- */
-extern int vRestoreIfWrongSpelling;
-
-/**
  * Restore protected English words that Telex changed.
- * Works together with vRestoreIfWrongSpelling.
+ * Works together with FSM Priority Order.
  * 0: No
  * 1: Yes
  */

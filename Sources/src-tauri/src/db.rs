@@ -16,7 +16,6 @@ lazy_static::lazy_static! {
 
 const INITIAL_ENGLISH_WORDS: &[&str] = &[];
 
-const INITIAL_PROGRAMMING_KEYWORDS: &[&str] = &[];
 
 // Generate a local encryption key (obfuscation key) for local DB encryption
 // This ensures data is not "raw" on disk.
@@ -118,12 +117,7 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
         db_set_kv("english_dict_initialized", "1");
     }
 
-    let prog_initialized = db_get_kv("programming_keywords_initialized").unwrap_or_else(|| "0".to_string());
-    if prog_initialized == "0" {
-        let words: Vec<String> = INITIAL_PROGRAMMING_KEYWORDS.iter().map(|s| s.to_string()).collect();
-        db_insert_programming_keywords(&words);
-        db_set_kv("programming_keywords_initialized", "1");
-    }
+
 
     Ok(())
 }
@@ -226,8 +220,6 @@ pub fn db_clear_programming_keywords() {
 
 pub fn db_reset_programming_keywords() {
     db_clear_programming_keywords();
-    let words: Vec<String> = INITIAL_PROGRAMMING_KEYWORDS.iter().map(|s| s.to_string()).collect();
-    db_insert_programming_keywords(&words);
 }
 
 pub fn db_insert_macros(macros: &[(String, String)]) {
