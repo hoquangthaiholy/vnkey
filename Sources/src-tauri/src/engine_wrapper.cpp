@@ -36,8 +36,8 @@ extern "C" {
     int vOtherLanguage = 1;
     int vTempOffVNKey = 0;
     int vDisableHotkeys = 0;
-    // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: VI → EN → PROG
-    int vFsmPriorityOrder[3] = {0, 1, 2};
+    // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: VI → PROG → EN
+    int vFsmPriorityOrder[3] = {0, 2, 1};
 
     char* vnkey_copy_string(const std::string& value) {
         char* result = static_cast<char*>(malloc(value.size() + 1));

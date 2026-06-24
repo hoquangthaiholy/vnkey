@@ -64,7 +64,7 @@
     quick_telex: 0,
     use_english_dictionary: 1,
     check_programming_keywords: 1,
-    fsm_priority_order: [0, 1, 2],
+    fsm_priority_order: [0, 2, 1],
     fix_recommend_browser: 1,
     use_macro: 1,
     use_macro_in_english_mode: 0,

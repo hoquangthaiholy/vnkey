@@ -90,7 +90,7 @@ fn default_settings() -> Settings {
         clipboard_max_items: 30,
         clipboard_hotkey: 0x56000C09,
         check_programming_keywords: 1,
-        fsm_priority_order: vec![0, 1, 2],
+        fsm_priority_order: vec![0, 2, 1],
     }
 }
 
@@ -143,7 +143,7 @@ pub struct Settings {
 }
 
 fn default_fsm_priority_order() -> Vec<i32> {
-    vec![0, 1, 2]
+    vec![0, 2, 1]
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -495,8 +495,8 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             let order = &settings.fsm_priority_order;
                             let fsm_order: [i32; 3] = [
                                 order.get(0).copied().unwrap_or(0),
-                                order.get(1).copied().unwrap_or(1),
-                                order.get(2).copied().unwrap_or(2),
+                                order.get(1).copied().unwrap_or(2),
+                                order.get(2).copied().unwrap_or(1),
                             ];
                             engine::set_fsm_priority_order(&fsm_order);
                             engine::vFixRecommendBrowser = settings.fix_recommend_browser;
@@ -610,8 +610,8 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         let order = &settings.fsm_priority_order;
         let fsm_order: [i32; 3] = [
             order.get(0).copied().unwrap_or(0),
-            order.get(1).copied().unwrap_or(1),
-            order.get(2).copied().unwrap_or(2),
+            order.get(1).copied().unwrap_or(2),
+            order.get(2).copied().unwrap_or(1),
         ];
         engine::set_fsm_priority_order(&fsm_order);
         engine::vFixRecommendBrowser = settings.fix_recommend_browser;
@@ -706,8 +706,8 @@ fn reset_settings(handle: tauri::AppHandle) {
         let order = &settings.fsm_priority_order;
         let fsm_order: [i32; 3] = [
             order.get(0).copied().unwrap_or(0),
-            order.get(1).copied().unwrap_or(1),
-            order.get(2).copied().unwrap_or(2),
+            order.get(1).copied().unwrap_or(2),
+            order.get(2).copied().unwrap_or(1),
         ];
         engine::set_fsm_priority_order(&fsm_order);
         engine::vFixRecommendBrowser = settings.fix_recommend_browser;
