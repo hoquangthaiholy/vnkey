@@ -2148,11 +2148,10 @@ pub fn run() {
                                 {
                                     let _ = onboarding_win.close();
                                 }
-                                if OPEN_PANEL_ON_START.load(std::sync::atomic::Ordering::Relaxed) {
-                                    if let Some(main_win) = handle_clone_2.get_webview_window("main") {
-                                        let _ = main_win.show();
-                                        let _ = main_win.set_focus();
-                                    }
+                                // Always show and focus the main window (control panel) on first run after accessibility is granted
+                                if let Some(main_win) = handle_clone_2.get_webview_window("main") {
+                                    let _ = main_win.show();
+                                    let _ = main_win.set_focus();
                                 }
                                 update_dock_icon(&handle_clone_2);
 

@@ -1299,7 +1299,10 @@
     <aside class="sidebar" data-tauri-drag-region>
       <div class="sidebar-header" data-tauri-drag-region>
         <img src="/favicon.png" alt="VNKey" class="logo" />
-        <span class="title">VNKey</span>
+        <div class="title-group">
+          <span class="title">VNKey</span>
+          <span class="subtitle">Bảng điều khiển</span>
+        </div>
       </div>
 
       <nav class="nav-menu" data-tauri-drag-region>
@@ -3066,10 +3069,24 @@
     object-fit: contain;
   }
 
+  .sidebar-header .title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
   .sidebar-header .title {
     font-weight: 700;
-    font-size: 17px;
-    letter-spacing: 0.3px;
+    font-size: 16px;
+    letter-spacing: 0.2px;
+    line-height: 1.2;
+  }
+
+  .sidebar-header .subtitle {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-secondary, #8c8c93);
+    line-height: 1.2;
   }
 
   /* Navigation tab menu on Sidebar */

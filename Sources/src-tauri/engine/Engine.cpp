@@ -95,7 +95,7 @@ static bool isCheckedGrammar;
 static bool _isCaps = false;
 static int _spaceCount = 0; //add: July 30th, 2019
 static bool _hasHandledMacro = false; //for macro flag August 9th, 2019
-static Byte _upperCaseStatus = 0; //for Write upper case for the first letter; 2: will upper case
+Byte _upperCaseStatus = 0; //for Write upper case for the first letter; 2: will upper case
 static bool _isCharKeyCode;
 static vector<Uint32> _specialChar;
 static bool _useSpellCheckingBefore;
@@ -1470,15 +1470,19 @@ bool applyFsmRestorations(const int& handleCode) {
             // If it is INVALID Vietnamese, we just continue checking lower priority FSMs.
         } else if (fsmId == 1) {
             // English FSM
-            if (vUseEnglishDictionary && vnkey::isValidEnglishWord(rawWord)) {
-                // Valid English word -> EN FSM wins! Restore raw typing.
-                return restoreRawTyping(handleCode, false);
+            if (vUseEnglishDictionary) {
+                if (vnkey::isValidEnglishWord(rawWord)) {
+                    // Valid English word -> EN FSM wins! Restore raw typing.
+                    return restoreRawTyping(handleCode, false);
+                }
             }
         } else if (fsmId == 2) {
             // Programming FSM
-            if (vCheckProgrammingKeywords && vnkey::isValidProgrammingKeyword(rawWord)) {
-                // Valid Programming keyword -> PROG FSM wins! Restore raw typing.
-                return restoreRawTyping(handleCode, false);
+            if (vCheckProgrammingKeywords) {
+                if (vnkey::isValidProgrammingKeyword(rawWord)) {
+                    // Valid Programming keyword -> PROG FSM wins! Restore raw typing.
+                    return restoreRawTyping(handleCode, false);
+                }
             }
         }
     }

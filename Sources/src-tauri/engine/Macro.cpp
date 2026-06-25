@@ -220,6 +220,9 @@ static bool modifyCaseUnicode(Uint32& code, const bool& isUpperCase=true) {
     return false;
 }
 
+extern int vUpperCaseFirstChar;
+extern unsigned char _upperCaseStatus;
+
 bool findMacro(const vector<Uint32>& key, vector<Uint32>& macroContentCode) {
     static vector<Uint32> lookupKey;
     lookupKey.clear();
@@ -229,11 +232,16 @@ bool findMacro(const vector<Uint32>& key, vector<Uint32>& macroContentCode) {
     }
 
     auto macro = macroMap.find(lookupKey);
+    bool found = false;
+    bool forceFirstUpper = false;
+    if (vUpperCaseFirstChar && _upperCaseStatus == 2) {
+        forceFirstUpper = true;
+    }
+
     if (macro != macroMap.end()) {
         macroContentCode = macro->second.macroContentCode;
-        return true;
-    }
-    if (vAutoCapsMacro) {
+        found = true;
+    } else if (vAutoCapsMacro) {
         bool allCaps = false;
         if (lookupKey.size() > 1 && modifyCaseUnicode(lookupKey[1], false)) {
             allCaps = true;
@@ -246,25 +254,39 @@ bool findMacro(const vector<Uint32>& key, vector<Uint32>& macroContentCode) {
             macro = macroMap.find(lookupKey);
             if (macro != macroMap.end()) {
                 macroContentCode = macro->second.macroContentCode;
-                for (size_t c = 0; c < macroContentCode.size(); c++) {
-                    if (c == 0 || allCaps) {
-                        Uint16 character = keyCodeToCharacter(macroContentCode[c]);
-                        if (character != 0) {
-                            character = toupper(character);
-                            auto upper = _characterMap.find(character);
-                            if (upper != _characterMap.end()) {
-                                macroContentCode[c] = upper->second;
-                            }
-                            continue;
-                        }
-                        if (macroContentCode[c] & CHAR_CODE_MASK) {
-                            modifyCaseUnicode(macroContentCode[c]);
-                        }
-                    }
+                found = true;
+                if (allCaps) {
+                    forceFirstUpper = true;
                 }
-                return true;
             }
         }
+    }
+
+    if (found) {
+        bool allCaps = false;
+        if (vAutoCapsMacro && lookupKey.size() > 1 && (key[1] & CAPS_MASK)) {
+            allCaps = true;
+        }
+        for (size_t c = 0; c < macroContentCode.size(); c++) {
+            if ((c == 0 && forceFirstUpper) || allCaps) {
+                Uint16 character = keyCodeToCharacter(macroContentCode[c]);
+                if (character != 0) {
+                    character = toupper(character);
+                    auto upper = _characterMap.find(character);
+                    if (upper != _characterMap.end()) {
+                        macroContentCode[c] = upper->second;
+                    }
+                    continue;
+                }
+                if (macroContentCode[c] & CHAR_CODE_MASK) {
+                    modifyCaseUnicode(macroContentCode[c], true);
+                }
+            }
+        }
+        if (forceFirstUpper) {
+            _upperCaseStatus = 0;
+        }
+        return true;
     }
     return false;
 }
