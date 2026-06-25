@@ -8,12 +8,24 @@ const CLIENT_ID: Option<&str> = option_env!("GOOGLE_CLIENT_ID");
 const CLIENT_SECRET: Option<&str> = option_env!("GOOGLE_CLIENT_SECRET");
 const SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 
-fn get_client_id() -> Result<&'static str, String> {
-    CLIENT_ID.ok_or_else(|| "Google Client ID chưa được cấu hình khi biên dịch".to_string())
+pub fn get_client_id() -> Result<String, String> {
+    if let Some(id) = db::db_get_kv("googleClientId") {
+        if !id.is_empty() {
+            return Ok(id);
+        }
+    }
+    CLIENT_ID
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Google Client ID chưa được cấu hình khi biên dịch".to_string())
 }
 
-fn get_client_secret() -> Result<&'static str, String> {
-    CLIENT_SECRET.ok_or_else(|| "Google Client Secret chưa được cấu hình khi biên dịch".to_string())
+fn get_client_secret() -> String {
+    if let Some(secret) = db::db_get_kv("googleClientSecret") {
+        if !secret.is_empty() {
+            return secret;
+        }
+    }
+    CLIENT_SECRET.unwrap_or("").to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,7 +50,7 @@ pub async fn start_device_auth() -> Result<DeviceAuthResponse, Box<dyn Error>> {
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/device/code")
         .form(&[
-            ("client_id", client_id),
+            ("client_id", client_id.as_str()),
             ("scope", SCOPE)
         ])
         .send()
@@ -57,15 +69,19 @@ pub async fn start_device_auth() -> Result<DeviceAuthResponse, Box<dyn Error>> {
 
 pub async fn poll_device_auth(device_code: &str) -> Result<TokenResponse, String> {
     let client_id = get_client_id()?;
-    let client_secret = get_client_secret()?;
+    let client_secret = get_client_secret();
     let client = Client::new();
+    let mut form = vec![
+        ("client_id", client_id.as_str()),
+        ("device_code", device_code),
+        ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+    ];
+    if !client_secret.is_empty() {
+        form.push(("client_secret", client_secret.as_str()));
+    }
+    
     let res = client.post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-            ("device_code", device_code),
-            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-        ])
+        .form(&form)
         .send()
         .await.map_err(|e| e.to_string())?;
 
@@ -79,17 +95,52 @@ pub async fn poll_device_auth(device_code: &str) -> Result<TokenResponse, String
     }
 }
 
+pub async fn exchange_auth_code(code: &str, code_verifier: &str) -> Result<TokenResponse, String> {
+    let client_id = get_client_id()?;
+    let client_secret = get_client_secret();
+    let client = Client::new();
+    
+    let mut form = vec![
+        ("client_id", client_id.as_str()),
+        ("redirect_uri", "http://127.0.0.1:12558/callback"),
+        ("grant_type", "authorization_code"),
+        ("code", code),
+        ("code_verifier", code_verifier),
+    ];
+    if !client_secret.is_empty() {
+        form.push(("client_secret", client_secret.as_str()));
+    }
+    
+    let res = client.post("https://oauth2.googleapis.com/token")
+        .form(&form)
+        .send()
+        .await.map_err(|e| e.to_string())?;
+
+    if res.status().is_success() {
+        let text = res.text().await.map_err(|e| e.to_string())?;
+        let token_res: TokenResponse = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        Ok(token_res)
+    } else {
+        let text = res.text().await.map_err(|e| e.to_string())?;
+        Err(text)
+    }
+}
+
 pub async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
     let client_id = get_client_id()?;
-    let client_secret = get_client_secret()?;
+    let client_secret = get_client_secret();
     let client = Client::new();
+    let mut form = vec![
+        ("client_id", client_id.as_str()),
+        ("refresh_token", refresh_token),
+        ("grant_type", "refresh_token"),
+    ];
+    if !client_secret.is_empty() {
+        form.push(("client_secret", client_secret.as_str()));
+    }
+    
     let res = client.post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-        ])
+        .form(&form)
         .send()
         .await.map_err(|e| e.to_string())?;
 

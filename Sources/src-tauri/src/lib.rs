@@ -1912,10 +1912,9 @@ async fn poll_google_auth(device_code: String) -> Result<google_sync::TokenRespo
 }
 
 #[tauri::command]
-async fn start_local_auth_server(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn start_local_auth_server(app_handle: tauri::AppHandle, code_verifier: String) -> Result<(), String> {
     use tokio::net::TcpListener;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use base64::{Engine as _, engine::general_purpose::STANDARD as b64};
     use tauri::Emitter;
 
     tokio::spawn(async move {
@@ -1932,6 +1931,9 @@ async fn start_local_auth_server(app_handle: tauri::AppHandle) -> Result<(), Str
             let n = socket.read(&mut buf).await.unwrap_or(0);
             let request = String::from_utf8_lossy(&buf[..n]);
             
+            let html_response;
+            let mut code = None;
+
             if let Some(path_line) = request.lines().next() {
                 if path_line.starts_with("GET /callback") {
                     let url_parts: Vec<&str> = path_line.split_whitespace().collect();
@@ -1941,28 +1943,9 @@ async fn start_local_auth_server(app_handle: tauri::AppHandle) -> Result<(), Str
                             let query = &path[query_start + 1..];
                             for pair in query.split('&') {
                                 let parts: Vec<&str> = pair.split('=').collect();
-                                if parts.len() == 2 && parts[0] == "data" {
-                                    let encoded_data = parts[1];
-                                    if let Ok(decoded_data_cow) = urlencoding::decode(encoded_data) {
-                                        let decoded_data = decoded_data_cow.into_owned();
-                                        if let Ok(decoded_bytes) = b64.decode(decoded_data.trim()) {
-                                            if let Ok(json_val) = serde_json::from_slice::<serde_json::Value>(&decoded_bytes) {
-                                                if let Some(access_token) = json_val.get("access_token").and_then(|t| t.as_str()) {
-                                                    db::db_set_kv("gdriveAccessToken", access_token);
-                                                }
-                                                if let Some(refresh_token) = json_val.get("refresh_token").and_then(|t| t.as_str()) {
-                                                    db::db_set_kv("gdriveRefreshToken", refresh_token);
-                                                }
-                                                if let Some(client_id) = json_val.get("client_id").and_then(|t| t.as_str()) {
-                                                    db::db_set_kv("googleClientId", client_id);
-                                                }
-                                                if let Some(client_secret) = json_val.get("client_secret").and_then(|t| t.as_str()) {
-                                                    db::db_set_kv("googleClientSecret", client_secret);
-                                                }
-                                                
-                                                let _ = app_handle.emit("gdrive_web_auth_success", ());
-                                            }
-                                        }
+                                if parts.len() == 2 && parts[0] == "code" {
+                                    if let Ok(decoded_data_cow) = urlencoding::decode(parts[1]) {
+                                        code = Some(decoded_data_cow.into_owned());
                                     }
                                 }
                             }
@@ -1971,27 +1954,72 @@ async fn start_local_auth_server(app_handle: tauri::AppHandle) -> Result<(), Str
                 }
             }
 
-            let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n\
-                            <!DOCTYPE html>\
-                            <html>\
-                            <head>\
-                            <title>Xác thực thành công</title>\
-                            <style>body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #0b0f19; color: #f3f4f6; } h1 { color: #10b981; } p { color: #9ca3af; }</style>\
-                            </head>\
-                            <body>\
-                            <h1>✓ Liên kết thành công!</h1>\
-                            <p>Bạn đã liên kết tài khoản Google Drive với ứng dụng VNKey thành công.</p>\
-                            <p>Có thể đóng trình duyệt này và quay lại sử dụng ứng dụng.</p>\
-                            <script>setTimeout(() => window.close(), 3000);</script>\
-                            </body>\
-                            </html>";
-            
+            if let Some(ref auth_code) = code {
+                match google_sync::exchange_auth_code(auth_code, &code_verifier).await {
+                    Ok(token_data) => {
+                        db::db_set_kv("gdriveAccessToken", &token_data.access_token);
+                        if let Some(ref refresh) = token_data.refresh_token {
+                            db::db_set_kv("gdriveRefreshToken", refresh);
+                        }
+                        let _ = app_handle.emit("gdrive_web_auth_success", ());
+                        
+                        html_response = "<!DOCTYPE html>\
+                                         <html>\
+                                         <head>\
+                                         <title>Xác thực thành công</title>\
+                                         <style>body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #0b0f19; color: #f3f4f6; } h1 { color: #10b981; } p { color: #9ca3af; }</style>\
+                                         </head>\
+                                         <body>\
+                                         <h1>✓ Liên kết thành công!</h1>\
+                                         <p>Bạn đã liên kết tài khoản Google Drive với ứng dụng VNKey thành công.</p>\
+                                         <p>Có thể đóng trình duyệt này và quay lại sử dụng ứng dụng.</p>\
+                                         <script>setTimeout(() => window.close(), 3000);</script>\
+                                         </body>\
+                                         </html>".to_string();
+                    }
+                    Err(err_msg) => {
+                        let safe_err = err_msg.replace('<', "&lt;").replace('>', "&gt;");
+                        html_response = format!("<!DOCTYPE html>\
+                                         <html>\
+                                         <head>\
+                                         <title>Xác thực thất bại</title>\
+                                         <style>body {{ font-family: sans-serif; text-align: center; padding: 50px; background-color: #0b0f19; color: #f3f4f6; }} h1 {{ color: #ef4444; }} p {{ color: #9ca3af; }}</style>\
+                                         </head>\
+                                         <body>\
+                                         <h1>✗ Liên kết thất bại!</h1>\
+                                         <p>Lỗi trong quá trình trao đổi token với Google:</p>\
+                                         <p style='color:#f87171;'>{}</p>\
+                                         <p>Vui lòng đóng trình duyệt này và thử lại từ ứng dụng.</p>\
+                                         </body>\
+                                         </html>", safe_err);
+                    }
+                }
+            } else {
+                html_response = "<!DOCTYPE html>\
+                                 <html>\
+                                 <head>\
+                                 <title>Lỗi</title>\
+                                 <style>body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #0b0f19; color: #f3f4f6; } h1 { color: #ef4444; } p { color: #9ca3af; }</style>\
+                                 </head>\
+                                 <body>\
+                                 <h1>✗ Yêu cầu không hợp lệ</h1>\
+                                 <p>Không nhận được mã xác thực (code) từ Google.</p>\
+                                 </body>\
+                                 </html>".to_string();
+            }
+
+            let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n{}", html_response);
             let _ = socket.write_all(response.as_bytes()).await;
             let _ = socket.flush().await;
         }
     });
     Ok(())
 }
+#[tauri::command]
+async fn get_google_client_id() -> Result<String, String> {
+    google_sync::get_client_id()
+}
+
 #[tauri::command]
 async fn sync_to_gdrive() -> Result<(), String> {
     google_sync::upload_sync_data_gdrive(&get_system_sync_password()).await
@@ -2125,6 +2153,7 @@ pub fn run() {
             start_google_auth,
             poll_google_auth,
             start_local_auth_server,
+            get_google_client_id,
             sync_to_gdrive,
             sync_from_gdrive,
             get_programming_keywords,

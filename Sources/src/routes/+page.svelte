@@ -1205,15 +1205,57 @@
     }
   }
 
+  function generateRandomString(length: number) {
+    const array = new Uint32Array(length);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, dec => ('0' + dec.toString(16)).substring(-2)).join('');
+  }
+
+  async function sha256(plain: string) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(plain);
+    return window.crypto.subtle.digest('SHA-256', data);
+  }
+
+  function base64urlencode(str: ArrayBuffer) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(str) as any))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  async function generateChallenge(verifier: string) {
+    const hashed = await sha256(verifier);
+    return base64urlencode(hashed);
+  }
+
   async function startGdriveWebAuth() {
     isCloudSyncing = true;
     cloudSyncError = false;
     cloudSyncMessage = "Đang khởi tạo máy chủ xác thực cục bộ...";
     try {
-      await invoke("start_local_auth_server");
+      const clientId = await invoke("get_google_client_id") as string;
+      if (!clientId) {
+        throw new Error("Không tìm thấy Google Client ID.");
+      }
+      
+      const codeVerifier = generateRandomString(64);
+      const codeChallenge = await generateChallenge(codeVerifier);
+      
+      await invoke("start_local_auth_server", { codeVerifier });
       cloudSyncMessage = "Đang mở trình duyệt để liên kết...";
-      const url = "https://hoquangthaiholy.github.io/vnkey/auth.html?t=" + Date.now();
-      await invoke("plugin:opener|open_url", { url });
+      
+      const redirectUri = "http://127.0.0.1:12558/callback";
+      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: 'openid email profile https://www.googleapis.com/auth/drive.file',
+          code_challenge: codeChallenge,
+          code_challenge_method: 'S256',
+          access_type: 'offline',
+          prompt: 'consent'
+      }).toString();
+
+      await invoke("plugin:opener|open_url", { url: authUrl });
     } catch (e: any) {
       cloudSyncError = true;
       cloudSyncMessage = "Lỗi khởi tạo Web Auth: " + e;
