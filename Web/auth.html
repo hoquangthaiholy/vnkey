@@ -262,16 +262,11 @@
                 // We have a callback
                 showLoading("Đang trao đổi mã xác thực lấy Token...");
                 await handleCallback(code);
-            } else if (config.clientId && config.clientSecret) {
-                // Config exists and has secret, show login screen
+            } else if (config.clientId) {
+                // Config exists, show login screen (can proceed with or without secret)
                 stateLogin.style.display = 'block';
             } else {
-                // No config or missing client secret, show config screen to input
-                if (config.clientId) {
-                    clientIdInput.value = config.clientId;
-                    clientSecretInput.value = config.clientSecret;
-                    showWarning("Cần cấu hình Google Client Secret cho loại thông tin xác thực Web Application.");
-                }
+                // No config, show config screen
                 stateConfig.style.display = 'block';
             }
         }
@@ -367,7 +362,15 @@
                 await fetchProfileAndShow(tokenData);
             } catch (err) {
                 showError("Lỗi trao đổi token: " + err.message);
-                stateLogin.style.display = 'block';
+                if (err.message.toLowerCase().includes("client_secret") || err.message.toLowerCase().includes("secret")) {
+                    clientIdInput.value = config.clientId;
+                    clientSecretInput.value = config.clientSecret;
+                    showWarning("Cần cấu hình Google Client Secret cho loại thông tin xác thực Web Application.");
+                    hideAllStates();
+                    stateConfig.style.display = 'block';
+                } else {
+                    stateLogin.style.display = 'block';
+                }
             }
         }
 
