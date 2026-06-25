@@ -77,6 +77,13 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
     )?;
 
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS vietnamese_dict (
+            word TEXT PRIMARY KEY
+        )",
+        [],
+    )?;
+
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS programming_keywords (
             word TEXT PRIMARY KEY
         )",
@@ -159,6 +166,51 @@ pub fn db_get_english_words() -> Vec<String> {
     words.sort();
     words.dedup();
     words
+}
+
+pub fn db_insert_vietnamese_words(words: &[String]) {
+    let mut conn_guard = DB_CONN.lock().unwrap();
+    if let Some(conn) = conn_guard.as_mut() {
+        let key = get_local_db_key();
+        let tx = conn.transaction().unwrap();
+        {
+            let mut stmt = tx.prepare("INSERT OR IGNORE INTO vietnamese_dict (word) VALUES (?1)").unwrap();
+            for word in words {
+                let enc_word = encrypt_text(word, &key);
+                let _ = stmt.execute(params![enc_word]);
+            }
+        }
+        tx.commit().unwrap();
+    }
+}
+
+pub fn db_get_vietnamese_words() -> Vec<String> {
+    let mut words = Vec::new();
+    let key = get_local_db_key();
+    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
+        if let Ok(mut stmt) = conn.prepare("SELECT word FROM vietnamese_dict") {
+            let iter = stmt.query_map([], |row| {
+                let enc_word: String = row.get(0)?;
+                Ok(enc_word)
+            });
+            if let Ok(iter) = iter {
+                for w_res in iter {
+                    if let Ok(w) = w_res {
+                        words.push(decrypt_text(&w, &key));
+                    }
+                }
+            }
+        }
+    }
+    words.sort();
+    words.dedup();
+    words
+}
+
+pub fn db_clear_vietnamese_words() {
+    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
+        let _ = conn.execute("DELETE FROM vietnamese_dict", []);
+    }
 }
 
 pub fn db_clear_english_words() {

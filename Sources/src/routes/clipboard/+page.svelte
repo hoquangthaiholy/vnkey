@@ -686,27 +686,29 @@
   :global(.custom-floating-tooltip) {
     position: absolute;
     z-index: 9999;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: var(--color-accent);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 11px;
-    line-height: 1.3;
-    white-space: nowrap;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: rgba(28, 28, 30, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e5e5e7;
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-width: 360px;
+    white-space: normal;
     pointer-events: none;
     opacity: 0;
     transform: translateY(4px);
-    transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1), transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 
   :global(.light .custom-floating-tooltip) {
-    background: var(--color-accent);
+    background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(0, 0, 0, 0.1);
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    color: #1c1c1e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   }
 
   :global(.custom-floating-tooltip.visible) {

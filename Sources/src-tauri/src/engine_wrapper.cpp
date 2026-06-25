@@ -16,7 +16,7 @@ extern "C" {
     int vSendKeyStepByStep = 0;
     int vLanguage = 1;
     int vInputType = 0;
-    int vFreeMark = 0;
+    int vFreeMark = 1;
     int vCodeTable = 0;
     int vSwitchKeyStatus = 0x20000C31; // DEFAULT_SWITCH_STATUS (Cmd + Shift + Space)
     int vCheckSpelling = 1;
@@ -28,9 +28,8 @@ extern "C" {
     int vUseMacroInEnglishMode = 0;
     int vAutoCapsMacro = 1;
     int vUseSmartSwitchKey = 1;
-    int vUpperCaseFirstChar = 0;
-    int vTempOffSpelling = 0;
-    int vAllowConsonantZFWJ = 0;
+    int vUpperCaseFirstChar = 1;
+
     int vQuickStartConsonant = 0;
     int vQuickEndConsonant = 0;
     int vRememberCode = 1;
@@ -135,6 +134,15 @@ extern "C" {
             setCustomEnglishWords(content);
         }
     }
+
+    void vnkey_set_custom_vietnamese_words(const char* content) {
+        if (content == nullptr) {
+            setCustomVietnameseWords("");
+        } else {
+            setCustomVietnameseWords(content);
+        }
+    }
+
 
     void vnkey_set_custom_programming_keywords(const char* content) {
         if (content == nullptr) {

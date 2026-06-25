@@ -14,7 +14,7 @@ export function tooltip(node: HTMLElement, text: string | undefined | null) {
     // Create element
     tooltipEl = document.createElement("div");
     tooltipEl.className = "custom-floating-tooltip";
-    tooltipEl.textContent = text;
+    tooltipEl.innerHTML = text;
     
     document.body.appendChild(tooltipEl);
     
@@ -76,7 +76,7 @@ export function tooltip(node: HTMLElement, text: string | undefined | null) {
     update(newText: string | undefined | null) {
       text = newText;
       if (tooltipEl && text) {
-        tooltipEl.textContent = text;
+        tooltipEl.innerHTML = text;
       }
     },
     destroy() {

@@ -52,7 +52,7 @@ fn default_settings() -> Settings {
     Settings {
         language: 1,
         input_type: 0,
-        free_mark: 0,
+        free_mark: 1,
         code_table: 0,
         switch_key_status: default_switch_key(),
         check_spelling: 1,
@@ -65,9 +65,8 @@ fn default_settings() -> Settings {
         use_macro_in_english_mode: 0,
         auto_caps_macro: 1,
         use_smart_switch_key: 1,
-        upper_case_first_char: 0,
-        temp_off_spelling: 0,
-        allow_consonant_zfwj: 0,
+        upper_case_first_char: 1,
+        allow_consonant_zfwj: 1,
         quick_start_consonant: 0,
         quick_end_consonant: 0,
         remember_code: 1,
@@ -94,8 +93,8 @@ fn default_settings() -> Settings {
         clipboard_hotkey: 0x56000C09,
         check_programming_keywords: 1,
         fsm_priority_order: vec![0, 2, 1],
-        telex_w_as_u: 1,
-        telex_bracket_as_o: 1,
+        telex_w_as_u: 0,
+        telex_bracket_as_o: 0,
         autostart: 0,
         open_panel_on_start: 1,
     }
@@ -120,7 +119,6 @@ pub struct Settings {
     pub auto_caps_macro: i32,
     pub use_smart_switch_key: i32,
     pub upper_case_first_char: i32,
-    pub temp_off_spelling: i32,
     pub allow_consonant_zfwj: i32,
     pub quick_start_consonant: i32,
     pub quick_end_consonant: i32,
@@ -148,9 +146,9 @@ pub struct Settings {
     pub clipboard_hotkey: i32,
     #[serde(default = "default_fsm_priority_order")]
     pub fsm_priority_order: Vec<i32>,
-    #[serde(default = "default_one")]
+    #[serde(default = "default_zero")]
     pub telex_w_as_u: i32,
-    #[serde(default = "default_one")]
+    #[serde(default = "default_zero")]
     pub telex_bracket_as_o: i32,
     #[serde(default = "default_zero")]
     pub autostart: i32,
@@ -472,8 +470,7 @@ fn get_settings() -> Settings {
             auto_caps_macro: engine::vAutoCapsMacro,
             use_smart_switch_key: engine::vUseSmartSwitchKey,
             upper_case_first_char: engine::vUpperCaseFirstChar,
-            temp_off_spelling: engine::vTempOffSpelling,
-            allow_consonant_zfwj: engine::vAllowConsonantZFWJ,
+            allow_consonant_zfwj: 1,
             quick_start_consonant: engine::vQuickStartConsonant,
             quick_end_consonant: engine::vQuickEndConsonant,
             remember_code: engine::vRememberCode,
@@ -560,7 +557,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         unsafe {
                             engine::vLanguage = settings.language;
                             engine::vInputType = settings.input_type;
-                            engine::vFreeMark = settings.free_mark;
+                            engine::vFreeMark = 1;
                             engine::vCodeTable = settings.code_table;
                             engine::vSwitchKeyStatus = switch_key;
                             engine::vCheckSpelling = settings.check_spelling;
@@ -584,8 +581,6 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             engine::vAutoCapsMacro = settings.auto_caps_macro;
                             engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
                             engine::vUpperCaseFirstChar = settings.upper_case_first_char;
-                            engine::vTempOffSpelling = settings.temp_off_spelling;
-                            engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
                             engine::vQuickStartConsonant = settings.quick_start_consonant;
                             engine::vQuickEndConsonant = settings.quick_end_consonant;
                             engine::vRememberCode = settings.remember_code;
@@ -675,6 +670,8 @@ fn save_settings_to_disk(handle: &tauri::AppHandle, settings: &Settings) {
 
 #[tauri::command]
 fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
+    settings.free_mark = 1;
+    settings.allow_consonant_zfwj = 1;
     if settings.switch_key_status == 0 {
         settings.switch_key_status = default_switch_key();
     }
@@ -685,7 +682,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
     unsafe {
         engine::vLanguage = settings.language;
         engine::vInputType = settings.input_type;
-        engine::vFreeMark = settings.free_mark;
+        engine::vFreeMark = 1;
         engine::vCodeTable = settings.code_table;
         engine::vSwitchKeyStatus = settings.switch_key_status;
         engine::vCheckSpelling = settings.check_spelling;
@@ -709,8 +706,6 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vAutoCapsMacro = settings.auto_caps_macro;
         engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
         engine::vUpperCaseFirstChar = settings.upper_case_first_char;
-        engine::vTempOffSpelling = settings.temp_off_spelling;
-        engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::vQuickStartConsonant = settings.quick_start_consonant;
         engine::vQuickEndConsonant = settings.quick_end_consonant;
         engine::vRememberCode = settings.remember_code;
@@ -794,7 +789,7 @@ fn reset_settings(handle: tauri::AppHandle) {
     unsafe {
         engine::vLanguage = settings.language;
         engine::vInputType = settings.input_type;
-        engine::vFreeMark = settings.free_mark;
+        engine::vFreeMark = 1;
         engine::vCodeTable = settings.code_table;
         engine::vSwitchKeyStatus = settings.switch_key_status;
         engine::vCheckSpelling = settings.check_spelling;
@@ -818,8 +813,6 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vAutoCapsMacro = settings.auto_caps_macro;
         engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
         engine::vUpperCaseFirstChar = settings.upper_case_first_char;
-        engine::vTempOffSpelling = settings.temp_off_spelling;
-        engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::vQuickStartConsonant = settings.quick_start_consonant;
         engine::vQuickEndConsonant = settings.quick_end_consonant;
         engine::vRememberCode = settings.remember_code;
@@ -867,6 +860,8 @@ fn reset_settings(handle: tauri::AppHandle) {
     db::db_reset_english_words();
     let words = db::db_get_english_words();
     engine::set_custom_english_words(&words.join("\n"));
+    db::db_clear_vietnamese_words();
+    engine::set_custom_vietnamese_words("");
     db::db_reset_programming_keywords();
     let prog_words = db::db_get_programming_keywords();
     engine::set_custom_programming_keywords(&prog_words.join("\n"));
@@ -933,6 +928,11 @@ fn load_english_dict_from_disk(handle: &tauri::AppHandle) {
     engine::set_custom_english_words(&words.join("\n"));
 }
 
+fn load_vietnamese_dict_from_disk(_handle: &tauri::AppHandle) {
+    let words = db::db_get_vietnamese_words();
+    engine::set_custom_vietnamese_words(&words.join("\n"));
+}
+
 #[tauri::command]
 fn get_english_dictionary() -> Result<EnglishDictionary, String> {
     let custom_words = db::db_get_english_words();
@@ -965,6 +965,36 @@ fn save_custom_english_words(words: String) -> Result<(), String> {
     db::db_clear_english_words();
     db::db_insert_english_words(&normalized);
     engine::set_custom_english_words(&normalized.join("\n"));
+    auto_sync_to_cloud();
+    Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct VietnameseDictionary {
+    pub custom_words: Vec<String>,
+}
+
+#[tauri::command]
+fn get_vietnamese_dictionary() -> Result<VietnameseDictionary, String> {
+    let custom_words = db::db_get_vietnamese_words();
+    Ok(VietnameseDictionary {
+        custom_words,
+    })
+}
+
+#[tauri::command]
+fn save_custom_vietnamese_words(words: String) -> Result<(), String> {
+    let mut normalized: Vec<String> = words
+        .lines()
+        .flat_map(str::split_whitespace)
+        .map(|w| w.to_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect();
+    normalized.sort_unstable();
+    normalized.dedup();
+    db::db_clear_vietnamese_words();
+    db::db_insert_vietnamese_words(&normalized);
+    engine::set_custom_vietnamese_words(&normalized.join("\n"));
     auto_sync_to_cloud();
     Ok(())
 }
@@ -1387,7 +1417,7 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
     menu
 }
 
-static LAST_TRAY_STATE: OnceLock<Mutex<(i32, bool, bool, i32, i32, bool)>> = OnceLock::new();
+static LAST_TRAY_STATE: OnceLock<Mutex<(i32, bool, bool, i32, i32, bool, bool)>> = OnceLock::new();
 
 fn update_tray_icon<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) {
     if let Some(tray) = TRAY_ICON.get() {
@@ -1397,13 +1427,14 @@ fn update_tray_icon<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) {
         let input_type = unsafe { engine::vInputType };
         let code_table = unsafe { engine::vCodeTable };
         let is_english = unsafe { engine::macos_is_current_input_source_english() };
+        let has_access = unsafe { engine::is_accessibility_granted() };
 
-        let state_mutex = LAST_TRAY_STATE.get_or_init(|| Mutex::new((-1, false, false, -1, -1, false)));
+        let state_mutex = LAST_TRAY_STATE.get_or_init(|| Mutex::new((-1, false, false, -1, -1, false, false)));
         if let Ok(mut last_state) = state_mutex.lock() {
-            if *last_state == (lang, gray, show_label, input_type, code_table, is_english) {
+            if *last_state == (lang, gray, show_label, input_type, code_table, is_english, has_access) {
                 return;
             }
-            *last_state = (lang, gray, show_label, input_type, code_table, is_english);
+            *last_state = (lang, gray, show_label, input_type, code_table, is_english, has_access);
         }
 
         let icon = get_tray_icon(lang);
@@ -1585,10 +1616,11 @@ pub struct AppConfig {
     pub use_macro_in_english_mode: i32,
     pub auto_caps_macro: i32,
     pub upper_case_first_char: i32,
-    pub temp_off_spelling: i32,
     pub allow_consonant_zfwj: i32,
     pub quick_start_consonant: i32,
     pub quick_end_consonant: i32,
+    #[serde(default)]
+    pub check_programming_keywords: i32,
     pub name: Option<String>,
 }
 
@@ -1765,7 +1797,7 @@ fn apply_app_config_by_bundle_id(handle: &tauri::AppHandle, bundle_id: &str) {
         unsafe {
             engine::vLanguage = config.language;
             engine::vInputType = config.input_type;
-            engine::vFreeMark = config.free_mark;
+            engine::vFreeMark = 1;
             engine::vCodeTable = config.code_table;
             engine::vCheckSpelling = config.check_spelling;
             engine::vUseModernOrthography = config.use_modern_orthography;
@@ -1775,10 +1807,9 @@ fn apply_app_config_by_bundle_id(handle: &tauri::AppHandle, bundle_id: &str) {
             engine::vUseMacroInEnglishMode = config.use_macro_in_english_mode;
             engine::vAutoCapsMacro = config.auto_caps_macro;
             engine::vUpperCaseFirstChar = config.upper_case_first_char;
-            engine::vTempOffSpelling = config.temp_off_spelling;
-            engine::vAllowConsonantZFWJ = config.allow_consonant_zfwj;
             engine::vQuickStartConsonant = config.quick_start_consonant;
             engine::vQuickEndConsonant = config.quick_end_consonant;
+            engine::vCheckProgrammingKeywords = config.check_programming_keywords;
             engine::startNewSession();
             engine::code_table_changed();
         }
@@ -1988,6 +2019,8 @@ pub fn run() {
             trigger_quick_convert,
             get_english_dictionary,
             save_custom_english_words,
+            get_vietnamese_dictionary,
+            save_custom_vietnamese_words,
             quit,
             get_clipboard_items,
             remove_clipboard_item,
@@ -2073,6 +2106,7 @@ pub fn run() {
                 load_settings_from_disk(&handle);
                 load_macros_from_disk(&handle);
                 load_english_dict_from_disk(&handle);
+                load_vietnamese_dict_from_disk(&handle);
                 load_programming_keywords_from_disk(&handle);
                 unsafe {
                     engine::start_event_tap();
@@ -2100,6 +2134,7 @@ pub fn run() {
                                 load_settings_from_disk(&handle_clone_2);
                                 load_macros_from_disk(&handle_clone_2);
                                 load_english_dict_from_disk(&handle_clone_2);
+                                load_vietnamese_dict_from_disk(&handle_clone_2);
                                 load_programming_keywords_from_disk(&handle_clone_2);
                                 unsafe {
                                     engine::start_event_tap();

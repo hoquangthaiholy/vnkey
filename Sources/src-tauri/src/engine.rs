@@ -24,8 +24,7 @@ extern "C" {
     pub static mut vAutoCapsMacro: c_int;
     pub static mut vUseSmartSwitchKey: c_int;
     pub static mut vUpperCaseFirstChar: c_int;
-    pub static mut vTempOffSpelling: c_int;
-    pub static mut vAllowConsonantZFWJ: c_int;
+
     pub static mut vQuickStartConsonant: c_int;
     pub static mut vQuickEndConsonant: c_int;
     pub static mut vRememberCode: c_int;
@@ -55,6 +54,7 @@ extern "C" {
 
     fn vnkey_load_macros(path: *const c_char);
     fn vnkey_set_custom_english_words(content: *const c_char);
+    fn vnkey_set_custom_vietnamese_words(content: *const c_char);
     fn vnkey_set_custom_programming_keywords(content: *const c_char);
     fn vnkey_set_fsm_priority_order(a: c_int, b: c_int, c: c_int);
     fn vnkey_get_fsm_priority_order(a: *mut c_int, b: *mut c_int, c: *mut c_int);
@@ -235,6 +235,12 @@ pub fn convert_text(
 pub fn set_custom_english_words(content: &str) {
     if let Ok(c_content) = CString::new(content) {
         unsafe { vnkey_set_custom_english_words(c_content.as_ptr()) };
+    }
+}
+
+pub fn set_custom_vietnamese_words(content: &str) {
+    if let Ok(c_content) = CString::new(content) {
+        unsafe { vnkey_set_custom_vietnamese_words(c_content.as_ptr()) };
     }
 }
 

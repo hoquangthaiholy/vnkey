@@ -574,3 +574,60 @@ Uint16 keyCodeToCharacter(const Uint32& keyCode) {
     }
     return 0;
 }
+
+#include <unordered_set>
+#include <memory>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <atomic>
+
+namespace {
+using VietnameseWordSet = std::unordered_set<std::string>;
+std::shared_ptr<const VietnameseWordSet> gCustomVietnameseWords = std::make_shared<VietnameseWordSet>();
+
+std::string lowercaseUtf8(const std::string& str) {
+    std::string result;
+    result.reserve(str.size());
+    for (size_t i = 0; i < str.size(); i++) {
+        unsigned char c = str[i];
+        if (c >= 'A' && c <= 'Z') {
+            result.push_back(c + 32);
+        } else {
+            result.push_back(c);
+        }
+    }
+    return result;
+}
+} // namespace
+
+void setCustomVietnameseWords(const std::string& content) {
+    auto customWords = std::make_shared<VietnameseWordSet>();
+    std::stringstream ss(content);
+    std::string word;
+    while (ss >> word) {
+        if (word.empty()) continue;
+        if (word[0] == '#') {
+            std::string comment;
+            std::getline(ss, comment);
+            continue;
+        }
+        std::string normalized = lowercaseUtf8(word);
+        if (!normalized.empty()) {
+            customWords->insert(normalized);
+        }
+    }
+    std::atomic_store(
+        &gCustomVietnameseWords,
+        std::static_pointer_cast<const VietnameseWordSet>(customWords));
+}
+
+bool isCustomVietnameseWord(const std::string& word) {
+    std::string normalized = lowercaseUtf8(word);
+    if (normalized.empty()) {
+        return false;
+    }
+    const auto customWords = std::atomic_load(&gCustomVietnameseWords);
+    return customWords->count(normalized) > 0;
+}
+

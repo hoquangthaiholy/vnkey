@@ -146,19 +146,7 @@ extern int vUseSmartSwitchKey;
  */
 extern int vUpperCaseFirstChar;
 
-/**
- * Temporarily turn off spell checking with Ctrl key
- * 0: No
- * 1: Yes
- */
-extern int vTempOffSpelling;
 
-/**
- * Allow write word with consonant Z, F, W, J
- * 0: No
- * 1: Yes
- */
-extern int vAllowConsonantZFWJ;
 
 /**
  * 0: No; 1: Yes
@@ -248,10 +236,6 @@ void startNewSession();
  */
 void vEnglishMode(const vKeyEventState& state, const Uint16& data, const bool& isCaps, const bool& otherControlKey);
 
-/**
- * temporarily turn off spell checking
- */
-void vTempOffSpellChecking();
 
 /**
  * reset spelling value

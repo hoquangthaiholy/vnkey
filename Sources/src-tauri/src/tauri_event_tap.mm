@@ -771,10 +771,6 @@ extern "C" {
                         _hasJustUsedHotKey = true;
                         return NULL;
                     }
-                    //check temporarily turn off spell checking
-                    if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskControl) {
-                        vTempOffSpellChecking();
-                    }
                     if (vTempOffVNKey && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskCommand) {
                         vTempOffEngine();
                     }
@@ -1040,7 +1036,7 @@ extern "C" {
 
     const uint8_t* get_macos_status_icon(bool vietnamese, bool gray, int inputType, int* len) {
         @autoreleasepool {
-            BOOL isNotEnglish = !_currentInputSourceIsEnglish;
+            BOOL isNotEnglish = !_currentInputSourceIsEnglish || !AXIsProcessTrusted();
 
             // When inputType < 0, don't show input type label (show original small icon)
             if (inputType < 0) {

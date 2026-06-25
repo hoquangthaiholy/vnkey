@@ -34,4 +34,6 @@ extern map<Uint16, vector<Uint16>> _quickEndConsonant;
 extern map<Uint32, Uint32> _characterMap;
 
 extern Uint16 keyCodeToCharacter(const Uint32& keyCode);
+extern void setCustomVietnameseWords(const std::string& content);
+extern bool isCustomVietnameseWord(const std::string& word);
 #endif /* Vietnamese_h */

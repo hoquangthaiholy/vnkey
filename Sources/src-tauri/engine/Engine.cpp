@@ -256,10 +256,45 @@ bool _spellingFlag = false;
 bool _spellingVowelOK = false;
 Byte _spellingEndIndex = 0;
 
+static std::string getOutputWordUtf8() {
+    std::string word;
+    for (int i = 0; i < _index; i++) {
+        Uint32 cp = getCharacterCode(TypingWord[i]);
+        if (cp == 0) continue;
+        if (cp < 0x80) {
+            word.push_back(static_cast<char>(cp));
+        } else if (cp < 0x800) {
+            word.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+            word.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else if (cp < 0x10000) {
+            word.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+            word.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            word.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else {
+            word.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+            word.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+            word.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            word.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        }
+    }
+    return word;
+}
+
 void checkSpelling(const bool& forceCheckVowel=false) {
     _spellingOK = false;
     _spellingVowelOK = true;
     _spellingEndIndex = _index;
+
+    {
+        std::string currentOutputWord = getOutputWordUtf8();
+        if (!currentOutputWord.empty() && isCustomVietnameseWord(currentOutputWord)) {
+            _spellingOK = true;
+            _spellingVowelOK = true;
+            tempDisableKey = false;
+            return;
+        }
+    }
+
     
     if (_index > 0 && CHR(_index-1) == KEY_RIGHT_BRACKET) {
         _spellingEndIndex = _index-1;
@@ -276,7 +311,7 @@ void checkSpelling(const bool& forceCheckVowel=false) {
                 for (j = 0; j < (int)_consonantTable[i].size(); j++) {
                     if (_spellingEndIndex > j &&
                         (_consonantTable[i][j] & ~(vQuickStartConsonant ? END_CONSONANT_MASK : 0)) != CHR(j) &&
-                        (_consonantTable[i][j] & ~(vAllowConsonantZFWJ ? CONSONANT_ALLOW_MASK : 0)) != CHR(j)) {
+                        (_consonantTable[i][j] & ~CONSONANT_ALLOW_MASK) != CHR(j)) {
                         _spellingFlag = true;
                         break;
                     }
@@ -795,10 +830,10 @@ void handleModernMark() {
     }
     
     //rule 3.1
-    if ((CHR(VSI) == KEY_I && (TypingWord[VSI+1] & (KEY_E | TONE_MASK))) ||
-        (CHR(VSI) == KEY_Y && (TypingWord[VSI+1] & (KEY_E | TONE_MASK))) ||
-        (CHR(VSI) == KEY_U && (TypingWord[VSI+1] == (KEY_O | TONE_MASK))) ||
-        ((TypingWord[VSI] == (KEY_U | TONEW_MASK)) && (TypingWord[VSI+1] == (KEY_O | TONEW_MASK)))){
+    if ((CHR(VSI) == KEY_I && CHR(VSI+1) == KEY_E && (TypingWord[VSI+1] & TONE_MASK)) ||
+        (CHR(VSI) == KEY_Y && CHR(VSI+1) == KEY_E && (TypingWord[VSI+1] & TONE_MASK)) ||
+        (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_O && (TypingWord[VSI+1] & TONE_MASK)) ||
+        (CHR(VSI) == KEY_U && (TypingWord[VSI] & TONEW_MASK) && CHR(VSI+1) == KEY_O && (TypingWord[VSI+1] & TONEW_MASK))){
         
         if (VSI+2 < _index) {
             if (CHR(VSI+2) == KEY_P || CHR(VSI+2) == KEY_T ||
@@ -821,10 +856,10 @@ void handleModernMark() {
         }
     }
     //rule 3.2
-    else if ((CHR(VSI) == KEY_I && (CHR(VSI) == KEY_A)) ||
-             (CHR(VSI) == KEY_Y && (CHR(VSI) == KEY_A)) ||
-             (CHR(VSI) == KEY_U && (CHR(VSI) == KEY_A)) ||
-             (CHR(VSI) == KEY_U && (TypingWord[VSI+1] == (KEY_U | TONEW_MASK)))){
+    else if ((CHR(VSI) == KEY_I && CHR(VSI+1) == KEY_A) ||
+             (CHR(VSI) == KEY_Y && CHR(VSI+1) == KEY_A) ||
+             (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_A) ||
+             (CHR(VSI) == KEY_U && CHR(VSI+1) == KEY_U && (TypingWord[VSI+1] & TONEW_MASK))){
         
         VWSM = VSI;
         hBPC = _index - VWSM;
@@ -917,7 +952,7 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
         TypingWord[VWSM] &= ~MARK_MASK;
         if (canModifyFlag) {
             hCode = vRestore;
-            if (markMask == MARK4_MASK || markMask == MARK5_MASK) {
+            if (markMask == MARK1_MASK || markMask == MARK2_MASK || markMask == MARK3_MASK || markMask == MARK4_MASK || markMask == MARK5_MASK) {
                 if (!_rawTyping.empty()) _rawTyping.pop_back();
                 if (_stateIndex > 0) _stateIndex--;
             }
@@ -992,6 +1027,8 @@ void insertAOE(const Uint16& data, const bool& isCaps) {
                 //restore and disable temporary
                 hCode = vRestore;
                 TypingWord[ii] &= ~TONE_MASK;
+                if (!_rawTyping.empty()) _rawTyping.pop_back();
+                if (_stateIndex > 0) _stateIndex--;
                 hData[_index - 1 - ii] = TypingWord[ii];
                 //_index = 0;
                 if (data != KEY_O) //case thoòng
@@ -1101,11 +1138,15 @@ void insertW(const Uint16& data, const bool& isCaps) {
                             hCode = vRestore;
                             TypingWord[ii] = KEY_O | ((TypingWord[ii] & CAPS_MASK) ? CAPS_MASK : 0);
                             isRestoredW = true;
+                            if (!_rawTyping.empty()) _rawTyping.pop_back();
+                            if (_stateIndex > 0) _stateIndex--;
                         }
                         hData[_index - 1 - ii] = TypingWord[ii];
                     } else {
                         hCode = vRestore;
                         TypingWord[ii] &= ~TONEW_MASK;
+                        if (!_rawTyping.empty()) _rawTyping.pop_back();
+                        if (_stateIndex > 0) _stateIndex--;
                         hData[_index - 1 - ii] = TypingWord[ii];
                         isRestoredW = true;
                         //_index++;
@@ -1431,15 +1472,8 @@ bool applyFsmRestorations(const int& handleCode) {
     // If we reach here, it means:
     // - English and Programming didn't match (or were disabled).
     // - Vietnamese was evaluated but it was INVALID (tempDisableKey = true).
-    // Since Vietnamese is invalid and "Restore if wrong spelling" is active,
-    // the default behavior is to restore.
-    return restoreRawTyping(handleCode, false);
-}
-
-void vTempOffSpellChecking() {
-    if (_useSpellCheckingBefore) {
-        vCheckSpelling = vCheckSpelling ? 0 : 1;
-    }
+    // We no longer automatically restore when none of the enabled FSMs match.
+    return false;
 }
 
 void vSetCheckSpelling() {
