@@ -18,6 +18,7 @@ extern "C" {
     pub static mut vQuickTelex: c_int;
     pub static mut vUseEnglishDictionary: c_int;
     pub static mut vFixRecommendBrowser: c_int;
+    pub static mut vFixSpotlight: c_int;
     pub static mut vUseMacro: c_int;
     pub static mut vUseMacroInEnglishMode: c_int;
     pub static mut vAutoCapsMacro: c_int;
@@ -35,6 +36,8 @@ extern "C" {
     pub static mut vFixChromiumBrowser: c_int;
     pub static mut vPerformLayoutCompat: c_int;
     pub static mut vCheckProgrammingKeywords: c_int;
+    pub static mut vTelexWAsU: c_int;
+    pub static mut vTelexBracketAsO: c_int;
 
     pub fn vKeyInit() -> *mut c_void;
     pub fn startNewSession();

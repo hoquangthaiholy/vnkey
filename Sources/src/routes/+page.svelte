@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { slide } from "svelte/transition";
+  import { slide, fade, fly, scale } from "svelte/transition";
   import { flip } from "svelte/animate";
   import { quintOut } from "svelte/easing";
   import { invoke } from "@tauri-apps/api/core";
@@ -23,6 +23,7 @@
     check_programming_keywords: number;
     fsm_priority_order: number[];
     fix_recommend_browser: number;
+    fix_spotlight: number;
     use_macro: number;
     use_macro_in_english_mode: number;
     auto_caps_macro: number;
@@ -54,6 +55,10 @@
     clipboard_auto_hide: number;
     clipboard_max_items: number;
     clipboard_hotkey: number;
+    telex_w_as_u: number;
+    telex_bracket_as_o: number;
+    autostart: number;
+    open_panel_on_start: number;
   }
 
   let settings = $state<Settings>({
@@ -69,6 +74,7 @@
     check_programming_keywords: 1,
     fsm_priority_order: [0, 2, 1],
     fix_recommend_browser: 1,
+    fix_spotlight: 1,
     use_macro: 1,
     use_macro_in_english_mode: 0,
     auto_caps_macro: 1,
@@ -100,6 +106,10 @@
     clipboard_auto_hide: 1,
     clipboard_max_items: 30,
     clipboard_hotkey: 0x56000C09, // Command + Shift + V
+    telex_w_as_u: 1,
+    telex_bracket_as_o: 1,
+    autostart: 0,
+    open_panel_on_start: 1,
   });
 
   let activeTab = $state(0);
@@ -1223,7 +1233,7 @@
     <main class="content-area">
       <!-- Tab 0: Gõ phím -->
       {#if activeTab === 0}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Điều khiển & Gõ phím</h2>
             <p class="panel-subtitle">Thiết lập bộ gõ, bảng mã và các quy chuẩn chính tả tiếng Việt.</p>
@@ -1237,10 +1247,36 @@
                 <select value={settings.input_type} onchange={(e) => handleSelectChange('input_type', parseInt((e.target as HTMLSelectElement).value))}>
                   <option value={0}>Telex</option>
                   <option value={1}>VNI</option>
-                  <option value={2}>Simple Telex 1</option>
-                  <option value={3}>Simple Telex 2</option>
                 </select>
               </label>
+
+              {#if settings.input_type === 0}
+                <div class="sub-toggles-grid" transition:slide={{ duration: 250 }}>
+                  <label class="toggle-container">
+                    <span class="toggle-text">Gõ <kbd>w</kbd> thành <kbd>ư</kbd></span>
+                    <div class="switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.telex_w_as_u === 1}
+                        onchange={(e) => handleCheckboxChange('telex_w_as_u', (e.target as HTMLInputElement).checked)}
+                      />
+                      <span class="slider"></span>
+                    </div>
+                  </label>
+                  <label class="toggle-container">
+                    <span class="toggle-text">Gõ <kbd>[</kbd> thành <kbd>ơ</kbd></span>
+                    <div class="switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.telex_bracket_as_o === 1}
+                        onchange={(e) => handleCheckboxChange('telex_bracket_as_o', (e.target as HTMLInputElement).checked)}
+                      />
+                      <span class="slider"></span>
+                    </div>
+                  </label>
+                </div>
+              {/if}
+
               <label class="form-group-inline mt-15">
                 <span>Bảng mã</span>
                 <select value={settings.code_table} onchange={(e) => handleSelectChange('code_table', parseInt((e.target as HTMLSelectElement).value))}>
@@ -1301,7 +1337,7 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Đặt dấu oà, uý (thay vì òa, úy) <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng quy tắc đặt dấu hiện đại cho các cụm oa, oe, uy.">?</span></span>
+                <span class="toggle-text">Đặt dấu oà, uý (thay vì òa, úy) <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng quy tắc đặt dấu hiện đại cho các cụm <kbd>oa</kbd>, <kbd>oe</kbd>, <kbd>uy</kbd>.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_modern_orthography === 1} onchange={(e) => handleCheckboxChange('use_modern_orthography', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1340,7 +1376,7 @@
                 </div>
               </label>
               <label class="toggle-container">
-                <span class="toggle-text">Gõ tự do các phụ âm [z, f, w, j] đầu từ</span>
+                <span class="toggle-text">Gõ tự do các phụ âm <kbd>z</kbd>, <kbd>f</kbd>, <kbd>w</kbd>, <kbd>j</kbd> đầu từ</span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.allow_consonant_zfwj === 1} onchange={(e) => handleCheckboxChange('allow_consonant_zfwj', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
@@ -1378,7 +1414,21 @@
           <!-- Card 2: Kiểm tra tiếng Anh -->
           <div class="card mt-20">
             <label class="toggle-container mb-15">
-              <span class="toggle-text font-bold" style="font-size:15px;">🇬🇧 Kiểm tra từ tiếng Anh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng FSM âm vị học tiếng Anh và từ điển tùy chỉnh để giữ nguyên các từ tiếng Anh dễ bị Telex biến đổi.">?</span></span>
+              <span class="toggle-text font-bold" style="font-size:15px; display: inline-flex; align-items: center; gap: 8px;">
+                <svg class="title-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" style="width: 20px; height: 13px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); vertical-align: middle;">
+                  <clipPath id="uk-flag-clip">
+                    <rect width="60" height="30" rx="2"/>
+                  </clipPath>
+                  <g clip-path="url(#uk-flag-clip)">
+                    <rect width="60" height="30" fill="#012169"/>
+                    <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>
+                    <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" stroke-width="4"/>
+                    <path d="M30,0 V30 M0,15 H60" stroke="#fff" stroke-width="10"/>
+                    <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" stroke-width="6"/>
+                  </g>
+                </svg>
+                Kiểm tra từ tiếng Anh <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng FSM âm vị học tiếng Anh và từ điển tùy chỉnh để giữ nguyên các từ tiếng Anh dễ bị Telex biến đổi.">?</span>
+              </span>
               <div class="switch">
                 <input type="checkbox" checked={settings.use_english_dictionary === 1} onchange={(e) => handleCheckboxChange('use_english_dictionary', (e.target as HTMLInputElement).checked)} />
                 <span class="slider"></span>
@@ -1428,7 +1478,14 @@
           <!-- Card 3: Kiểm tra từ khóa lập trình -->
           <div class="card mt-20">
             <label class="toggle-container mb-15">
-              <span class="toggle-text font-bold" style="font-size:15px;">💻 Kiểm tra từ khóa lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng FSM nhận diện từ khóa lập trình (C++, Java, JS, TS, PHP, Python, Go, Rust, ...) để giữ nguyên khi gõ code.">?</span></span>
+              <span class="toggle-text font-bold" style="font-size:15px; display: inline-flex; align-items: center; gap: 8px;">
+                <svg class="title-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; color: var(--color-accent); vertical-align: middle;">
+                  <polyline points="16 18 22 12 16 6"></polyline>
+                  <polyline points="8 6 2 12 8 18"></polyline>
+                  <line x1="14" y1="4" x2="10" y2="20"></line>
+                </svg>
+                Kiểm tra từ khóa lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng FSM nhận diện từ khóa lập trình (C++, Java, JS, TS, PHP, Python, Go, Rust, ...) để giữ nguyên khi gõ code.">?</span>
+              </span>
               <div class="switch">
                 <input type="checkbox" checked={settings.check_programming_keywords === 1} onchange={(e) => handleCheckboxChange('check_programming_keywords', (e.target as HTMLInputElement).checked)} />
                 <span class="slider"></span>
@@ -1529,7 +1586,7 @@
 
       <!-- Tab 1: Gõ tắt -->
       {:else if activeTab === 1}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Gõ tắt & Macro</h2>
             <p class="panel-subtitle">Tùy biến viết tắt giúp tăng tốc độ soạn thảo văn bản hàng ngày.</p>
@@ -1642,7 +1699,7 @@
 
       <!-- Tab 2: Chuyển mã -->
       {:else if activeTab === 2}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Công cụ chuyển mã</h2>
             <p class="panel-subtitle">Chuyển đổi bảng mã văn bản tiếng Việt dễ dàng hoặc đặt phím tắt chuyển nhanh Clipboard.</p>
@@ -1805,7 +1862,7 @@
 
       <!-- Tab 7: Cloud Sync -->
       {:else if activeTab === 7}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Đồng bộ dữ liệu</h2>
             <p class="panel-subtitle">Lưu trữ và khôi phục cài đặt, từ gõ tắt an toàn.</p>
@@ -1933,10 +1990,31 @@
 
       <!-- Tab 3: Hệ thống -->
       {:else if activeTab === 3}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Thiết lập hệ thống</h2>
             <p class="panel-subtitle">Tùy chỉnh tích hợp sâu của bộ gõ vào hệ điều hành macOS.</p>
+          </div>
+
+          <div class="card mb-20">
+            <h3>Khởi động & Vận hành</h3>
+            <div class="toggles-grid">
+              <label class="toggle-container">
+                <span class="toggle-text">Khởi động VNKey cùng hệ thống</span>
+                <div class="switch">
+                  <input type="checkbox" checked={settings.autostart === 1} onchange={(e) => handleCheckboxChange('autostart', (e.target as HTMLInputElement).checked)} />
+                  <span class="slider"></span>
+                </div>
+              </label>
+
+              <label class="toggle-container">
+                <span class="toggle-text">Mở bảng điều khiển khi mở VNKey</span>
+                <div class="switch">
+                  <input type="checkbox" checked={settings.open_panel_on_start === 1} onchange={(e) => handleCheckboxChange('open_panel_on_start', (e.target as HTMLInputElement).checked)} />
+                  <span class="slider"></span>
+                </div>
+              </label>
+            </div>
           </div>
 
           <div class="card">
@@ -2017,6 +2095,14 @@
               </label>
 
               <label class="toggle-container">
+                <span class="toggle-text">Sửa lỗi trên Spotlight <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Dùng cách thay thế vùng chọn để tránh lỗi lặp nguyên âm khi gõ từ đầu tiên trên Spotlight.">?</span></span>
+                <div class="switch">
+                  <input type="checkbox" checked={settings.fix_spotlight === 1} onchange={(e) => handleCheckboxChange('fix_spotlight', (e.target as HTMLInputElement).checked)} />
+                  <span class="slider"></span>
+                </div>
+              </label>
+
+              <label class="toggle-container">
                 <span class="toggle-text">Gửi phím từng bước <span class="help-tooltip" role="img" aria-label="Thông tin" data-tooltip="Gửi từng ký tự riêng để tương thích với ứng dụng lỗi, nhưng chậm hơn chế độ gửi cả chuỗi. Chỉ bật khi gặp lặp hoặc mất chữ.">?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.send_key_step_by_step === 1} onchange={(e) => handleCheckboxChange('send_key_step_by_step', (e.target as HTMLInputElement).checked)} />
@@ -2050,8 +2136,8 @@
         </section>
 
         {#if showResetModal}
-          <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Xác nhận đặt lại thiết lập">
-            <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+          <div class="modal-overlay" transition:fade={{ duration: 150 }} role="dialog" aria-modal="true" aria-label="Xác nhận đặt lại thiết lập">
+            <div class="modal-content" transition:scale={{ duration: 180, start: 0.95 }} onclick={(e) => e.stopPropagation()}>
               <h3>Xác nhận đặt lại thiết lập</h3>
               <p>Bạn có chắc chắn muốn đặt lại toàn bộ thiết lập về giá trị mặc định? Hành động này sẽ:</p>
               <ul>
@@ -2088,7 +2174,7 @@
 
       <!-- Tab 5: Bảng ghi nhớ -->
       {:else if activeTab === 5}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Bảng ghi nhớ</h2>
             <p class="panel-subtitle">Quản lý sao chép bản văn, hình ảnh và tệp tin.</p>
@@ -2193,7 +2279,7 @@
 
       <!-- Tab 6: Ứng dụng -->
       {:else if activeTab === 6}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Thiết lập cho từng ứng dụng</h2>
             <p class="panel-subtitle">Tùy chỉnh chế độ gõ và phím tắt riêng cho mỗi ứng dụng đang chạy.</p>
@@ -2273,8 +2359,6 @@
                       <select value={appConfigs[selectedApp].input_type} onchange={(e) => updateAppConfigField('input_type', parseInt((e.target as HTMLSelectElement).value))}>
                         <option value={0}>Telex</option>
                         <option value={1}>VNI</option>
-                        <option value={2}>Simple Telex 1</option>
-                        <option value={3}>Simple Telex 2</option>
                       </select>
                     </label>
 
@@ -2425,7 +2509,7 @@
 
       <!-- Tab 4: Thông tin -->
       {:else}
-        <section class="panel">
+        <section class="panel" in:fly={{ y: 8, duration: 200, delay: 150 }} out:fade={{ duration: 150 }}>
           <div class="panel-header">
             <h2>Thông tin ứng dụng</h2>
             <p class="panel-subtitle">Lịch sử phát triển và hỗ trợ kỹ thuật cho bộ gõ VNKey.</p>
@@ -2443,15 +2527,14 @@
             
             <div class="links-grid">
               <a href="https://open-key.org" target="_blank" class="link-item">Trang chủ VNKey</a>
-              <a href="https://github.com/tuyenvm/OpenKey" target="_blank" class="link-item">Nguồn mở (GitHub)</a>
-              <a href="mailto:maivutuyen.91@gmail.com" class="link-item">Liên hệ tác giả</a>
+              <a href="https://github.com/hoquangthaiholy/vnkey" target="_blank" class="link-item">Nguồn mở (GitHub)</a>
+              <a href="mailto:ey.dev@gmail.com" class="link-item">Liên hệ tác giả</a>
             </div>
 
             <div class="info-footer pt-15 mt-10" style="border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
               <span class="text-secondary" style="font-size: 13px; display: flex; align-items: center; gap: 4px;">
-                Copyright <Copyright size={14} strokeWidth={2} /> 2026 theodore & OpenKey Contributors
+                Copyright <Copyright size={14} strokeWidth={2} /> 2026
               </span>
-              <button class="btn btn-secondary" onclick={() => alert("Ứng dụng đang ở phiên bản mới nhất!")}>Kiểm tra cập nhật</button>
             </div>
           </div>
         </section>
@@ -2460,8 +2543,8 @@
 
     <!-- App Selector Modal -->
     {#if showAppSelectorModal}
-      <div class="app-modal-overlay" role="dialog" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showAppSelectorModal = false)}>
-        <div class="app-modal-content">
+      <div class="app-modal-overlay" transition:fade={{ duration: 150 }} role="dialog" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showAppSelectorModal = false)}>
+        <div class="app-modal-content" transition:scale={{ duration: 180, start: 0.95 }}>
           <div class="app-modal-header">
             <h3>Thêm ứng dụng</h3>
             <button class="app-modal-close" aria-label="Đóng" onclick={() => showAppSelectorModal = false}>&times;</button>
@@ -2496,8 +2579,8 @@
     {/if}
 
     {#if showMacroModal}
-      <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Thêm hoặc sửa từ gõ tắt">
-        <div class="modal-content" onclick={(e) => e.stopPropagation()} style="max-width: 500px;">
+      <div class="modal-overlay" transition:fade={{ duration: 150 }} role="dialog" aria-modal="true" aria-label="Thêm hoặc sửa từ gõ tắt">
+        <div class="modal-content" transition:scale={{ duration: 180, start: 0.95 }} onclick={(e) => e.stopPropagation()} style="max-width: 500px;">
           <h3 style="margin-bottom: 20px;">{newShortcut && macrosList.some(m => m.shortcut === newShortcut) ? 'Chỉnh sửa từ gõ tắt' : 'Thêm từ gõ tắt mới'}</h3>
           
           <div style="margin-bottom: 15px;">
@@ -3093,6 +3176,20 @@
     min-width: 0;
   }
 
+
+
+  kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    background: var(--bg-input, #2a2a2a);
+    color: var(--text-primary, #eee);
+    line-height: 1.4;
+  }
+
   .form-group-stacked {
     display: flex;
     flex-direction: column;
@@ -3552,6 +3649,8 @@
   /* Utility classes */
   .mt-5 { margin-top: 5px; }
   .mt-10 { margin-top: 10px; }
+  .mt-8  { margin-top: 8px; }
+  .mt-10 { margin-top: 10px; }
   .mt-15 { margin-top: 15px; }
   .mt-20 { margin-top: 20px; }
   .mb-15 { margin-bottom: 15px; }
@@ -3783,13 +3882,13 @@
   .sub-tabs-container {
     display: flex;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.04);
+    background: rgba(0, 0, 0, 0.05);
     padding: 4px;
     border-radius: 10px;
   }
 
-  :global(body.dark-mode) .sub-tabs-container {
-    background: rgba(255, 255, 255, 0.06);
+  :global(.dark) .sub-tabs-container {
+    background: rgba(0, 0, 0, 0.25);
   }
 
   .sub-tab-item {
@@ -3814,19 +3913,17 @@
     background: rgba(0, 0, 0, 0.03);
   }
 
-  :global(body.dark-mode) .sub-tab-item:hover {
+  :global(.dark) .sub-tab-item:hover {
     background: rgba(255, 255, 255, 0.04);
   }
 
   .sub-tab-item.active {
-    background: var(--bg-card);
+    background: var(--bg-input);
     color: var(--color-accent);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
   }
 
-  :global(body.dark-mode) .sub-tab-item.active {
-    background: var(--bg-input);
-    color: var(--color-accent);
+  :global(.dark) .sub-tab-item.active {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 

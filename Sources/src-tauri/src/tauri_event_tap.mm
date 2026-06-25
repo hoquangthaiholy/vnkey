@@ -61,6 +61,7 @@ extern "C" {
     extern int vFixChromiumBrowser;
     extern int vPerformLayoutCompat;
     extern int vDisableHotkeys;
+    extern int vFixSpotlight;
 
     CGEventSourceRef myEventSource = NULL;
     vKeyHookState* pData;
@@ -251,13 +252,33 @@ extern "C" {
         }
     }
 
+    void checkSpotlightVisibleSync() {
+        BOOL visible = NO;
+        NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+                                                                        kCGNullWindowID));
+        for (NSDictionary *window in windows) {
+            if ([[window objectForKey:(__bridge NSString *)kCGWindowOwnerName] isEqualToString:@"Spotlight"]) {
+                visible = YES;
+                break;
+            }
+        }
+        g_spotlightVisible.store(visible);
+        _spotlightCheckedAt = CFAbsoluteTimeGetCurrent();
+    }
+
     BOOL isSpotlightVisible() {
+        if (!vFixSpotlight) return false;
+
         const CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
         if (now - _spotlightCheckedAt < 0.2) {
             return g_spotlightVisible.load();
         }
         
-        forceCheckSpotlightVisible();
+        if (!g_spotlightVisible.load()) {
+            checkSpotlightVisibleSync();
+        } else {
+            forceCheckSpotlightVisible();
+        }
         
         return g_spotlightVisible.load();
     }
@@ -282,6 +303,12 @@ extern "C" {
     
     void OnActiveAppChanged() { //use for smart switch key; improved on Sep 28th, 2019
         queryFrontMostApp();
+        
+        // Always reset the engine session when the front app changes.
+        // This prevents stale buffer state from leaking into the first keystroke
+        // in the new app (e.g. double-vowel bug in Spotlight).
+        RequestNewSession();
+        
         _languageTemp = getAppInputMethodStatus(string(_frontMostApp.UTF8String), vLanguage | (vCodeTable << 1));
         if ((_languageTemp & 0x01) != vLanguage) { //for input method
             if (_languageTemp != -1) {
@@ -658,8 +685,20 @@ extern "C" {
      */
     CGEventRef VNKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
         (void)refcon;
-        if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+        if (type == kCGEventTapDisabledByTimeout) {
+            // System timeout – safe to re-enable immediately.
             if (eventTap) {
+                CGEventTapEnable(eventTap, true);
+            }
+            return event;
+        }
+        if (type == kCGEventTapDisabledByUserInput) {
+            // Accessibility permission was revoked by the user.
+            // Do NOT re-enable blindly – that creates a busy-loop that freezes macOS.
+            // Re-enable only if we still have the permission; otherwise let the
+            // background watcher in Rust handle restarting the tap after permission
+            // is re-granted.
+            if (eventTap && AXIsProcessTrusted()) {
                 CGEventTapEnable(eventTap, true);
             }
             return event;

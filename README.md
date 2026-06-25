@@ -20,7 +20,7 @@ Bộ gõ tiếng Việt mới cho macOS, sử dụng kỹ thuật `Backspace`. L
 ## Hỗ trợ kiểu gõ
 - Telex
 - VNI
-- Simple Telex
+
 
 ## Bảng mã thông dụng:
 - Unicode (Unicode dựng sẵn).

@@ -11,6 +11,7 @@
 extern "C" {
     int vFixChromiumBrowser = 0;
     int vFixRecommendBrowser = 1;
+    int vFixSpotlight = 1;
     int vPerformLayoutCompat = 0;
     int vSendKeyStepByStep = 0;
     int vLanguage = 1;
@@ -38,6 +39,14 @@ extern "C" {
     int vDisableHotkeys = 0;
     // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: VI → PROG → EN
     int vFsmPriorityOrder[3] = {0, 2, 1};
+
+    // Telex sub-options (only effective when vInputType == vTelex):
+    //   vTelexWAsU=1  → W standalone at word start becomes ư (classic Telex)
+    //   vTelexWAsU=0  → W is always a literal W when no vowel match
+    int vTelexWAsU = 1;
+    //   vTelexBracketAsO=1 → [ becomes ơ, ] becomes ư as special Telex keys (classic Telex)
+    //   vTelexBracketAsO=0 → [ and ] are never treated as Vietnamese keys
+    int vTelexBracketAsO = 1;
 
     char* vnkey_copy_string(const std::string& value) {
         char* result = static_cast<char*>(malloc(value.size() + 1));

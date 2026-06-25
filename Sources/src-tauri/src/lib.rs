@@ -24,6 +24,8 @@ pub fn get_app_handle() -> Option<tauri::AppHandle> {
 static TRAY_ICON: OnceLock<TrayIcon<tauri::Wry>> = OnceLock::new();
 static GRAY_ICON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 static SHOW_INPUT_TYPE_ON_TRAY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+static AUTOSTART: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static OPEN_PANEL_ON_START: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 static CLIPBOARD_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 static CLIPBOARD_PIN_ON_TOP: std::sync::atomic::AtomicBool =
@@ -58,6 +60,7 @@ fn default_settings() -> Settings {
         quick_telex: 0,
         use_english_dictionary: 1,
         fix_recommend_browser: 1,
+        fix_spotlight: 1,
         use_macro: 1,
         use_macro_in_english_mode: 0,
         auto_caps_macro: 1,
@@ -91,6 +94,10 @@ fn default_settings() -> Settings {
         clipboard_hotkey: 0x56000C09,
         check_programming_keywords: 1,
         fsm_priority_order: vec![0, 2, 1],
+        telex_w_as_u: 1,
+        telex_bracket_as_o: 1,
+        autostart: 0,
+        open_panel_on_start: 1,
     }
 }
 
@@ -107,6 +114,7 @@ pub struct Settings {
     pub use_english_dictionary: i32,
     pub check_programming_keywords: i32,
     pub fix_recommend_browser: i32,
+    pub fix_spotlight: i32,
     pub use_macro: i32,
     pub use_macro_in_english_mode: i32,
     pub auto_caps_macro: i32,
@@ -140,7 +148,18 @@ pub struct Settings {
     pub clipboard_hotkey: i32,
     #[serde(default = "default_fsm_priority_order")]
     pub fsm_priority_order: Vec<i32>,
+    #[serde(default = "default_one")]
+    pub telex_w_as_u: i32,
+    #[serde(default = "default_one")]
+    pub telex_bracket_as_o: i32,
+    #[serde(default = "default_zero")]
+    pub autostart: i32,
+    #[serde(default = "default_one")]
+    pub open_panel_on_start: i32,
 }
+
+fn default_one() -> i32 { 1 }
+fn default_zero() -> i32 { 0 }
 
 fn default_fsm_priority_order() -> Vec<i32> {
     vec![0, 2, 1]
@@ -375,6 +394,50 @@ struct ConvertRequest {
     remove_mark: bool,
 }
 
+fn update_autostart_config(enabled: bool) {
+    if let Ok(home) = std::env::var("HOME") {
+        let mut path = PathBuf::from(home);
+        path.push("Library");
+        path.push("LaunchAgents");
+        path.push("com.theodore.vnkey.plist");
+
+        if enabled {
+            if let Ok(exe_path) = std::env::current_exe() {
+                let exe_str = exe_path.to_string_lossy();
+                let plist_content = format!(
+                    r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.theodore.vnkey</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>"#,
+                    exe_str
+                );
+                
+                if let Some(parent) = path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+
+                if let Ok(mut file) = File::create(&path) {
+                    let _ = file.write_all(plist_content.as_bytes());
+                }
+            }
+        } else {
+            if path.exists() {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
 #[tauri::command]
 fn get_settings() -> Settings {
     unsafe {
@@ -403,6 +466,7 @@ fn get_settings() -> Settings {
             use_english_dictionary: engine::vUseEnglishDictionary,
             check_programming_keywords: engine::vCheckProgrammingKeywords,
             fix_recommend_browser: engine::vFixRecommendBrowser,
+            fix_spotlight: engine::vFixSpotlight,
             use_macro: engine::vUseMacro,
             use_macro_in_english_mode: engine::vUseMacroInEnglishMode,
             auto_caps_macro: engine::vAutoCapsMacro,
@@ -456,6 +520,18 @@ fn get_settings() -> Settings {
             clipboard_max_items: CLIPBOARD_MAX_ITEMS.load(std::sync::atomic::Ordering::Relaxed),
             clipboard_hotkey: CLIPBOARD_HOTKEY.load(std::sync::atomic::Ordering::Relaxed),
             fsm_priority_order: fsm_order.to_vec(),
+            telex_w_as_u: engine::vTelexWAsU,
+            telex_bracket_as_o: engine::vTelexBracketAsO,
+            autostart: if AUTOSTART.load(std::sync::atomic::Ordering::Relaxed) {
+                1
+            } else {
+                0
+            },
+            open_panel_on_start: if OPEN_PANEL_ON_START.load(std::sync::atomic::Ordering::Relaxed) {
+                1
+            } else {
+                0
+            },
         }
     }
 }
@@ -492,6 +568,8 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             engine::vQuickTelex = settings.quick_telex;
                             engine::vUseEnglishDictionary = settings.use_english_dictionary;
                             engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
+                            engine::vTelexWAsU = settings.telex_w_as_u;
+                            engine::vTelexBracketAsO = settings.telex_bracket_as_o;
                             let order = &settings.fsm_priority_order;
                             let fsm_order: [i32; 3] = [
                                 order.get(0).copied().unwrap_or(0),
@@ -500,6 +578,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                             ];
                             engine::set_fsm_priority_order(&fsm_order);
                             engine::vFixRecommendBrowser = settings.fix_recommend_browser;
+                            engine::vFixSpotlight = settings.fix_spotlight;
                             engine::vUseMacro = settings.use_macro;
                             engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
                             engine::vAutoCapsMacro = settings.auto_caps_macro;
@@ -557,6 +636,13 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                                 std::sync::atomic::Ordering::Relaxed,
                             );
                         }
+                        let autostart_val = settings.autostart == 1;
+                        AUTOSTART.store(autostart_val, std::sync::atomic::Ordering::Relaxed);
+                        update_autostart_config(autostart_val);
+                        OPEN_PANEL_ON_START.store(
+                            settings.open_panel_on_start == 1,
+                            std::sync::atomic::Ordering::Relaxed,
+                        );
                         #[cfg(target_os = "macos")]
                         {
                             engine::macos_set_clipboard_enabled_val(
@@ -607,6 +693,8 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vQuickTelex = settings.quick_telex;
         engine::vUseEnglishDictionary = settings.use_english_dictionary;
         engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
+        engine::vTelexWAsU = settings.telex_w_as_u;
+        engine::vTelexBracketAsO = settings.telex_bracket_as_o;
         let order = &settings.fsm_priority_order;
         let fsm_order: [i32; 3] = [
             order.get(0).copied().unwrap_or(0),
@@ -615,6 +703,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         ];
         engine::set_fsm_priority_order(&fsm_order);
         engine::vFixRecommendBrowser = settings.fix_recommend_browser;
+        engine::vFixSpotlight = settings.fix_spotlight;
         engine::vUseMacro = settings.use_macro;
         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
         engine::vAutoCapsMacro = settings.auto_caps_macro;
@@ -684,6 +773,16 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
     if previous_code_table != settings.code_table {
         engine::code_table_changed();
     }
+    let previous_autostart = AUTOSTART.load(std::sync::atomic::Ordering::Relaxed);
+    let new_autostart = settings.autostart == 1;
+    if previous_autostart != new_autostart {
+        AUTOSTART.store(new_autostart, std::sync::atomic::Ordering::Relaxed);
+        update_autostart_config(new_autostart);
+    }
+    OPEN_PANEL_ON_START.store(
+        settings.open_panel_on_start == 1,
+        std::sync::atomic::Ordering::Relaxed,
+    );
     save_settings_to_disk(&handle, &settings);
     let _ = handle.emit("settings-changed", settings.clone());
     update_tray_icon(&handle);
@@ -703,6 +802,8 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vQuickTelex = settings.quick_telex;
         engine::vUseEnglishDictionary = settings.use_english_dictionary;
         engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
+        engine::vTelexWAsU = settings.telex_w_as_u;
+        engine::vTelexBracketAsO = settings.telex_bracket_as_o;
         let order = &settings.fsm_priority_order;
         let fsm_order: [i32; 3] = [
             order.get(0).copied().unwrap_or(0),
@@ -711,6 +812,7 @@ fn reset_settings(handle: tauri::AppHandle) {
         ];
         engine::set_fsm_priority_order(&fsm_order);
         engine::vFixRecommendBrowser = settings.fix_recommend_browser;
+        engine::vFixSpotlight = settings.fix_spotlight;
         engine::vUseMacro = settings.use_macro;
         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
         engine::vAutoCapsMacro = settings.auto_caps_macro;
@@ -758,6 +860,9 @@ fn reset_settings(handle: tauri::AppHandle) {
     if 0 != settings.code_table {
         engine::code_table_changed();
     }
+    AUTOSTART.store(settings.autostart == 1, std::sync::atomic::Ordering::Relaxed);
+    update_autostart_config(settings.autostart == 1);
+    OPEN_PANEL_ON_START.store(settings.open_panel_on_start == 1, std::sync::atomic::Ordering::Relaxed);
     save_settings_to_disk(&handle, &settings);
     db::db_reset_english_words();
     let words = db::db_get_english_words();
@@ -1165,7 +1270,7 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
 
     let input_type_menu = SubmenuBuilder::new(handle, "Kiểu gõ").build().unwrap();
     let current_input_type = unsafe { engine::vInputType };
-    let it_labels = ["Telex", "VNI", "Simple Telex 1", "Simple Telex 2"];
+    let it_labels = ["Telex", "VNI"];
     for (i, label) in it_labels.iter().enumerate() {
         let checked = current_input_type == i as i32;
         let item = CheckMenuItemBuilder::new(*label)
@@ -1972,8 +2077,10 @@ pub fn run() {
                 unsafe {
                     engine::start_event_tap();
                 }
-                if let Some(main_win) = handle.get_webview_window("main") {
-                    let _ = main_win.show();
+                if OPEN_PANEL_ON_START.load(std::sync::atomic::Ordering::Relaxed) {
+                    if let Some(main_win) = handle.get_webview_window("main") {
+                        let _ = main_win.show();
+                    }
                 }
             } else {
                 // Show onboarding window
@@ -2005,9 +2112,11 @@ pub fn run() {
                                 {
                                     let _ = onboarding_win.close();
                                 }
-                                if let Some(main_win) = handle_clone_2.get_webview_window("main") {
-                                    let _ = main_win.show();
-                                    let _ = main_win.set_focus();
+                                if OPEN_PANEL_ON_START.load(std::sync::atomic::Ordering::Relaxed) {
+                                    if let Some(main_win) = handle_clone_2.get_webview_window("main") {
+                                        let _ = main_win.show();
+                                        let _ = main_win.set_focus();
+                                    }
                                 }
                                 update_dock_icon(&handle_clone_2);
 

@@ -15,9 +15,7 @@
 
 static Uint16 ProcessingChar[][11] = {
     {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z}, //Telex
-    {KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0}, //VNI
-    {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z}, //Simple Telex 1
-    {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z} //Simple Telex 2
+    {KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0}  //VNI
 };
 
 #define IS_KEY_Z(key) (ProcessingChar[vInputType][10] == key)
@@ -1275,7 +1273,9 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
     }
     
     if (!isChanged) {
-        if (data == KEY_W && vInputType != vSimpleTelex1) {
+        // For Telex: standalone W → ư only when vTelexWAsU is enabled.
+        bool wStandaloneAllowed = (vInputType == vTelex && vTelexWAsU);
+        if (data == KEY_W && wStandaloneAllowed) {
             checkForStandaloneChar(data, isCaps, KEY_U);
         } else {
             insertKey(data, isCaps);
@@ -1738,7 +1738,10 @@ void vKeyHandleEvent(const vKeyEvent& event,
         }
         
         //case [ ]
-        if (IS_BRACKET_KEY(data) && (( IS_BRACKET_KEY((Uint16)hData[0])) || vInputType == vSimpleTelex1 || vInputType == vSimpleTelex2)) {
+        // Bracket keys break the word
+        bool bracketBreaksWord = IS_BRACKET_KEY((Uint16)hData[0])
+                                 || (vInputType == vTelex && !vTelexBracketAsO);
+        if (IS_BRACKET_KEY(data) && bracketBreaksWord) {
             if (_index - (hCode == vWillProcess ? hBPC : 0) > 0) {
                 _index--;
                 saveWord();

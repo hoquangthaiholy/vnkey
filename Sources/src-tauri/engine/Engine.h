@@ -108,6 +108,13 @@ extern int vUseEnglishDictionary;
  */
 extern int vFixRecommendBrowser;
 
+/*
+ * Fix Spotlight first word double-vowel bug
+ * 0: No
+ * 1: Yes
+ */
+extern int vFixSpotlight;
+
 /**
  * Macro on or off
  */
@@ -195,6 +202,17 @@ extern int vCheckProgrammingKeywords;
  * Default: {0, 1, 2} (Vietnamese first, then English, then Programming).
  */
 extern int vFsmPriorityOrder[3];
+
+/**
+ * Telex sub-options (effective only when vInputType == vTelex = 0):
+ *   1 = enable (classic Telex behaviour)
+ *   0 = disable
+ *
+ * vTelexWAsU: when no vowel match, standalone W at word-start → ư
+ * vTelexBracketAsO: [ key → ơ / ] key → ư as special Telex modifiers
+ */
+extern int vTelexWAsU;
+extern int vTelexBracketAsO;
 
 /**
  * Call this function first to receive data pointer
