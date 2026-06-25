@@ -2190,7 +2190,7 @@
               <div class="r2-section" style="padding-top: 10px; border-top: 1px solid var(--border-color);">
                 <div style="margin-bottom: 12px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center;">
                   <span style="color: var(--text-secondary);">Cấu hình lưu trữ R2</span>
-                  <a href="https://vn-key.org/r2_guide.html" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500;" onclick={(e) => { e.preventDefault(); invoke("plugin:opener|open_url", { url: "https://vn-key.org/r2_guide.html" }); }}>
+                  <a href="https://hoquangthaiholy.github.io/vnkey/r2_guide.html" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500;" onclick={(e) => { e.preventDefault(); invoke("plugin:opener|open_url", { url: "https://hoquangthaiholy.github.io/vnkey/r2_guide.html" }); }}>
                     Hướng dẫn cấu hình ↗
                   </a>
                 </div>

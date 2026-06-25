@@ -1,4 +1,4 @@
-# [VNKey](http://vn-key.org)
+# [VNKey](https://hoquangthaiholy.github.io/vnkey/)
 ### [Download bản mới nhất](https://github.com/hoquangthaiholy/vnkey/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hoquangthaiholy/vnkey.svg)](https://github.com/hoquangthaiholy/vnkey/releases/latest)
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,13 +17,16 @@
             font-size: 0.9rem;
             transition: var(--transition-smooth);
         }
+
         .back-link:hover {
             color: var(--text-primary);
         }
+
         .form-group {
             margin-bottom: 1.25rem;
             text-align: left;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
@@ -30,6 +34,7 @@
             color: var(--text-secondary);
             font-weight: 500;
         }
+
         .form-input {
             width: 100%;
             background: rgba(0, 0, 0, 0.2);
@@ -41,17 +46,19 @@
             outline: none;
             transition: var(--transition-smooth);
         }
+
         .form-input:focus {
             border-color: var(--accent-color);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
     </style>
 </head>
+
 <body>
     <div class="auth-wrapper">
         <div class="auth-card glass-panel">
             <a href="index.html" class="back-link">← Quay lại trang giới thiệu</a>
-            
+
             <div class="auth-logo">
                 <div class="logo-icon">V</div>
             </div>
@@ -64,7 +71,7 @@
             <div id="state-config" style="display: none;">
                 <h2 class="auth-title">Cấu hình Google OAuth</h2>
                 <p class="auth-desc">Điền thông tin Credentials từ Google Cloud Console để bắt đầu xác thực.</p>
-                
+
                 <div class="form-group">
                     <label for="client-id-input">Google Client ID</label>
                     <input type="text" id="client-id-input" class="form-input" placeholder="Nhập Client ID...">
@@ -72,15 +79,18 @@
 
                 <div class="form-group">
                     <label for="client-secret-input">Google Client Secret (Tùy chọn cho luồng PKCE)</label>
-                    <input type="password" id="client-secret-input" class="form-input" placeholder="Nhập Client Secret nếu dùng Web App Credentials...">
+                    <input type="password" id="client-secret-input" class="form-input"
+                        placeholder="Nhập Client Secret nếu dùng Web App Credentials...">
                 </div>
 
                 <div class="alert alert-warning" style="font-size: 0.8rem; line-height: 1.4; padding: 0.75rem;">
-                    Đảm bảo đã thêm URL này vào danh sách <strong>Authorized Redirect URIs</strong> trên Google Console:<br>
+                    Đảm bảo đã thêm URL này vào danh sách <strong>Authorized Redirect URIs</strong> trên Google
+                    Console:<br>
                     <code id="redirect-uri-display" style="color: #60a5fa; word-break: break-all;"></code>
                 </div>
 
-                <button class="btn btn-primary" id="btn-save-config" style="width: 100%; justify-content: center; margin-bottom: 1rem;">
+                <button class="btn btn-primary" id="btn-save-config"
+                    style="width: 100%; justify-content: center; margin-bottom: 1rem;">
                     Lưu & Đăng nhập
                 </button>
             </div>
@@ -88,14 +98,20 @@
             <!-- Login State: Click to Auth -->
             <div id="state-login" style="display: none;">
                 <h2 class="auth-title">Đồng bộ Google Cloud</h2>
-                <p class="auth-desc">Đăng nhập tài khoản Google để lấy chuỗi kết nối và đồng bộ cấu hình ứng dụng VNKey.</p>
-                
-                <button class="btn btn-google" id="btn-login-google" style="width: 100%; justify-content: center; margin-bottom: 1.5rem;">
+                <p class="auth-desc">Đăng nhập tài khoản Google để lấy chuỗi kết nối và đồng bộ cấu hình ứng dụng VNKey.
+                </p>
+
+                <button class="btn btn-google" id="btn-login-google"
+                    style="width: 100%; justify-content: center; margin-bottom: 1.5rem;">
                     <svg style="width:18px; height:18px; margin-right: 8px;" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        <path fill="#4285F4"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                     </svg>
                     Tiếp tục với Google
                 </button>
@@ -114,7 +130,7 @@
             <div id="state-success" style="display: none;">
                 <h2 class="auth-title">Xác thực thành công!</h2>
                 <p class="auth-desc">Bạn đã liên kết thành công tài khoản Google của mình.</p>
-                
+
                 <div class="user-profile">
                     <img class="user-avatar" id="user-picture" src="" alt="Avatar">
                     <div>
@@ -126,13 +142,17 @@
                 <div class="token-box">
                     <div class="token-box-header">
                         <span class="token-box-title">Chuỗi liên kết ứng dụng VNKey</span>
-                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" id="btn-copy-token">Sao chép</button>
+                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;"
+                            id="btn-copy-token">Sao chép</button>
                     </div>
                     <textarea class="token-area" id="token-string" readonly></textarea>
                 </div>
-                
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 1rem; text-align: left; line-height: 1.4;">
-                    👉 <strong>Cách kết nối:</strong> Mở ứng dụng <strong>VNKey</strong> > Đi tới phần <strong>Đồng bộ Cloud</strong> > Chọn <strong>Google Drive</strong> > Nhấp vào <strong>"Liên kết qua Web App"</strong> và dán chuỗi liên kết ở trên vào để kích hoạt đồng bộ.
+
+                <p
+                    style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 1rem; text-align: left; line-height: 1.4;">
+                    👉 <strong>Cách kết nối:</strong> Mở ứng dụng <strong>VNKey</strong> > Đi tới phần <strong>Đồng bộ
+                        Cloud</strong> > Chọn <strong>Google Drive</strong> > Nhấp vào <strong>"Liên kết qua Web
+                        App"</strong> và dán chuỗi liên kết ở trên vào để kích hoạt đồng bộ.
                 </p>
 
                 <div style="margin-top: 2rem; display: flex; gap: 10px; justify-content: center;">
@@ -151,17 +171,17 @@
         const stateSuccess = document.getElementById('state-success');
         const errorAlert = document.getElementById('error-alert');
         const warningAlert = document.getElementById('warning-alert');
-        
+
         const clientIdInput = document.getElementById('client-id-input');
         const clientSecretInput = document.getElementById('client-secret-input');
         const redirectUriDisplay = document.getElementById('redirect-uri-display');
         const loadingText = document.getElementById('loading-text');
-        
+
         const userPicture = document.getElementById('user-picture');
         const userName = document.getElementById('user-name');
         const userEmail = document.getElementById('user-email');
         const tokenString = document.getElementById('token-string');
-        
+
         // Buttons
         const btnSaveConfig = document.getElementById('btn-save-config');
         const btnLoginGoogle = document.getElementById('btn-login-google');
@@ -196,6 +216,10 @@
             return base64urlencode(hashed);
         }
 
+        // Cấu hình mặc định (Nếu bạn tự host và muốn điền cứng cấu hình, hãy điền Client ID và Client Secret tại đây)
+        const DEFAULT_CLIENT_ID = '883776555072-2oj328f2ipidh77ajqfs6v8nqs8n7p7u.apps.googleusercontent.com';
+        const DEFAULT_CLIENT_SECRET = '';
+
         // Hide all states
         function hideAllStates() {
             stateConfig.style.display = 'none';
@@ -204,11 +228,11 @@
             stateSuccess.style.display = 'none';
         }
 
-        // Load credentials from local storage
+        // Load credentials from local storage (falls back to hardcoded defaults if defined)
         function getSavedConfig() {
             return {
-                clientId: localStorage.getItem('google_client_id') || '',
-                clientSecret: localStorage.getItem('google_client_secret') || ''
+                clientId: DEFAULT_CLIENT_ID || localStorage.getItem('google_client_id') || '',
+                clientSecret: DEFAULT_CLIENT_SECRET || localStorage.getItem('google_client_secret') || ''
             };
         }
 
@@ -218,6 +242,14 @@
             errorAlert.style.display = 'none';
 
             const config = getSavedConfig();
+
+            // Ẩn nút thay đổi cấu hình nếu đã định nghĩa sẵn thông tin Client ID mặc định
+            if (DEFAULT_CLIENT_ID) {
+                btnEditConfig.style.display = 'none';
+            } else {
+                btnEditConfig.style.display = 'block';
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
 
@@ -285,7 +317,7 @@
         async function handleCallback(code) {
             const config = getSavedConfig();
             const codeVerifier = sessionStorage.getItem('code_verifier');
-            
+
             // Clean URL query params without reloading
             window.history.replaceState({}, document.title, window.location.pathname);
 
@@ -344,7 +376,7 @@
                 }
 
                 const profile = await profileRes.json();
-                
+
                 // Construct the token for VNKey Svelte app
                 const config = getSavedConfig();
                 const connData = {
@@ -353,7 +385,7 @@
                     client_id: config.clientId,
                     client_secret: config.clientSecret
                 };
-                
+
                 // Save session token locally
                 localStorage.setItem('google_profile', JSON.stringify(profile));
                 localStorage.setItem('google_conn_token', btoa(JSON.stringify(connData)));
@@ -393,12 +425,12 @@
             tokenString.select();
             tokenString.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(tokenString.value);
-            
+
             const oldText = btnCopyToken.textContent;
             btnCopyToken.textContent = "Đã sao chép!";
             btnCopyToken.style.background = "var(--success-color)";
             btnCopyToken.style.color = "white";
-            
+
             setTimeout(() => {
                 btnCopyToken.textContent = oldText;
                 btnCopyToken.style.background = "";
@@ -423,4 +455,5 @@
         }
     </script>
 </body>
+
 </html>
