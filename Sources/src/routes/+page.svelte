@@ -295,6 +295,8 @@
   let gdriveAuthCode = $state("");
   let gdriveAuthUrl = $state("");
   let isPollingGdrive = $state(false);
+  let showWebLinkInput = $state(false);
+  let webLinkTokenInput = $state("");
 
   // Sync Options
   let syncSettings = $state(true);
@@ -1253,9 +1255,52 @@
   async function disconnectGdrive() {
     await invoke("set_kv", { key: "gdriveAccessToken", value: "" });
     await invoke("set_kv", { key: "gdriveRefreshToken", value: "" });
+    await invoke("set_kv", { key: "googleClientId", value: "" });
+    await invoke("set_kv", { key: "googleClientSecret", value: "" });
     gdriveConnected = false;
     cloudSyncMessage = "Đã ngắt kết nối Google Drive.";
     cloudSyncError = false;
+  }
+
+  async function connectViaWebToken() {
+    if (!webLinkTokenInput.trim()) {
+      alert("Vui lòng nhập chuỗi liên kết!");
+      return;
+    }
+    try {
+      let decodedStr = atob(webLinkTokenInput.trim());
+      let data = JSON.parse(decodedStr);
+      if (!data.access_token) {
+        throw new Error("Không tìm thấy access_token trong chuỗi liên kết");
+      }
+      
+      await invoke("set_kv", { key: "gdriveAccessToken", value: data.access_token });
+      if (data.refresh_token) {
+        await invoke("set_kv", { key: "gdriveRefreshToken", value: data.refresh_token });
+      } else {
+        await invoke("set_kv", { key: "gdriveRefreshToken", value: "" });
+      }
+      
+      if (data.client_id) {
+        await invoke("set_kv", { key: "googleClientId", value: data.client_id });
+      } else {
+        await invoke("set_kv", { key: "googleClientId", value: "" });
+      }
+      
+      if (data.client_secret) {
+        await invoke("set_kv", { key: "googleClientSecret", value: data.client_secret });
+      } else {
+        await invoke("set_kv", { key: "googleClientSecret", value: "" });
+      }
+
+      gdriveConnected = true;
+      showWebLinkInput = false;
+      webLinkTokenInput = "";
+      cloudSyncMessage = "Liên kết qua Web App thành công!";
+      cloudSyncError = false;
+    } catch (e: any) {
+      alert("Lỗi phân tích chuỗi liên kết: " + e.message);
+    }
   }
 
   async function syncToGdrive() {
@@ -2117,13 +2162,38 @@
                     <button class="btn btn-secondary" onclick={cancelGdriveAuth} style="margin-top: 10px;">Huỷ</button>
                   </div>
                 {:else}
-                  <button class="btn btn-primary" onclick={startGdriveAuth} disabled={isCloudSyncing}>
+                  <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick={startGdriveAuth} disabled={isCloudSyncing}>
                     Kết nối Google Drive
                   </button>
+                  
+                  {#if !showWebLinkInput}
+                    <div style="text-align: center; margin-top: 8px;">
+                      <a href="javascript:void(0)" onclick={() => showWebLinkInput = true} style="font-size: 13px; color: var(--accent-color); text-decoration: none;">
+                        Hoặc liên kết qua Web App...
+                      </a>
+                    </div>
+                  {:else}
+                    <div style="margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 12px; text-align: left;">
+                      <label for="web-token-input" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                        Nhập chuỗi liên kết từ Web App:
+                      </label>
+                      <textarea id="web-token-input" bind:value={webLinkTokenInput} placeholder="Dán chuỗi token dạng base64 tại đây..." class="form-input" style="width: 100%; height: 75px; resize: none; font-family: monospace; font-size: 11px; margin-bottom: 8px; padding: 6px;"></textarea>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick={connectViaWebToken}>Liên kết</button>
+                        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;" onclick={() => { showWebLinkInput = false; webLinkTokenInput = ""; }}>Huỷ</button>
+                      </div>
+                    </div>
+                  {/if}
                 {/if}
               </div>
             {:else}
               <div class="r2-section" style="padding-top: 10px; border-top: 1px solid var(--border-color);">
+                <div style="margin-bottom: 12px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--text-secondary);">Cấu hình lưu trữ R2</span>
+                  <a href="https://vn-key.org/r2_guide.html" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500;" onclick={(e) => { e.preventDefault(); invoke("plugin:opener|open_url", { url: "https://vn-key.org/r2_guide.html" }); }}>
+                    Hướng dẫn cấu hình ↗
+                  </a>
+                </div>
                 <div class="form-group mb-15">
                   <label for="cloud-account-id">Account ID</label>
                   <input type="text" id="cloud-account-id" bind:value={cloudAccountId} onchange={saveCloudSettings} placeholder="Cloudflare Account ID" class="form-input" />
@@ -2699,7 +2769,7 @@
               <img src="/favicon.png" alt="VNKey" class="app-icon" />
               <div>
                 <h3>VNKey</h3>
-                <p class="version">Phiên bản 1.0.0 (Build 1)</p>
+                <p class="version">Phiên bản 1.0.0-beta (Build 1)</p>
               </div>
             </div>
             <p class="desc">Bộ gõ tiếng Việt mã nguồn mở, gọn nhẹ, chạy nhanh và an toàn tuyệt đối cho người dùng trên nền tảng macOS, Windows và Linux.</p>

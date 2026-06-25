@@ -8,12 +8,26 @@ const CLIENT_ID: Option<&str> = option_env!("GOOGLE_CLIENT_ID");
 const CLIENT_SECRET: Option<&str> = option_env!("GOOGLE_CLIENT_SECRET");
 const SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 
-fn get_client_id() -> Result<&'static str, String> {
-    CLIENT_ID.ok_or_else(|| "Google Client ID chưa được cấu hình khi biên dịch".to_string())
+fn get_client_id() -> Result<String, String> {
+    if let Some(id) = db::db_get_kv("googleClientId") {
+        if !id.trim().is_empty() {
+            return Ok(id);
+        }
+    }
+    CLIENT_ID
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Google Client ID chưa được cấu hình".to_string())
 }
 
-fn get_client_secret() -> Result<&'static str, String> {
-    CLIENT_SECRET.ok_or_else(|| "Google Client Secret chưa được cấu hình khi biên dịch".to_string())
+fn get_client_secret() -> Result<String, String> {
+    if let Some(secret) = db::db_get_kv("googleClientSecret") {
+        if !secret.trim().is_empty() {
+            return Ok(secret);
+        }
+    }
+    CLIENT_SECRET
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Google Client Secret chưa được cấu hình".to_string())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,7 +52,7 @@ pub async fn start_device_auth() -> Result<DeviceAuthResponse, Box<dyn Error>> {
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/device/code")
         .form(&[
-            ("client_id", client_id),
+            ("client_id", client_id.as_str()),
             ("scope", SCOPE)
         ])
         .send()
@@ -61,8 +75,8 @@ pub async fn poll_device_auth(device_code: &str) -> Result<TokenResponse, String
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/token")
         .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
             ("device_code", device_code),
             ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
         ])
@@ -85,8 +99,8 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<String, String>
     let client = Client::new();
     let res = client.post("https://oauth2.googleapis.com/token")
         .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
             ("refresh_token", refresh_token),
             ("grant_type", "refresh_token"),
         ])
