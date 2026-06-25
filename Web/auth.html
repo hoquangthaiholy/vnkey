@@ -338,14 +338,12 @@
                 redirect_uri: redirectUri,
                 grant_type: 'authorization_code',
                 code: code,
+                code_verifier: codeVerifier, // Luôn gửi verifier vì luồng được khởi tạo bằng PKCE
             };
 
-            // If client secret exists in storage, send it as well (Web application client type support)
+            // Nếu người dùng cấu hình client secret (dạng Web Application credentials), gửi thêm client_secret
             if (config.clientSecret) {
                 bodyParams.client_secret = config.clientSecret;
-            } else {
-                // Otherwise use code verifier for SPA flow (PKCE)
-                bodyParams.code_verifier = codeVerifier;
             }
 
             try {
