@@ -1,6 +1,5 @@
 .DS_Store
 .build/
-build/
 Sources/node_modules/
 Sources/.svelte-kit/
 Sources/build/

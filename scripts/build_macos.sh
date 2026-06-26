@@ -88,7 +88,10 @@ BUILD_OUT_DIR="$WORKSPACE_ROOT/.build"
 mkdir -p "$BUILD_OUT_DIR"
 echo "=== Copying macOS build artifacts to $BUILD_OUT_DIR ==="
 rm -rf "$BUILD_OUT_DIR/VNKey.app"
+rm -f "$BUILD_OUT_DIR/VNKey.tar.gz"
 cp -R "$APP_PATH" "$BUILD_OUT_DIR/"
+echo "=== Compressing VNKey.app to VNKey.tar.gz ==="
+tar -czf "$BUILD_OUT_DIR/VNKey.tar.gz" -C "$BUILD_OUT_DIR" VNKey.app
 if [ "$ACTION" = "build-installer" ]; then
     find "$TAURI_DIR/src-tauri/target/release/bundle/dmg" -maxdepth 1 -type f -name '*.dmg' -exec cp {} "$BUILD_OUT_DIR/" \;
 fi
