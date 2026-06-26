@@ -110,7 +110,7 @@ Nếu bạn yêu thích VNKey và muốn gửi tặng một tách cà phê, bạ
 
 * **Ví MoMo:** Quét mã QR MoMo dưới đây:
 
-  ![MoMo Donation](Web/assets/img/momo_donation.jpg)
+  <img src="Web/assets/img/momo_donation.jpg" alt="MoMo Donation" width="256" style="max-width: 256px;" />
 * **Paypal:** [https://paypal.me/hqthai](https://paypal.me/hqthai)
 
 Chân thành cảm ơn sự ủng hộ và tin dùng của các bạn!
