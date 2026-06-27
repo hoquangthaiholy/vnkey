@@ -1634,57 +1634,74 @@ pub extern "C" fn rust_onCodeTableChanged(val: std::os::raw::c_int) {
 #[no_mangle]
 pub extern "C" fn rust_onAccessibilityRevoked() {
     // Called from the macOS main thread (dispatched via dispatch_async in ObjC).
-    // 1. Stop the event tap cleanly so _isInited resets to false.
+    // 1. Stop the event tap cleanly and immediately to release the event delivery queue
+    //    and prevent deadlock with WindowServer/TCC daemon.
     unsafe { engine::stop_event_tap(); }
 
     let Some(handle) = APP_HANDLE.get() else { return };
 
-    // 2. Update tray to show "Cấp quyền" menu item.
-    update_tray_icon(handle);
-
-    // 3. Show onboarding window.
-    if let Some(onboarding_win) = handle.get_webview_window("onboarding") {
-        let _ = onboarding_win.show();
-    }
-    update_dock_icon(handle);
-
-    // 4. Spawn a background watcher — same pattern as at startup — so that
-    //    when the user re-grants the permission the engine restarts automatically.
+    // 2. Defer TCC checking and UI updates to a background thread to prevent blocking
+    //    the main thread while the OS processes the privacy database changes.
     let handle_clone = handle.clone();
     std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(1500));
-            if unsafe { engine::is_accessibility_granted() } {
-                let handle_clone_2 = handle_clone.clone();
-                // 1. Load configuration and dictionaries in the background thread
-                load_settings_from_disk(&handle_clone_2);
-                load_macros_from_disk(&handle_clone_2);
-                load_english_dict_from_disk(&handle_clone_2);
-                load_vietnamese_dict_from_disk(&handle_clone_2);
-                load_programming_keywords_from_disk(&handle_clone_2);
+        // Sleep a short moment to let OS process the revocation state
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
-                // 2. Dispatch UI operations and start event tap to the main thread
-                let _ = handle_clone.run_on_main_thread(move || {
-                    unsafe { engine::start_event_tap(); }
-                    update_tray_icon(&handle_clone_2);
-                    if let Some(hud) = handle_clone_2.get_webview_window("hud") {
-                        let _ = hud.set_ignore_cursor_events(true);
-                        #[cfg(target_os = "macos")]
-                        if let Ok(ns_win) = hud.ns_window() {
-                            unsafe { engine::macos_configure_hud_window(ns_win); }
+        if unsafe { engine::is_accessibility_granted() } {
+            // Permission is actually still valid! The event tap was probably disabled
+            // temporarily (e.g. secure input active). Re-enable it on the main thread.
+            let _ = handle_clone.run_on_main_thread(move || {
+                unsafe { engine::start_event_tap(); }
+            });
+        } else {
+            // Permission was truly revoked. Let's do UI teardown and start the watcher.
+            let handle_clone_2 = handle_clone.clone();
+            let handle_for_ui = handle_clone_2.clone();
+            let _ = handle_clone.run_on_main_thread(move || {
+                update_tray_icon(&handle_for_ui);
+                if let Some(onboarding_win) = handle_for_ui.get_webview_window("onboarding") {
+                    let _ = onboarding_win.show();
+                }
+                update_dock_icon(&handle_for_ui);
+                let _ = handle_for_ui.emit("accessibility-revoked", ());
+            });
+
+            // Monitor in the background for re-grant
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if unsafe { engine::is_accessibility_granted() } {
+                    let handle_clone_3 = handle_clone_2.clone();
+                    // Load configuration and dictionaries in the background thread
+                    load_settings_from_disk(&handle_clone_3);
+                    load_macros_from_disk(&handle_clone_3);
+                    load_english_dict_from_disk(&handle_clone_3);
+                    load_vietnamese_dict_from_disk(&handle_clone_3);
+                    load_programming_keywords_from_disk(&handle_clone_3);
+
+                    // Dispatch UI operations and start event tap to the main thread
+                    let handle_for_regrant_ui = handle_clone_2.clone();
+                    let _ = handle_for_regrant_ui.run_on_main_thread(move || {
+                        unsafe { engine::start_event_tap(); }
+                        update_tray_icon(&handle_clone_3);
+                        if let Some(hud) = handle_clone_3.get_webview_window("hud") {
+                            let _ = hud.set_ignore_cursor_events(true);
+                            #[cfg(target_os = "macos")]
+                            if let Ok(ns_win) = hud.ns_window() {
+                                unsafe { engine::macos_configure_hud_window(ns_win); }
+                            }
                         }
-                    }
-                    if let Some(onboarding_win) = handle_clone_2.get_webview_window("onboarding") {
-                        let _ = onboarding_win.close();
-                    }
-                    if let Some(main_win) = handle_clone_2.get_webview_window("main") {
-                        let _ = main_win.show();
-                        let _ = main_win.set_focus();
-                    }
-                    update_dock_icon(&handle_clone_2);
-                    let _ = handle_clone_2.emit("accessibility-granted", ());
-                });
-                break;
+                        if let Some(onboarding_win) = handle_clone_3.get_webview_window("onboarding") {
+                            let _ = onboarding_win.close();
+                        }
+                        if let Some(main_win) = handle_clone_3.get_webview_window("main") {
+                            let _ = main_win.show();
+                            let _ = main_win.set_focus();
+                        }
+                        update_dock_icon(&handle_clone_3);
+                        let _ = handle_clone_3.emit("accessibility-granted", ());
+                    });
+                    break;
+                }
             }
         }
     });

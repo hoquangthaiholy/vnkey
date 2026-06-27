@@ -741,18 +741,12 @@ extern "C" {
             return event;
         }
         if (type == kCGEventTapDisabledByUserInput) {
-            // Accessibility permission was revoked by the user.
-            // Do NOT call AXIsProcessTrusted() here — it can block on the event tap
-            // thread and freeze macOS input. Dispatch async to the main thread instead.
+            // Accessibility permission was revoked by the user or tap was disabled by OS.
+            // Do NOT call AXIsProcessTrusted() on the main thread here as it synchronously
+            // queries TCC daemon and will deadlock the system. Dispatch to Rust to handle
+            // teardown and background verification.
             dispatch_async(dispatch_get_main_queue(), ^{
-                if (AXIsProcessTrusted()) {
-                    // Permission still valid (e.g. system disabled the tap temporarily)
-                    if (eventTap) CGEventTapEnable(eventTap, true);
-                } else {
-                    // Permission was truly revoked — notify Rust to clean up and
-                    // show onboarding, then spawn a background watcher for re-grant.
-                    rust_onAccessibilityRevoked();
-                }
+                rust_onAccessibilityRevoked();
             });
             return event;
         }
