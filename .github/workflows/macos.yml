@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: Sources/package-lock.json
 
@@ -34,10 +34,27 @@ jobs:
         with:
           workspaces: Sources/src-tauri -> target
 
+      - name: Create .env file
+        run: |
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > Sources/.env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> Sources/.env
+          echo "VNKEY_SYNC_PASSWORD=${{ secrets.VNKEY_SYNC_PASSWORD }}" >> Sources/.env
+
       - name: Run build script
         run: |
           chmod +x ./scripts/build_macos.sh
           ./scripts/build_macos.sh build-installer
+
+      - name: List build artifacts (Diagnostic)
+        run: |
+          echo "=== Content of workspace root ==="
+          ls -la
+          echo "=== Content of .build directory ==="
+          if [ -d ".build" ]; then
+            ls -la .build
+          else
+            echo ".build directory does not exist!"
+          fi
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
