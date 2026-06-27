@@ -63,6 +63,7 @@ jobs:
           path: |
             .build/*.dmg
             .build/*.tar.gz
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Upload binaries to Release
