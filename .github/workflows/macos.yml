@@ -1,14 +1,12 @@
 name: Build macOS Application
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-macos:
@@ -49,3 +47,11 @@ jobs:
             .build/*.dmg
             .build/*.tar.gz
           if-no-files-found: error
+
+      - name: Upload binaries to Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          files: |
+            .build/*.dmg
+            .build/*.tar.gz
