@@ -18,6 +18,7 @@ extern "C" {
     void rust_onToggleClipboardPicker();
     void rust_onToggleControlPanel();
     void set_is_internal_copy(bool val);
+    void rust_onAccessibilityRevoked();
 }
 
 #define FRONT_APP _frontMostApp
@@ -741,13 +742,18 @@ extern "C" {
         }
         if (type == kCGEventTapDisabledByUserInput) {
             // Accessibility permission was revoked by the user.
-            // Do NOT re-enable blindly – that creates a busy-loop that freezes macOS.
-            // Re-enable only if we still have the permission; otherwise let the
-            // background watcher in Rust handle restarting the tap after permission
-            // is re-granted.
-            if (eventTap && AXIsProcessTrusted()) {
-                CGEventTapEnable(eventTap, true);
-            }
+            // Do NOT call AXIsProcessTrusted() here — it can block on the event tap
+            // thread and freeze macOS input. Dispatch async to the main thread instead.
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (AXIsProcessTrusted()) {
+                    // Permission still valid (e.g. system disabled the tap temporarily)
+                    if (eventTap) CGEventTapEnable(eventTap, true);
+                } else {
+                    // Permission was truly revoked — notify Rust to clean up and
+                    // show onboarding, then spawn a background watcher for re-grant.
+                    rust_onAccessibilityRevoked();
+                }
+            });
             return event;
         }
         //dont handle my event
@@ -970,8 +976,13 @@ extern "C" {
     }
 
     void request_accessibility_permission() {
+        // Try the standard API first (works on fresh installs)
         NSDictionary *options = @{(__bridge id)kAXTrustedCheckOptionPrompt: @YES};
         AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
+        // On macOS 13+, after a revoke the above may not open System Settings.
+        // Open directly via deep link as a reliable fallback.
+        NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"];
+        [[NSWorkspace sharedWorkspace] openURL:url];
     }
 
     void onInputSourceChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -1610,7 +1621,9 @@ extern "C" {
             if (!window) return;
             
             // Highest window level — floats above all apps including fullscreen
-            window.level = kCGMaximumWindowLevelKey;
+            // kCGMaximumWindowLevelKey is an enum *key*, not a level value.
+            // Must call CGWindowLevelForKey() to obtain the actual numeric level.
+            window.level = CGWindowLevelForKey(kCGMaximumWindowLevelKey);
             
             // Do not steal focus when shown
             [window setStyleMask:[window styleMask] | NSWindowStyleMaskNonactivatingPanel];
@@ -1701,6 +1714,52 @@ extern "C" {
             double screenHeight = [primaryScreen frame].size.height;
             *x = loc.x;
             *y = screenHeight - loc.y;
+        }
+    }
+
+    // Get the on-screen bounding rect of the text insertion caret using
+    // the macOS Accessibility API.
+    // AX screen coordinates already use top-left origin (same as CG/Tauri),
+    // so no conversion is needed.
+    // *success is set to false when the focused element does not support
+    // kAXBoundsForRangeParameterizedAttribute (e.g. Terminal, some Electron apps).
+    // Must be called from the main thread.
+    void get_caret_position(double *x, double *y, bool *success) {
+        *success = false;
+        *x = 0.0;
+        *y = 0.0;
+        @autoreleasepool {
+            AXUIElementRef systemWide = AXUIElementCreateSystemWide();
+            if (!systemWide) return;
+
+            AXUIElementRef focused = NULL;
+            AXError err = AXUIElementCopyAttributeValue(
+                systemWide, kAXFocusedUIElementAttribute, (CFTypeRef *)&focused);
+            CFRelease(systemWide);
+            if (err != kAXErrorSuccess || !focused) return;
+
+            CFTypeRef rangeVal = NULL;
+            err = AXUIElementCopyAttributeValue(
+                focused, kAXSelectedTextRangeAttribute, &rangeVal);
+            if (err == kAXErrorSuccess && rangeVal) {
+                CFTypeRef boundsVal = NULL;
+                err = AXUIElementCopyParameterizedAttributeValue(
+                    focused, kAXBoundsForRangeParameterizedAttribute, rangeVal, &boundsVal);
+                CFRelease(rangeVal);
+                if (err == kAXErrorSuccess && boundsVal) {
+                    CGRect bounds = CGRectZero;
+                    AXValueRef axVal = (AXValueRef)boundsVal;
+                    Boolean ok = AXValueGetValue(axVal, (AXValueType)kAXValueCGRectType, &bounds);
+                    if (ok && !CGRectIsEmpty(bounds)) {
+                        // origin.x/y is the top-left of the character in screen coords.
+                        *x = bounds.origin.x;
+                        *y = bounds.origin.y;
+                        *success = true;
+                    }
+                    CFRelease(boundsVal);
+                }
+            }
+            CFRelease(focused);
         }
     }
 }

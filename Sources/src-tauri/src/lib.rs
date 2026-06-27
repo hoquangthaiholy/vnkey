@@ -1503,53 +1503,119 @@ fn update_tray_icon<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) {
 fn notify_frontend() {
     if let Some(handle) = APP_HANDLE.get() {
         let settings = get_settings();
-        save_settings_to_disk(handle, &settings);
+        let handle_clone = handle.clone();
+        let settings_clone = settings.clone();
+        std::thread::spawn(move || {
+            save_settings_to_disk(&handle_clone, &settings_clone);
+        });
         let _ = handle.emit("settings-changed", settings);
     }
 }
 
 fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
-    if !USE_HUD.load(std::sync::atomic::Ordering::Relaxed) {
+    // Only show HUD when the system input source is English —
+    // that is the only state where VNKey is actively intercepting keystrokes.
+    let is_english = unsafe { engine::macos_is_current_input_source_english() };
+    if !is_english {
         return;
     }
-    if let Some(hud) = handle.get_webview_window("hud") {
-        let mut x: f64 = 0.0;
-        let mut y: f64 = 0.0;
-        unsafe {
-            macos_get_mouse_position(&mut x, &mut y);
-        }
-        eprintln!("[HUD] trigger val={val} mouse=({x:.0},{y:.0})");
 
-        let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-            x: x + 20.0,
-            y: y + 20.0,
-        }));
-        let _ = hud.set_always_on_top(true);
-        let _ = hud.show();
-
-        let mode = if val == 1 { "VI" } else { "EN" };
-        let hud_clone = hud.clone();
-        let mode_str = mode.to_string();
-        tauri::async_runtime::spawn(async move {
-            // Small delay to allow webview to render before emitting
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            let _ = hud_clone.emit("hud-update", mode_str);
-            tokio::time::sleep(tokio::time::Duration::from_millis(1600)).await;
-            let _ = hud_clone.hide();
-        });
-    } else {
-        eprintln!("[HUD] window not found!");
+    // Perform the heavy AX IPC lookup on the background thread to prevent blocking the main thread
+    let mut x: f64 = 0.0;
+    let mut y: f64 = 0.0;
+    let mut caret_ok: bool = false;
+    #[cfg(target_os = "macos")]
+    {
+        unsafe { engine::get_caret_position(&mut x, &mut y, &mut caret_ok); }
     }
+
+    if !caret_ok {
+        return;
+    }
+
+    // Mode string format: "V|Telex", "V|VNI", or "E|English"
+    let input_type = unsafe { engine::vInputType };
+    let mode_str = if val == 1 {
+        let type_name = if input_type == 1 { "VNI" } else { "Telex" };
+        format!("V|{type_name}")
+    } else {
+        "E|English".to_string()
+    };
+
+    // Dispatch only the fast UI drawing commands to the main thread
+    let handle_clone = handle.clone();
+    let _ = handle.run_on_main_thread(move || {
+        if let Some(hud) = handle_clone.get_webview_window("hud") {
+            const HUD_W: f64 = 160.0;
+            const HUD_H: f64 = 40.0;
+            const GAP: f64 = 24.0;
+            let hud_x = (x - HUD_W / 2.0).max(0.0);
+            let hud_y = (y - HUD_H - GAP).max(0.0);
+
+            // 1. Move to the new valid caret position
+            let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                x: hud_x,
+                y: hud_y,
+            }));
+            
+            // 2. Emit the update to Svelte (which triggers CSS fade-in)
+            let _ = hud.emit("hud-update", mode_str);
+
+            // 3. Show the window ONLY if it's not already visible.
+            // Subsequent calls are extremely light since the window is already shown.
+            if !hud.is_visible().unwrap_or(false) {
+                let _ = hud.show();
+            }
+
+            let hud_clone = hud.clone();
+            tauri::async_runtime::spawn(async move {
+                // Let Svelte trigger the CSS fade-out animation after 1.2 seconds.
+                // The window stays natively shown (transparent & click-through),
+                // completely bypassing the laggy native macOS show/hide cycles.
+                tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+                let _ = hud_clone.emit("hud-hide", ());
+            });
+        }
+    });
 }
+
+use std::sync::atomic::{AtomicI32, AtomicI64};
+static LAST_HUD_VAL: AtomicI32 = AtomicI32::new(-1);
+static LAST_HUD_TIME: AtomicI64 = AtomicI64::new(0);
 
 #[no_mangle]
 pub extern "C" fn rust_onInputMethodChanged(val: std::os::raw::c_int) {
     unsafe {
         engine::vLanguage = val;
     }
+    
+    // Deduplicate and throttle HUD triggers to prevent CPU spike and system lag
+    // when the engine sends input method changes rapidly during typing.
+    let old_val = LAST_HUD_VAL.swap(val, std::sync::atomic::Ordering::Relaxed);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    let last_time = LAST_HUD_TIME.swap(now, std::sync::atomic::Ordering::Relaxed);
+
+    if old_val == val && (now - last_time) < 1500 {
+        // Redundant state change within 1.5 seconds, skip HUD trigger to avoid thread spam
+        return;
+    }
+
     if let Some(handle) = APP_HANDLE.get() {
-        update_tray_icon(handle);
-        trigger_hud(handle, val);
+        let handle_clone = handle.clone();
+        
+        // Update tray icon on the main thread
+        let _ = handle.run_on_main_thread(move || {
+            update_tray_icon(&handle_clone);
+        });
+
+        // Query caret and trigger HUD on a background thread
+        let handle_clone_hud = handle.clone();
+        std::thread::spawn(move || {
+            trigger_hud(&handle_clone_hud, val);
+        });
     }
     notify_frontend();
 }
@@ -1563,6 +1629,65 @@ pub extern "C" fn rust_onCodeTableChanged(val: std::os::raw::c_int) {
         update_tray_icon(handle);
     }
     notify_frontend();
+}
+
+#[no_mangle]
+pub extern "C" fn rust_onAccessibilityRevoked() {
+    // Called from the macOS main thread (dispatched via dispatch_async in ObjC).
+    // 1. Stop the event tap cleanly so _isInited resets to false.
+    unsafe { engine::stop_event_tap(); }
+
+    let Some(handle) = APP_HANDLE.get() else { return };
+
+    // 2. Update tray to show "Cấp quyền" menu item.
+    update_tray_icon(handle);
+
+    // 3. Show onboarding window.
+    if let Some(onboarding_win) = handle.get_webview_window("onboarding") {
+        let _ = onboarding_win.show();
+    }
+    update_dock_icon(handle);
+
+    // 4. Spawn a background watcher — same pattern as at startup — so that
+    //    when the user re-grants the permission the engine restarts automatically.
+    let handle_clone = handle.clone();
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            if unsafe { engine::is_accessibility_granted() } {
+                let handle_clone_2 = handle_clone.clone();
+                // 1. Load configuration and dictionaries in the background thread
+                load_settings_from_disk(&handle_clone_2);
+                load_macros_from_disk(&handle_clone_2);
+                load_english_dict_from_disk(&handle_clone_2);
+                load_vietnamese_dict_from_disk(&handle_clone_2);
+                load_programming_keywords_from_disk(&handle_clone_2);
+
+                // 2. Dispatch UI operations and start event tap to the main thread
+                let _ = handle_clone.run_on_main_thread(move || {
+                    unsafe { engine::start_event_tap(); }
+                    update_tray_icon(&handle_clone_2);
+                    if let Some(hud) = handle_clone_2.get_webview_window("hud") {
+                        let _ = hud.set_ignore_cursor_events(true);
+                        #[cfg(target_os = "macos")]
+                        if let Ok(ns_win) = hud.ns_window() {
+                            unsafe { engine::macos_configure_hud_window(ns_win); }
+                        }
+                    }
+                    if let Some(onboarding_win) = handle_clone_2.get_webview_window("onboarding") {
+                        let _ = onboarding_win.close();
+                    }
+                    if let Some(main_win) = handle_clone_2.get_webview_window("main") {
+                        let _ = main_win.show();
+                        let _ = main_win.set_focus();
+                    }
+                    update_dock_icon(&handle_clone_2);
+                    let _ = handle_clone_2.emit("accessibility-granted", ());
+                });
+                break;
+            }
+        }
+    });
 }
 
 #[no_mangle]
@@ -2313,26 +2438,21 @@ pub fn run() {
                         }
                     }
 
-                    if !CLIPBOARD_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
-                        continue;
-                    }
-
-                    let change_count = engine::clipboard_get_change_count();
-                    let last_count = LAST_CHANGE_COUNT.load(std::sync::atomic::Ordering::Relaxed);
-                    if change_count != last_count {
-                        LAST_CHANGE_COUNT.store(change_count, std::sync::atomic::Ordering::Relaxed);
-                        if IS_INTERNAL_COPY.load(std::sync::atomic::Ordering::Relaxed) {
-                            continue;
-                        }
-
-                        if engine::clipboard_is_sensitive() {
-                            continue;
-                        }
-
-                        if let Err(e) = process_new_clipboard_item(&handle_poll) {
-                            eprintln!("Error processing clipboard item: {:?}", e);
+                    if CLIPBOARD_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
+                        let change_count = engine::clipboard_get_change_count();
+                        let last_count = LAST_CHANGE_COUNT.load(std::sync::atomic::Ordering::Relaxed);
+                        if change_count != last_count {
+                            LAST_CHANGE_COUNT.store(change_count, std::sync::atomic::Ordering::Relaxed);
+                            if !IS_INTERNAL_COPY.load(std::sync::atomic::Ordering::Relaxed) {
+                                if !engine::clipboard_is_sensitive() {
+                                    if let Err(e) = process_new_clipboard_item(&handle_poll) {
+                                        eprintln!("Error processing clipboard item: {:?}", e);
+                                    }
+                                }
+                            }
                         }
                     }
+
                 }
             });
 
@@ -2356,7 +2476,6 @@ pub fn run() {
                     // Configure HUD window via native macOS API
                     #[cfg(target_os = "macos")]
                     {
-                        use tauri::WebviewWindowBuilder;
                         let hud_for_ns = hud.clone();
                         let _ = hud.run_on_main_thread(move || {
                             if let Ok(ns_win) = hud_for_ns.ns_window() {
@@ -2379,12 +2498,15 @@ pub fn run() {
                         std::thread::sleep(std::time::Duration::from_millis(1500));
                         if unsafe { engine::is_accessibility_granted() } {
                             let handle_clone_2 = handle_clone.clone();
+                            // 1. Load configuration and dictionaries in the background thread
+                            load_settings_from_disk(&handle_clone_2);
+                            load_macros_from_disk(&handle_clone_2);
+                            load_english_dict_from_disk(&handle_clone_2);
+                            load_vietnamese_dict_from_disk(&handle_clone_2);
+                            load_programming_keywords_from_disk(&handle_clone_2);
+
+                            // 2. Dispatch UI operations and start event tap to the main thread
                             let _ = handle_clone.run_on_main_thread(move || {
-                                load_settings_from_disk(&handle_clone_2);
-                                load_macros_from_disk(&handle_clone_2);
-                                load_english_dict_from_disk(&handle_clone_2);
-                                load_vietnamese_dict_from_disk(&handle_clone_2);
-                                load_programming_keywords_from_disk(&handle_clone_2);
                                 unsafe {
                                     engine::start_event_tap();
                                 }

@@ -1,0 +1,51 @@
+name: Build macOS Application
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS (Universal)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Sources/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: Sources/src-tauri -> target
+
+      - name: Run build script
+        run: |
+          chmod +x ./scripts/build_macos.sh
+          ./scripts/build_macos.sh build-installer
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VNKey-macOS-Build
+          path: |
+            .build/*.dmg
+            .build/*.tar.gz
+          if-no-files-found: error

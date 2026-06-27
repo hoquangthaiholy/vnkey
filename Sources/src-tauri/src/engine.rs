@@ -144,6 +144,8 @@ extern "C" {
     pub fn macos_is_another_instance_running() -> bool;
     pub fn macos_activate_other_instance();
     pub fn macos_is_current_input_source_english() -> bool;
+    #[cfg(target_os = "macos")]
+    pub fn get_caret_position(x: *mut f64, y: *mut f64, success: *mut bool);
 }
 
 #[cfg(target_os = "macos")]

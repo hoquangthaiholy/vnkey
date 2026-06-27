@@ -5,7 +5,8 @@
   "windows": [
     "main",
     "clipboard",
-    "onboarding"
+    "onboarding",
+    "hud"
   ],
   "permissions": [
     "core:default",

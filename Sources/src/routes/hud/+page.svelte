@@ -1,143 +1,115 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { listen } from '@tauri-apps/api/event';
-  import { getCurrentWindow } from '@tauri-apps/api/window';
 
-  let mode = $state<'VI' | 'EN'>('VI');
+  // Payload format from Rust: "V|Telex", "V|VNI", "E|English"
+  let letter = $state<'V' | 'E'>('V');
+  let sublabel = $state('Telex');
   let visible = $state(false);
-  let fadeTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
-    const appWindow = getCurrentWindow();
-    appWindow.setIgnoreCursorEvents(true);
+    let unlistenUpdate: (() => void) | undefined;
+    let unlistenHide: (() => void) | undefined;
 
-    let unlisten: (() => void) | undefined;
+    // Show and update HUD
     listen<string>('hud-update', (event) => {
-      mode = (event.payload as 'VI' | 'EN');
+      const [l, s] = event.payload.split('|');
+      letter = (l as 'V' | 'E') ?? 'V';
+      sublabel = s ?? 'Telex';
       visible = true;
+    }).then(fn => { unlistenUpdate = fn; });
 
-      if (fadeTimer) clearTimeout(fadeTimer);
-      fadeTimer = setTimeout(() => {
-        visible = false;
-      }, 1200);
-    }).then(fn => { unlisten = fn; });
+    // Hide HUD (fade-out only, positioning is handled by Rust)
+    listen<void>('hud-hide', () => {
+      visible = false;
+    }).then(fn => { unlistenHide = fn; });
 
     return () => {
-      if (unlisten) unlisten();
+      if (unlistenUpdate) unlistenUpdate();
+      if (unlistenHide) unlistenHide();
     };
   });
 </script>
 
-<svelte:head>
-  <title>VNKey HUD</title>
-</svelte:head>
+<svelte:head><title>VNKey HUD</title></svelte:head>
 
-<div class="hud-root" class:visible>
-  <div class="pill" class:vi={mode === 'VI'} class:en={mode === 'EN'}>
-    <div class="flag-dot">
-      {#if mode === 'VI'}
-        <span class="flag-vi">🇻🇳</span>
-      {:else}
-        <span class="flag-en">🇺🇸</span>
-      {/if}
-    </div>
-    <span class="mode-label">{mode}</span>
+<div class="root" class:visible>
+  <div class="pill" class:vi={letter === 'V'} class:en={letter === 'E'}>
+    <span class="letter">{letter}</span>
+    <span class="sep"></span>
+    <span class="sub">{sublabel}</span>
   </div>
 </div>
 
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  :global(*) { margin: 0; padding: 0; box-sizing: border-box; }
 
   :global(html, body) {
     background: transparent !important;
     overflow: hidden;
-    width: 140px;
-    height: 56px;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    width: 160px;
+    height: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .hud-root {
-    width: 140px;
-    height: 56px;
+  .root {
+    width: 160px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transform: translateY(4px) scale(0.92);
-    /* Single transition for both show and hide */
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    transform: translateY(3px) scale(0.95);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
     pointer-events: none;
   }
 
-  .hud-root.visible {
+  .root.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
-    transition: opacity 0.12s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.1s ease-out, transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border-radius: 28px;
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.35),
-      0 2px 8px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    transform: scale(1);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-    will-change: transform, opacity;
+    justify-content: center;
+    width: 130px;
+    height: 28px;
+    border-radius: 14px; /* Perfect capsule shape */
+    /* Semi-opaque solid dark background — NO backdrop-filter to prevent macOS GPU lag */
+    background: #1a1a1e;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    gap: 0;
   }
 
-  .hud-root.visible .pill {
-    transform: scale(1);
-  }
-
-  /* Vietnamese — warm red gradient */
-  .pill.vi {
-    background: linear-gradient(
-      135deg,
-      rgba(220, 38, 38, 0.72) 0%,
-      rgba(185, 28, 28, 0.60) 100%
-    );
-  }
-
-  /* English — cool blue gradient */
-  .pill.en {
-    background: linear-gradient(
-      135deg,
-      rgba(37, 99, 235, 0.72) 0%,
-      rgba(29, 78, 216, 0.60) 100%
-    );
-  }
-
-  .flag-dot {
-    font-size: 18px;
-    line-height: 1;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
-  }
-
-  .flag-vi,
-  .flag-en {
-    display: block;
-  }
-
-  .mode-label {
-    font-size: 17px;
+  .letter {
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #ffffff;
-    text-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.5),
-      0 0 12px rgba(255, 255, 255, 0.25);
-    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    width: 14px;
+    text-align: center;
+  }
+  .pill.vi .letter { color: #ff7675; }
+  .pill.en .letter { color: #74b9ff; }
+
+  .sep {
+    display: block;
+    width: 1px;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .sub {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
   }
 </style>
