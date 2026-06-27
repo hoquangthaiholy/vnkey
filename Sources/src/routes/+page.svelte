@@ -1037,6 +1037,28 @@
     saveSettings();
   }
 
+  function handleMergeFixChromeSpotlightChange(checked: boolean) {
+    settings.fix_chromium_browser = checked ? 1 : 0;
+    settings.fix_spotlight = checked ? 1 : 0;
+    saveSettings();
+  }
+
+  function handleUsePasteWorkaroundChange(checked: boolean) {
+    settings.use_paste_workaround = checked ? 1 : 0;
+    if (checked) {
+      settings.send_key_step_by_step = 0;
+    }
+    saveSettings();
+  }
+
+  function handleSendKeyStepByStepChange(checked: boolean) {
+    settings.send_key_step_by_step = checked ? 1 : 0;
+    if (checked) {
+      settings.use_paste_workaround = 0;
+    }
+    saveSettings();
+  }
+
   type NumericSettingsKey = { [K in keyof Settings]: Settings[K] extends number ? K : never }[keyof Settings];
 
   function handleSelectChange(key: NumericSettingsKey, value: number) {
@@ -2275,14 +2297,6 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Sử dụng cơ chế dán từ giảm độ trễ trong Trình duyệt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Cơ chế dán giảm trễ:</strong><br/>Khi gõ trong các trình duyệt (Chrome, Safari, Firefox,...), bộ gõ sẽ gửi các từ đã sửa dấu qua bộ nhớ đệm (Paste) thay vì gửi từng phím xóa và ký tự đơn lẻ. Giúp tăng tốc độ phản hồi và triệt tiêu giật lag trên các trang web nặng như Gemini, Claude, Facebook."}>?</span></span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.use_paste_workaround === 1} onchange={(e) => handleCheckboxChange('use_paste_workaround', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-
-              <label class="toggle-container">
                 <span class="toggle-text">Hiển thị bảng trạng thái nổi (HUD) khi đổi chế độ gõ <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Bảng trạng thái nổi (HUD):</strong><br/>Hiển thị cửa sổ chỉ báo nhỏ <kbd>VI</kbd> hoặc <kbd>EN</kbd> xuất hiện sát con trỏ chuột mỗi khi bạn chuyển đổi chế độ gõ (bằng phím tắt hoặc chuyển ứng dụng). Cửa sổ sẽ tự mờ dần sau 1.5 giây và không cản trở các thao tác gõ hay nhấn chuột của bạn."}>?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_hud === 1} onchange={(e) => handleCheckboxChange('use_hud', (e.target as HTMLInputElement).checked)} />
@@ -2351,18 +2365,18 @@
                 </div>
               </label>
 
-              <label class="toggle-container" class:disabled-zone={settings.fix_recommend_browser !== 1}>
-                  <span class="toggle-text">Sửa lỗi trình duyệt Google Chrome/Chromium <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Sửa lỗi Chromium:</strong><br/>Sử dụng cách lựa chọn văn bản thay cho phím Backspace trong một số ô nhập liệu của Google Chrome/Chromium."}>?</span></span>
+              <label class="toggle-container">
+                <span class="toggle-text">Sửa lỗi Google Chrome/Chromium & Spotlight <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Sửa lỗi Chrome & Spotlight:</strong><br/>Khắc phục lỗi tự động gợi ý/mất dấu trên Chrome/Chromium (sử dụng bôi đen thay thế Backspace) và lỗi lặp nguyên âm khi gõ từ đầu tiên trên thanh tìm kiếm macOS Spotlight."}>?</span></span>
                 <div class="switch">
-                  <input type="checkbox" disabled={settings.fix_recommend_browser !== 1} checked={settings.fix_chromium_browser === 1} onchange={(e) => handleCheckboxChange('fix_chromium_browser', (e.target as HTMLInputElement).checked)} />
+                  <input type="checkbox" checked={settings.fix_chromium_browser === 1 || settings.fix_spotlight === 1} onchange={(e) => handleMergeFixChromeSpotlightChange((e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
                 </div>
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Sửa lỗi trên Spotlight <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Sửa lỗi trên Spotlight:</strong><br/>Sử dụng cách thay thế vùng chọn đặc thù để tránh lỗi lặp lại nguyên âm khi gõ từ đầu tiên trên thanh tìm kiếm macOS Spotlight."}>?</span></span>
+                <span class="toggle-text">Sử dụng cơ chế dán từ giảm độ trễ trong Trình duyệt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Cơ chế dán giảm trễ:</strong><br/>Khi gõ trong các trình duyệt (Chrome, Safari, Firefox,...), bộ gõ sẽ gửi các từ đã sửa dấu qua bộ nhớ đệm (Paste) thay vì gửi từng phím xóa và ký tự đơn lẻ. Giúp tăng tốc độ phản hồi và triệt tiêu giật lag trên các trang web nặng như Gemini, Claude, Facebook."}>?</span></span>
                 <div class="switch">
-                  <input type="checkbox" checked={settings.fix_spotlight === 1} onchange={(e) => handleCheckboxChange('fix_spotlight', (e.target as HTMLInputElement).checked)} />
+                  <input type="checkbox" checked={settings.use_paste_workaround === 1} onchange={(e) => handleUsePasteWorkaroundChange((e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
                 </div>
               </label>
@@ -2370,7 +2384,7 @@
               <label class="toggle-container">
                 <span class="toggle-text">Gửi phím từng bước <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Gửi phím từng bước:</strong><br/>Gửi từng ký tự riêng để tương thích tốt với một số ứng dụng đặc biệt, tốc độ sẽ chậm hơn chế độ gửi chuỗi. <span style='color:#ff9f0a;'>Chỉ bật khi gặp lỗi lặp hoặc mất chữ.</span>"}>?</span></span>
                 <div class="switch">
-                  <input type="checkbox" checked={settings.send_key_step_by_step === 1} onchange={(e) => handleCheckboxChange('send_key_step_by_step', (e.target as HTMLInputElement).checked)} />
+                  <input type="checkbox" checked={settings.send_key_step_by_step === 1} onchange={(e) => handleSendKeyStepByStepChange((e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
                 </div>
               </label>
