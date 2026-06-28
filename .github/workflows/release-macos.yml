@@ -1,0 +1,149 @@
+name: Release macOS
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to build (e.g. v1.2.3)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -Eq -- '-(alpha|beta|rc)([.0-9]|$)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Resolved tag=$TAG version=$VERSION"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Sources/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Sources/src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: Sources
+        run: npm ci
+
+      - name: Set version in config
+        working-directory: Sources
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "const fs=require('fs');const f='src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(f));j.version=process.env.VERSION;fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+          node -e "const fs=require('fs');const f='package.json';const j=JSON.parse(fs.readFileSync(f));j.version=process.env.VERSION;fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+
+      - name: Write build-time .env
+        working-directory: Sources
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          VNKEY_SYNC_PASSWORD: ${{ secrets.VNKEY_SYNC_PASSWORD }}
+        run: |
+          {
+            echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+            echo "VNKEY_SYNC_PASSWORD=${VNKEY_SYNC_PASSWORD}"
+          } > .env
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+
+      - name: Resolve and inject signing identity
+        working-directory: Sources
+        run: |
+          IDENTITY=$(security find-identity -v -p codesigning | grep -m1 "Developer ID Application" | sed -E 's/^[^"]*"([^"]*)".*$/\1/')
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No 'Developer ID Application' identity found in keychain" >&2
+            security find-identity -v -p codesigning >&2 || true
+            exit 1
+          fi
+          echo "Using signing identity: $IDENTITY"
+          export IDENTITY
+          node -e "const fs=require('fs');const f='src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(f));j.bundle=j.bundle||{};j.bundle.macOS=j.bundle.macOS||{};j.bundle.macOS.signingIdentity=process.env.IDENTITY;fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+
+      - name: Build, sign, notarize, and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: Sources
+          args: --target universal-apple-darwin
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: VNKey ${{ steps.version.outputs.version }}
+          releaseDraft: true
+          prerelease: ${{ steps.version.outputs.prerelease }}
+
+      - name: Repackage app for Homebrew
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          BUNDLE_DIR="Sources/src-tauri/target/universal-apple-darwin/release/bundle/macos"
+          if [ ! -d "$BUNDLE_DIR/VNKey.app" ]; then
+            echo "::error::VNKey.app not found at $BUNDLE_DIR" >&2
+            exit 1
+          fi
+          TAR_NAME="VNKey_${VERSION}_universal.tar.gz"
+          tar -czf "$TAR_NAME" -C "$BUNDLE_DIR" VNKey.app
+          echo "TAR_NAME=$TAR_NAME" >> "$GITHUB_ENV"
+          echo "Created $TAR_NAME"
+
+      - name: Upload Homebrew asset to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.version.outputs.tag }}" "$TAR_NAME" --clobber
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ steps.version.outputs.tag }}" --draft=false
+
+      - name: Remove build-time secrets
+        if: always()
+        run: rm -f Sources/.env
