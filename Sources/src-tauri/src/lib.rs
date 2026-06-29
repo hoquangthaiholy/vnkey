@@ -1514,23 +1514,14 @@ fn notify_frontend() {
 }
 
 fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
+    if !USE_HUD.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+
     // Only show HUD when the system input source is English —
     // that is the only state where VNKey is actively intercepting keystrokes.
     let is_english = unsafe { engine::macos_is_current_input_source_english() };
     if !is_english {
-        return;
-    }
-
-    // Perform the heavy AX IPC lookup on the background thread to prevent blocking the main thread
-    let mut x: f64 = 0.0;
-    let mut y: f64 = 0.0;
-    let mut caret_ok: bool = false;
-    #[cfg(target_os = "macos")]
-    {
-        unsafe { engine::get_caret_position(&mut x, &mut y, &mut caret_ok); }
-    }
-
-    if !caret_ok {
         return;
     }
 
@@ -1547,13 +1538,22 @@ fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
     let handle_clone = handle.clone();
     let _ = handle.run_on_main_thread(move || {
         if let Some(hud) = handle_clone.get_webview_window("hud") {
-            const HUD_W: f64 = 160.0;
-            const HUD_H: f64 = 40.0;
-            const GAP: f64 = 24.0;
-            let hud_x = (x - HUD_W / 2.0).max(0.0);
-            let hud_y = (y - HUD_H - GAP).max(0.0);
+            const HUD_W: f64 = 240.0;
+            const HUD_H: f64 = 80.0;
 
-            // 1. Move to the new valid caret position
+            // Position fixed at the bottom-center of the primary screen
+            let mut hud_x = 0.0;
+            let mut hud_y = 0.0;
+            if let Ok(Some(monitor)) = hud.primary_monitor() {
+                let size = monitor.size();
+                let scale_factor = monitor.scale_factor();
+                let screen_w = size.width as f64 / scale_factor;
+                let screen_h = size.height as f64 / scale_factor;
+                hud_x = (screen_w - HUD_W) / 2.0;
+                hud_y = screen_h - HUD_H - 80.0; // 80px above screen bottom
+            }
+
+            // 1. Move to the fixed position
             let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition {
                 x: hud_x,
                 y: hud_y,
@@ -1563,17 +1563,16 @@ fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
             let _ = hud.emit("hud-update", mode_str);
 
             // 3. Show the window ONLY if it's not already visible.
-            // Subsequent calls are extremely light since the window is already shown.
             if !hud.is_visible().unwrap_or(false) {
                 let _ = hud.show();
             }
 
             let hud_clone = hud.clone();
             tauri::async_runtime::spawn(async move {
-                // Let Svelte trigger the CSS fade-out animation after 1.2 seconds.
+                // Let Svelte trigger the CSS fade-out animation after 2.5 seconds.
                 // The window stays natively shown (transparent & click-through),
                 // completely bypassing the laggy native macOS show/hide cycles.
-                tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
                 let _ = hud_clone.emit("hud-hide", ());
             });
         }

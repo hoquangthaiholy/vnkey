@@ -54,8 +54,8 @@
       {
         "label": "hud",
         "title": "VNKey HUD",
-        "width": 160,
-        "height": 40,
+        "width": 240,
+        "height": 80,
         "resizable": false,
         "decorations": false,
         "transparent": true,

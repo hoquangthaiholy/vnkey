@@ -1623,6 +1623,9 @@ extern "C" {
             [window setStyleMask:[window styleMask] | NSWindowStyleMaskNonactivatingPanel];
             [window setIgnoresMouseEvents:YES];
             
+            // Disable native OS shadow to use CSS shadow instead
+            [window setHasShadow:NO];
+            
             // Transparent background (belt & suspenders alongside Tauri transparent=true)
             [window setBackgroundColor:[NSColor clearColor]];
             [window setOpaque:NO];

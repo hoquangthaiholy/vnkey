@@ -47,15 +47,15 @@
   :global(html, body) {
     background: transparent !important;
     overflow: hidden;
-    width: 160px;
-    height: 40px;
+    width: 240px;
+    height: 80px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
   .root {
-    width: 160px;
-    height: 40px;
+    width: 240px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -74,23 +74,26 @@
   .pill {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 130px;
-    height: 28px;
-    border-radius: 14px; /* Perfect capsule shape */
-    /* Semi-opaque solid dark background — NO backdrop-filter to prevent macOS GPU lag */
-    background: #1a1a1e;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
-    gap: 0;
+    width: 180px;
+    height: 40px;
+    border-radius: 20px; /* Perfect capsule shape */
+    background: #16161a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    /* High quality CSS shadow to replace native macOS shadow */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
   }
 
   .letter {
-    font-size: 13px;
-    font-weight: 700;
+    width: 35%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
     line-height: 1;
     letter-spacing: 0.04em;
-    width: 14px;
-    text-align: center;
   }
   .pill.vi .letter { color: #ff7675; }
   .pill.en .letter { color: #74b9ff; }
@@ -98,16 +101,21 @@
   .sep {
     display: block;
     width: 1px;
-    height: 10px;
+    height: 16px; /* Shorter separator */
     background: rgba(255, 255, 255, 0.15);
-    margin: 0 8px;
+    align-self: center; /* Vertically centered */
     flex-shrink: 0;
   }
 
   .sub {
-    font-size: 11.5px;
+    width: 65%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     line-height: 1;
     letter-spacing: 0.02em;
     white-space: nowrap;
