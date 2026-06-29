@@ -140,6 +140,23 @@ bool isValidProgrammingKeyword(const std::string& word) {
     return false;
 }
 
+bool isBuiltInProgrammingKeyword(const std::string& word) {
+    if (word.empty()) return false;
+    std::string lowerWord;
+    lowerWord.reserve(word.size());
+    for (char c : word) {
+        lowerWord.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    if (builtInKeywords.count(lowerWord) > 0) {
+        return true;
+    }
+    const auto customWords = std::atomic_load(&gCustomProgrammingKeywords);
+    if (customWords->count(lowerWord) > 0) {
+        return true;
+    }
+    return false;
+}
+
 void setCustomProgrammingKeywords(const std::string& content) {
     auto customWords = std::make_shared<KeywordSet>();
     std::stringstream ss(content);

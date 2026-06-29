@@ -1513,6 +1513,16 @@ bool applyFsmRestorations(const int& handleCode) {
             // Programming FSM
             if (vCheckProgrammingKeywords) {
                 if (vnkey::isValidProgrammingKeyword(rawWord)) {
+                    bool allUpper = true;
+                    for (char c : rawWord) {
+                        if (std::isalpha(static_cast<unsigned char>(c)) && !std::isupper(static_cast<unsigned char>(c))) {
+                            allUpper = false;
+                            break;
+                        }
+                    }
+                    if (allUpper && !tempDisableKey && !vnkey::isBuiltInProgrammingKeyword(rawWord)) {
+                        continue;
+                    }
                     // Valid Programming keyword -> PROG FSM wins! Restore raw typing.
                     return restoreRawTyping(handleCode, false);
                 }
