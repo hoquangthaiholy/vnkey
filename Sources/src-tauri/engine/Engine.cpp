@@ -1886,7 +1886,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
             bool secondUpper = (_rawTyping[1] & CAPS_MASK) != 0;
             
             if (firstUpper && secondUpper) {
-                Uint16 secondKey = data & CHAR_MASK;
+                Uint16 secondKey = _rawTyping[1] & CHAR_MASK;
                 bool isMarkKey = false;
                 if (vInputType == vTelex) {
                     isMarkKey = (secondKey == KEY_S || secondKey == KEY_F || secondKey == KEY_R || secondKey == KEY_X || secondKey == KEY_J);
