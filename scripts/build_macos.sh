@@ -76,10 +76,27 @@ if [ "$ACTION" = "build-installer" ]; then
     BUNDLES="app,dmg"
 fi
 
+# Load environment variables from .env if present
+if [ -f "$TAURI_DIR/.env" ]; then
+    echo "Loading environment variables from $TAURI_DIR/.env"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! "$line" =~ ^# ]] && [[ "$line" =~ = ]]; then
+            key=$(echo "$line" | cut -d'=' -f1)
+            val=$(echo "$line" | cut -d'=' -f2-)
+            val="${val%\"}"
+            val="${val#\"}"
+            val="${val%\'}"
+            val="${val#\'}"
+            export "$key=$val"
+        fi
+    done < "$TAURI_DIR/.env"
+fi
+
 rm -rf "$TAURI_DIR/src-tauri/target/$TARGET_DIR/bundle/macos/VNKey.app"
 if [ "$ACTION" = "build-installer" ]; then
     rm -rf "$TAURI_DIR/src-tauri/target/$TARGET_DIR/bundle/dmg"
 fi
+
 npm run tauri build -- $TARGET_FLAG --bundles "$BUNDLES"
 
 APP_PATH="$TAURI_DIR/src-tauri/target/$TARGET_DIR/bundle/macos/VNKey.app"
