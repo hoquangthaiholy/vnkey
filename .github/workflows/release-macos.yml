@@ -116,30 +116,27 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: Sources
-          args: --target universal-apple-darwin
+          args: --target universal-apple-darwin --bundles app,dmg
           tagName: ${{ steps.version.outputs.tag }}
           releaseName: VNKey ${{ steps.version.outputs.version }}
           releaseDraft: true
           prerelease: ${{ steps.version.outputs.prerelease }}
 
-      - name: Repackage app for Homebrew
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+      - name: Locate DMG for Homebrew
         run: |
-          BUNDLE_DIR="Sources/src-tauri/target/universal-apple-darwin/release/bundle/macos"
-          if [ ! -d "$BUNDLE_DIR/VNKey.app" ]; then
-            echo "::error::VNKey.app not found at $BUNDLE_DIR" >&2
+          DMG_DIR="Sources/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+          DMG_PATH=$(find "$DMG_DIR" -maxdepth 1 -type f -name '*.dmg' | head -n 1)
+          if [ -z "$DMG_PATH" ]; then
+            echo "::error::No DMG found at $DMG_DIR" >&2
             exit 1
           fi
-          TAR_NAME="VNKey_${VERSION}_universal.tar.gz"
-          tar -czf "$TAR_NAME" -C "$BUNDLE_DIR" VNKey.app
-          echo "TAR_NAME=$TAR_NAME" >> "$GITHUB_ENV"
-          echo "Created $TAR_NAME"
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+          echo "Found DMG: $DMG_PATH"
 
       - name: Upload Homebrew asset to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ steps.version.outputs.tag }}" "$TAR_NAME" --clobber
+        run: gh release upload "${{ steps.version.outputs.tag }}" "$DMG_PATH" --clobber
 
       - name: Publish release
         env:
