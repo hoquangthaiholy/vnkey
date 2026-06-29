@@ -1,6 +1,6 @@
 {
   "name": "vnkey-control-panel",
-  "version": "1.0.0-beta",
+  "version": "1.0.0",
   "description": "Cross-platform VNKey control panel",
   "author": "Hồ Quang Thái",
   "type": "module",
@@ -17,7 +17,9 @@
     "@lucide/svelte": "^1.21.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",

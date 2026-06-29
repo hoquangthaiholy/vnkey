@@ -6,6 +6,9 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { getVersion } from "@tauri-apps/api/app";
+  import { check } from "@tauri-apps/plugin-updater";
+  import { relaunch } from "@tauri-apps/plugin-process";
   import { Terminal, Copyright } from '@lucide/svelte';
   import VietnamFlag from './VietnamFlag.svelte';
   import USFlag from './USFlag.svelte';
@@ -124,6 +127,12 @@
   let showResetModal = $state(false);
   let showMacroModal = $state(false);
 
+  // Update online state
+  let appVersion = $state("1.0.0");
+  let updateStatus = $state<"idle" | "checking" | "upToDate" | "available" | "error">("idle");
+  let updateInfo = $state<{ version: string; releaseNotes: string; url: string; date: string } | null>(null);
+  let showUpdateModal = $state(false);
+
   // Macros state
   let macrosList = $state<{ shortcut: string; content: string }[]>([]);
   let selectedMacroShortcut = $state<string | null>(null);
@@ -132,6 +141,140 @@
   let showViDictTable = $state(false);
   let showEnDictTable = $state(false);
   let showProgDictTable = $state(false);
+
+  function parseVersion(v: string): number[] {
+    return v.replace(/^v/, "").split(".").map(x => parseInt(x, 10) || 0);
+  }
+
+  function isNewerVersion(current: string, latest: string): boolean {
+    const curParts = parseVersion(current);
+    const latParts = parseVersion(latest);
+    for (let i = 0; i < Math.max(curParts.length, latParts.length); i++) {
+      const cur = curParts[i] || 0;
+      const lat = latParts[i] || 0;
+      if (lat > cur) return true;
+      if (cur > lat) return false;
+    }
+    return false;
+  }
+
+  let updateProgress = $state<string>("");
+  let isDownloading = $state<boolean>(false);
+  let activeUpdate = $state<any>(null);
+
+  async function checkUpdates(silent = false) {
+    if (updateStatus === "checking") return;
+    updateStatus = "checking";
+    try {
+      // 1. Try native Tauri updater first
+      try {
+        const update = await check();
+        if (update) {
+          activeUpdate = update;
+          updateInfo = {
+            version: update.version,
+            releaseNotes: update.body || "Không có mô tả chi tiết.",
+            url: "",
+            date: update.date ? new Date(update.date).toLocaleDateString("vi-VN") : ""
+          };
+          updateStatus = "available";
+          showUpdateModal = true;
+          return;
+        }
+      } catch (updaterErr) {
+        console.warn("Native updater check failed, falling back to GitHub API:", updaterErr);
+      }
+
+      // 2. Fallback to direct GitHub API check (useful if latest.json is missing or key not configured yet)
+      const response = await fetch("https://api.github.com/repos/hoquangthaiholy/vnkey/releases/latest");
+      if (!response.ok) {
+        throw new Error("Không thể kết nối đến GitHub API");
+      }
+      const data = await response.json();
+      const latestTag = data.tag_name;
+      const releaseNotes = data.body || "Không có mô tả chi tiết.";
+      const publishedAt = data.published_at ? new Date(data.published_at).toLocaleDateString("vi-VN") : "";
+      
+      let downloadUrl = data.html_url;
+      if (data.assets && Array.isArray(data.assets)) {
+        const asset = data.assets.find((a: any) => a.name.endsWith(".dmg") || a.name.endsWith(".tar.gz") || a.name.endsWith(".zip"));
+        if (asset) {
+          downloadUrl = asset.browser_download_url;
+        }
+      }
+
+      if (isNewerVersion(appVersion, latestTag)) {
+        activeUpdate = null;
+        updateInfo = {
+          version: latestTag,
+          releaseNotes: releaseNotes,
+          url: downloadUrl,
+          date: publishedAt
+        };
+        updateStatus = "available";
+        showUpdateModal = true;
+      } else {
+        updateStatus = "upToDate";
+        if (!silent) {
+          alert("Ứng dụng đang ở phiên bản mới nhất!");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra cập nhật:", error);
+      updateStatus = "error";
+      if (!silent) {
+        alert("Có lỗi xảy ra khi kiểm tra cập nhật. Vui lòng thử lại sau.");
+      }
+    } finally {
+      if (updateStatus !== "available") {
+        updateStatus = "idle";
+      }
+    }
+  }
+
+  async function downloadAndInstallUpdate() {
+    if (!activeUpdate) {
+      // Fallback: Open release URL or DMG download in browser
+      if (updateInfo && updateInfo.url) {
+        showUpdateModal = false;
+        await invoke("plugin:opener|open_url", { url: updateInfo.url });
+      }
+      return;
+    }
+    
+    isDownloading = true;
+    updateProgress = "0%";
+    try {
+      let downloaded = 0;
+      let contentLength = 0;
+      await activeUpdate.downloadAndInstall((event: any) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength || 0;
+            updateProgress = "Đang khởi động...";
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            if (contentLength > 0) {
+              const percentage = Math.round((downloaded / contentLength) * 100);
+              updateProgress = `Đang tải: ${percentage}%`;
+            } else {
+              updateProgress = "Đang tải...";
+            }
+            break;
+          case 'Finished':
+            updateProgress = "Đang giải nén...";
+            break;
+        }
+      });
+      updateProgress = "Đang khởi động lại...";
+      await relaunch();
+    } catch (error) {
+      console.error("Lỗi tải/cài đặt cập nhật:", error);
+      alert("Lỗi tải/cài đặt cập nhật: " + error);
+      isDownloading = false;
+    }
+  }
 
   // English Dictionary state
   let customEnglishWords = $state<string[]>([]);
@@ -1073,6 +1216,13 @@
     let stopListeningShowTab: (() => void) | undefined;
     let stopListeningEnglishDictReset: (() => void) | undefined;
 
+    getVersion().then((ver) => {
+      appVersion = ver;
+      checkUpdates(true);
+    }).catch((err) => {
+      console.error("Lỗi lấy phiên bản ứng dụng:", err);
+    });
+
     // Theme sync listener
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const updateTheme = (e: MediaQueryListEvent | MediaQueryList) => {
@@ -1158,6 +1308,15 @@
       stopListeningWebAuth = unsub;
     });
 
+    let stopListeningCheckUpdates: (() => void) | undefined;
+
+    listen<void>("check-updates-manually", () => {
+      activeTab = 4;
+      checkUpdates(false);
+    }).then((unsub) => {
+      stopListeningCheckUpdates = unsub;
+    });
+
     listen<void>("english-dict-reset", () => {
       loadCustomEnglishWords();
     }).then((unsub) => {
@@ -1170,6 +1329,7 @@
       if (stopListeningShowTab) stopListeningShowTab();
       if (stopListeningEnglishDictReset) stopListeningEnglishDictReset();
       if (stopListeningWebAuth) stopListeningWebAuth();
+      if (stopListeningCheckUpdates) stopListeningCheckUpdates();
       if (pollingInterval) clearInterval(pollingInterval);
       mediaQuery.removeEventListener('change', updateTheme);
     };
@@ -2827,7 +2987,12 @@
               <img src="/favicon.png" alt="VNKey" class="app-icon" />
               <div>
                 <h3>VNKey</h3>
-                <p class="version">Phiên bản 1.0.0-beta (Build 1)</p>
+                <p class="version">
+                  Phiên bản {appVersion}
+                  {#if updateStatus === 'checking'}
+                    <span style="color: var(--text-secondary); margin-left: 8px; font-size: 11px;">(Đang kiểm tra...)</span>
+                  {/if}
+                </p>
               </div>
             </div>
             <p class="desc">Bộ gõ tiếng Việt mã nguồn mở, gọn nhẹ, chạy nhanh và an toàn tuyệt đối cho người dùng trên nền tảng macOS, Windows và Linux.</p>
@@ -2842,6 +3007,18 @@
               <span class="text-secondary" style="font-size: 13px; display: flex; align-items: center; gap: 4px;">
                 Copyright <Copyright size={14} strokeWidth={2} /> 2026
               </span>
+              <button 
+                class="btn btn-secondary" 
+                style="padding: 6px 12px; font-size: 12px;"
+                onclick={() => checkUpdates(false)} 
+                disabled={updateStatus === 'checking'}
+              >
+                {#if updateStatus === 'checking'}
+                  Đang kiểm tra...
+                {:else}
+                  Kiểm tra cập nhật
+                {/if}
+              </button>
             </div>
           </div>
         </section>
@@ -2907,6 +3084,40 @@
           <div class="modal-actions" style="margin-top: 0;">
             <button class="btn btn-secondary" onclick={() => showMacroModal = false}>Hủy</button>
             <button class="btn btn-primary" onclick={addMacro}>Lưu thay đổi</button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if showUpdateModal && updateInfo}
+      <div class="modal-overlay" transition:fade={{ duration: 150 }} role="dialog" aria-modal="true" aria-label="Thông báo cập nhật phiên bản mới">
+        <div class="modal-content" transition:scale={{ duration: 180, start: 0.95 }} onclick={(e) => e.stopPropagation()} style="max-width: 500px;" role="presentation">
+          <h3 style="margin-bottom: 5px; font-size: 18px; font-weight: 600;">Cập nhật phiên bản mới</h3>
+          <p style="margin-bottom: 15px; font-size: 13px; color: var(--text-secondary);">
+            Phiên bản mới <strong>{updateInfo.version}</strong> đã sẵn sàng (phát hành ngày {updateInfo.date}).
+          </p>
+          
+          <div style="margin-bottom: 20px;">
+            <span style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: var(--text-primary);">Nhật ký thay đổi:</span>
+            <div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; max-height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: var(--text-secondary);">
+              {updateInfo.releaseNotes}
+            </div>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 0; align-items: center; justify-content: flex-end; gap: 10px;">
+            {#if isDownloading}
+              <span style="font-size: 13px; color: var(--color-accent); font-weight: 500;">
+                {updateProgress}
+              </span>
+            {:else}
+              <button class="btn btn-secondary" onclick={() => showUpdateModal = false}>Để sau</button>
+              <button 
+                class="btn btn-primary" 
+                onclick={downloadAndInstallUpdate}
+              >
+                {activeUpdate ? "Cập nhật & Khởi động lại" : "Tải về bản mới"}
+              </button>
+            {/if}
           </div>
         </div>
       </div>

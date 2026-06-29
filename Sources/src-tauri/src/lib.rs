@@ -1426,6 +1426,11 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
         .build(handle)
         .unwrap();
 
+    let check_updates = MenuItemBuilder::new("Kiểm tra cập nhật...")
+        .id("check_updates")
+        .build(handle)
+        .unwrap();
+
     let quit = MenuItemBuilder::new("Thoát")
         .id("quit")
         .build(handle)
@@ -1465,6 +1470,7 @@ fn build_tray_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> Menu<R> {
 
     let _ = menu.append(&control_panel);
     let _ = menu.append(&macro_settings);
+    let _ = menu.append(&check_updates);
     let _ = menu.append(&about);
     let _ = menu.append(&PredefinedMenuItem::separator(handle).unwrap());
 
@@ -1534,6 +1540,9 @@ fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
         "E|English".to_string()
     };
 
+    // Increment trigger ID to debounce/cancel previous fade-out timers
+    let trigger_id = LAST_HUD_TRIGGER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+
     // Dispatch only the fast UI drawing commands to the main thread
     let handle_clone = handle.clone();
     let _ = handle.run_on_main_thread(move || {
@@ -1569,11 +1578,13 @@ fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
 
             let hud_clone = hud.clone();
             tauri::async_runtime::spawn(async move {
-                // Let Svelte trigger the CSS fade-out animation after 2.5 seconds.
+                // Let Svelte trigger the CSS fade-out animation after 2.0 seconds.
                 // The window stays natively shown (transparent & click-through),
                 // completely bypassing the laggy native macOS show/hide cycles.
-                tokio::time::sleep(tokio::time::Duration::from_millis(2500)).await;
-                let _ = hud_clone.emit("hud-hide", ());
+                tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+                if LAST_HUD_TRIGGER_ID.load(std::sync::atomic::Ordering::Relaxed) == trigger_id {
+                    let _ = hud_clone.emit("hud-hide", ());
+                }
             });
         }
     });
@@ -1582,6 +1593,7 @@ fn trigger_hud(handle: &tauri::AppHandle, val: i32) {
 use std::sync::atomic::{AtomicI32, AtomicI64};
 static LAST_HUD_VAL: AtomicI32 = AtomicI32::new(-1);
 static LAST_HUD_TIME: AtomicI64 = AtomicI64::new(0);
+static LAST_HUD_TRIGGER_ID: AtomicU64 = AtomicU64::new(0);
 
 #[no_mangle]
 pub extern "C" fn rust_onInputMethodChanged(val: std::os::raw::c_int) {
@@ -2354,6 +2366,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 let label = window.label();
@@ -2599,6 +2613,12 @@ pub fn run() {
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.show().and_then(|_| window.set_focus());
                                 let _ = window.emit("show-tab", 4);
+                            }
+                        }
+                        "check_updates" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show().and_then(|_| window.set_focus());
+                                let _ = window.emit("check-updates-manually", ());
                             }
                         }
                         "quick_convert" => {
