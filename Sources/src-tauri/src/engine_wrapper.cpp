@@ -27,6 +27,7 @@ extern "C" {
     int vLateAccentTransformation = 0;
     int vAllCapsAutoEscape = 1;
     int vUsePasteWorkaround = 1;
+    int vSmartPunctCheck = 1;
     int vUseMacro = 1;
     int vUseMacroInEnglishMode = 0;
     int vAutoCapsMacro = 1;
@@ -37,8 +38,8 @@ extern "C" {
     int vQuickEndConsonant = 0;
     int vRememberCode = 1;
     int vDisableHotkeys = 0;
-    // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: VI → PROG → EN
-    int vFsmPriorityOrder[3] = {0, 2, 1};
+    // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: PROG → VI → EN
+    int vFsmPriorityOrder[3] = {2, 0, 1};
 
     // Telex sub-options (only effective when vInputType == vTelex):
     //   vTelexWAsU=1  → W standalone at word start becomes ư (classic Telex)

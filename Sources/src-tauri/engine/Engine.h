@@ -174,6 +174,7 @@ extern int vCheckProgrammingKeywords;
 extern int vLateAccentTransformation;
 extern int vAllCapsAutoEscape;
 extern int vUsePasteWorkaround;
+extern int vSmartPunctCheck;
 
 /**
  * FSM priority order: array of 3 values, each 0=VI, 1=EN, 2=PROG.

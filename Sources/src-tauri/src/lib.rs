@@ -99,7 +99,7 @@ fn default_settings() -> Settings {
         clipboard_max_items: 10,
         clipboard_hotkey: 0x56000C09,
         check_programming_keywords: 1,
-        fsm_priority_order: vec![0, 2, 1],
+        fsm_priority_order: vec![2, 0, 1],
         telex_w_as_u: 0,
         telex_bracket_as_o: 0,
         autostart: 1,
@@ -109,6 +109,7 @@ fn default_settings() -> Settings {
         all_caps_auto_escape: 1,
         use_paste_workaround: 1,
         use_hud: 1,
+        smart_punct_check: 1,
     }
 }
 
@@ -174,6 +175,8 @@ pub struct Settings {
     pub use_paste_workaround: i32,
     #[serde(default = "default_one")]
     pub use_hud: i32,
+    #[serde(default = "default_one")]
+    pub smart_punct_check: i32,
 }
 
 fn default_one() -> i32 { 1 }
@@ -181,7 +184,7 @@ fn default_zero() -> i32 { 0 }
 fn default_panel_hotkey() -> i32 { 0x50000C23 }
 
 fn default_fsm_priority_order() -> Vec<i32> {
-    vec![0, 2, 1]
+    vec![2, 0, 1]
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -553,6 +556,7 @@ fn get_settings() -> Settings {
             all_caps_auto_escape: engine::vAllCapsAutoEscape,
             use_paste_workaround: engine::vUsePasteWorkaround,
             use_hud: if USE_HUD.load(std::sync::atomic::Ordering::Relaxed) { 1 } else { 0 },
+            smart_punct_check: engine::vSmartPunctCheck,
         }
     }
 }
@@ -596,6 +600,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vLateAccentTransformation = settings.late_accent_transformation;
                         engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
                         engine::vUsePasteWorkaround = settings.use_paste_workaround;
+                        engine::vSmartPunctCheck = settings.smart_punct_check;
                         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
                         engine::vTelexWAsU = settings.telex_w_as_u;
                         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
@@ -732,6 +737,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vLateAccentTransformation = settings.late_accent_transformation;
         engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
         engine::vUsePasteWorkaround = settings.use_paste_workaround;
+        engine::vSmartPunctCheck = settings.smart_punct_check;
         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
         engine::vTelexWAsU = settings.telex_w_as_u;
         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
@@ -862,6 +868,10 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
+        engine::vLateAccentTransformation = settings.late_accent_transformation;
+        engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
+        engine::vUsePasteWorkaround = settings.use_paste_workaround;
+        engine::vSmartPunctCheck = settings.smart_punct_check;
         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
         engine::set_convert_tool_to_all_non_caps(settings.convert_tool_to_all_non_caps);

@@ -66,6 +66,7 @@
     all_caps_auto_escape: number;
     use_paste_workaround: number;
     use_hud: number;
+    smart_punct_check: number;
   }
 
   let settings = $state<Settings>({
@@ -79,7 +80,7 @@
     quick_telex: 0,
     use_english_dictionary: 1,
     check_programming_keywords: 1,
-    fsm_priority_order: [0, 2, 1],
+    fsm_priority_order: [2, 0, 1],
     fix_recommend_browser: 1,
     fix_spotlight: 1,
     use_macro: 1,
@@ -119,6 +120,7 @@
     all_caps_auto_escape: 1,
     use_paste_workaround: 1,
     use_hud: 1,
+    smart_punct_check: 1,
   });
 
   let activeTab = $state(0);
@@ -826,7 +828,7 @@
 
   function appFsmOrderedItems() {
     if (!selectedApp || !appConfigs[selectedApp]) return [];
-    const order: number[] = appConfigs[selectedApp].fsm_priority_order || [0, 2, 1];
+    const order: number[] = appConfigs[selectedApp].fsm_priority_order || [2, 0, 1];
     return order
       .map((id: number) => FSM_DEFS.find((d) => d.id === id))
       .filter((d): d is Exclude<typeof d, undefined> => !!d);
@@ -835,7 +837,7 @@
   function appFsmSlotAtY(clientY: number): number | null {
     if (!appFsmListEl) return null;
     const rect = appFsmListEl.getBoundingClientRect();
-    const order = appConfigs[selectedApp]?.fsm_priority_order || [0, 2, 1];
+    const order = appConfigs[selectedApp]?.fsm_priority_order || [2, 0, 1];
     const itemCount = order.length;
     if (itemCount === 0) return null;
     const itemHeight = rect.height / itemCount;
@@ -858,7 +860,7 @@
     if (!appFsmIsDragging || appFsmDragIndex === null) return;
     const slot = appFsmSlotAtY(e.clientY);
     if (slot !== null && slot !== appFsmDragIndex) {
-      const currentOrder = appConfigs[selectedApp]?.fsm_priority_order || [0, 2, 1];
+      const currentOrder = appConfigs[selectedApp]?.fsm_priority_order || [2, 0, 1];
       const newOrder = [...currentOrder];
       const [moved] = newOrder.splice(appFsmDragIndex, 1);
       newOrder.splice(slot, 0, moved);
@@ -1716,14 +1718,6 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Khóa Caps thông minh <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Khóa Caps thông minh:</strong><br/>Tự động phát hiện khi bạn gõ 2 chữ viết hoa liên tiếp ở đầu từ (như <kbd>DA...</kbd> trong <kbd>DATABASE_URL</kbd>) để giữ nguyên chế độ gõ chữ thô tiếng Anh, tránh bị dính dấu tiếng Việt."}>?</span></span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.all_caps_auto_escape === 1} onchange={(e) => handleCheckboxChange('all_caps_auto_escape', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-
-              <label class="toggle-container">
                 <span class="toggle-text">Đặt dấu hiện đại <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Đặt dấu hiện đại:</strong><br/>Đặt dấu trên nguyên âm chính trong các cụm như <kbd>oà</kbd>, <kbd>uý</kbd> (thay vì kiểu cũ <kbd>òa</kbd>, <kbd>úy</kbd>). Áp dụng cho các cụm <kbd>oa</kbd>, <kbd>oe</kbd>, <kbd>uy</kbd>."}>?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_modern_orthography === 1} onchange={(e) => handleCheckboxChange('use_modern_orthography', (e.target as HTMLInputElement).checked)} />
@@ -1887,7 +1881,7 @@
               <label class="toggle-container">
                 <span class="toggle-text font-bold" style="font-size:14.5px; display: inline-flex; align-items: center; gap: 10px;">
                   <ProgIcon size={20} />
-                  Kiểm tra chính tả lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra từ khóa lập trình:</strong><br/>Dùng luật nhận diện từ khóa lập trình phổ biến (<kbd>C++</kbd>, <kbd>Java</kbd>, <kbd>JS/TS</kbd>, <kbd>PHP</kbd>, <kbd>Python</kbd>, <kbd>Go</kbd>, <kbd>Rust</kbd>...) để giữ nguyên từ khi gõ code."}>?</span>
+                  Kiểm tra cú pháp lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra cú pháp lập trình:</strong><br/>Nhận diện các từ khóa lập trình phổ biến, kiểm tra cú pháp Caps và từ tiếng Anh trước ký hiệu lập trình để tối ưu việc gõ code."}>?</span>
                 </span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.check_programming_keywords === 1} onchange={(e) => handleCheckboxChange('check_programming_keywords', (e.target as HTMLInputElement).checked)} />
@@ -1898,6 +1892,22 @@
               {#if settings.check_programming_keywords === 1}
                 <div class="spell-sub-section" transition:slide={{ duration: 200 }}>
                   <label class="toggle-container sub-toggle">
+                    <span class="toggle-text">Khóa Caps thông minh <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Khóa Caps thông minh:</strong><br/>Tự động phát hiện khi bạn gõ 2 chữ viết hoa liên tiếp ở đầu từ (như <kbd>DA...</kbd> trong <kbd>DATABASE_URL</kbd>) để giữ nguyên chế độ gõ chữ thô tiếng Anh, tránh bị dính dấu tiếng Việt."}>?</span></span>
+                    <div class="switch">
+                      <input type="checkbox" checked={settings.all_caps_auto_escape === 1} onchange={(e) => handleCheckboxChange('all_caps_auto_escape', (e.target as HTMLInputElement).checked)} />
+                      <span class="slider"></span>
+                    </div>
+                  </label>
+
+                  <label class="toggle-container sub-toggle mt-10">
+                    <span class="toggle-text">Khôi phục từ tiếng Anh trước ký tự lập trình/tên file <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Khôi phục trước ký tự lập trình:</strong><br/>Tự động khôi phục từ tiếng Anh gốc khi gõ liền trước các ký tự lập trình đặc trưng (như <kbd>.</kbd>, <kbd>&quot;</kbd>, <kbd>()</kbd>, <kbd>[]</kbd>, <kbd>{}</kbd>). Ví dụ: gõ <kbd>tar.gz</kbd> không bị thành <kbd>tả.gz</kbd>."}>?</span></span>
+                    <div class="switch">
+                      <input type="checkbox" checked={settings.smart_punct_check === 1} onchange={(e) => handleCheckboxChange('smart_punct_check', (e.target as HTMLInputElement).checked)} />
+                      <span class="slider"></span>
+                    </div>
+                  </label>
+
+                  <label class="toggle-container sub-toggle mt-10">
                     <span class="toggle-text">Sử dụng thêm bảng từ khóa lập trình cá nhân</span>
                     <div class="switch">
                       <input type="checkbox" checked={showProgDictTable} onchange={(e) => showProgDictTable = (e.target as HTMLInputElement).checked} />

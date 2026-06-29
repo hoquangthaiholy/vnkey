@@ -207,7 +207,7 @@ static bool isWordBreak(const vKeyEvent& event, const vKeyEventState&, const Uin
         case KEY_LEFT: case KEY_RIGHT: case KEY_DOWN: case KEY_UP:
         case KEY_COMMA: case KEY_DOT: case KEY_SLASH: case KEY_SEMICOLON:
         case KEY_QUOTE: case KEY_BACK_SLASH: case KEY_MINUS: case KEY_EQUALS:
-        case KEY_BACKQUOTE:
+        case KEY_BACKQUOTE: case KEY_LEFT_BRACKET: case KEY_RIGHT_BRACKET:
             return true;
 #if _WIN32
         case VK_INSERT: case VK_HOME: case VK_END: case VK_DELETE:
@@ -1620,7 +1620,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
                      const bool& otherControlKey) {
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
-    const bool wordBreak = isWordBreak(event, state, data);
+    const bool wordBreak = isWordBreak(event, state, data) || 
+                           (event == vKeyEvent::Keyboard && capsStatus == 1 && (data == KEY_9 || data == KEY_0));
     
     if (wordBreak) {
         if (data == KEY_MINUS && capsStatus == 1) {
@@ -1647,10 +1648,50 @@ void vKeyHandleEvent(const vKeyEvent& event,
             if (vCheckSpelling) {
                 checkSpelling(true); //force check spelling
             }
-            if (applyFsmRestorations(vRestoreAndStartNewSession)) {
-                // Restored successfully!
-            } else if (tempDisableKey) {
-                hCode = vDoNothing;
+            
+            bool restored = false;
+            // Smart Punctuation English word check:
+            if (vCheckProgrammingKeywords && vSmartPunctCheck) {
+                // If the break character is one of: dot, quote, parentheses/brackets
+                bool isSmartPunct = (data == KEY_DOT || data == KEY_QUOTE || 
+                                     data == KEY_LEFT_BRACKET || data == KEY_RIGHT_BRACKET ||
+                                     ((data == KEY_9 || data == KEY_0) && capsStatus == 1));
+                if (isSmartPunct) {
+                    std::string rawWord;
+                    rawWord.reserve(_rawTyping.size());
+                    for (size_t i = 0; i < _rawTyping.size(); i++) {
+                        Uint16 character = keyCodeToCharacter(_rawTyping[i]);
+                        if (character != 0) {
+                            rawWord.push_back(static_cast<char>(character));
+                        }
+                    }
+                    if (vUseEnglishDictionary && vnkey::isValidEnglishWord(rawWord)) {
+                        // Check if there was any Telex/VNI transformation
+                        bool hasTransform = false;
+                        for (int ii = 0; ii < _index; ii++) {
+                            if (!IS_CONSONANT(CHR(ii)) &&
+                                (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
+                                hasTransform = true;
+                                break;
+                            }
+                        }
+                        if (_rawTyping.size() != (size_t)_index) {
+                            hasTransform = true;
+                        }
+                        if (hasTransform) {
+                            restoreRawTyping(vRestoreAndStartNewSession, false);
+                            restored = true;
+                        }
+                    }
+                }
+            }
+            
+            if (!restored) {
+                if (applyFsmRestorations(vRestoreAndStartNewSession)) {
+                    // Restored successfully!
+                } else if (tempDisableKey) {
+                    hCode = vDoNothing;
+                }
             }
             if (vLateAccentTransformation == 1 && !tempDisableKey && hCode == vDoNothing && !_hasHandledMacro) {
                 if (_index > 0) {
@@ -1726,7 +1767,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && checkQuickConsonant()) {
             _spaceCount++;
         } else if (!_hasHandledMacro) { // FSM restoration check
-            if (applyFsmRestorations(vRestore)) {
+            if (applyFsmRestorations(vRestoreAndStartNewSession)) {
                 // Restored successfully!
             } else if (tempDisableKey) {
                 hCode = vDoNothing;
