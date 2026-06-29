@@ -2998,7 +2998,7 @@
             <p class="desc">Bộ gõ tiếng Việt mã nguồn mở, gọn nhẹ, chạy nhanh và an toàn tuyệt đối cho người dùng trên nền tảng macOS, Windows và Linux.</p>
             
             <div class="links-grid">
-              <a href="https://open-key.org" target="_blank" class="link-item">Trang chủ VNKey</a>
+              <a href="https://hoquangthaiholy.github.io/vnkey/" target="_blank" class="link-item">Trang chủ VNKey</a>
               <a href="https://github.com/hoquangthaiholy/vnkey" target="_blank" class="link-item">Nguồn mở (GitHub)</a>
               <a href="mailto:vnkey.dev@gmail.com" class="link-item">Liên hệ tác giả</a>
             </div>

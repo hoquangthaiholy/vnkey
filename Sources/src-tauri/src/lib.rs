@@ -418,7 +418,7 @@ fn update_autostart_config(enabled: bool) {
         let mut path = PathBuf::from(home);
         path.push("Library");
         path.push("LaunchAgents");
-        path.push("com.theodore.vnkey.plist");
+        path.push("com.hoquangthaiholy.vnkey.plist");
 
         if enabled {
             if let Ok(exe_path) = std::env::current_exe() {
@@ -429,7 +429,7 @@ fn update_autostart_config(enabled: bool) {
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.theodore.vnkey</string>
+    <string>com.hoquangthaiholy.vnkey</string>
     <key>ProgramArguments</key>
     <array>
         <string>{}</string>

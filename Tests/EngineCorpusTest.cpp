@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
     // Try to load custom English dictionary if it exists
     const char* home = std::getenv("HOME");
     if (home != nullptr) {
-      std::string path = std::string(home) + "/Library/Application Support/com.theodore.vnkey/english.txt";
+      std::string path = std::string(home) + "/Library/Application Support/com.hoquangthaiholy.vnkey/english.txt";
       std::ifstream file(path);
       if (file.is_open()) {
         std::string content((std::istreambuf_iterator<char>(file)),

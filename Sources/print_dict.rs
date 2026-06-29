@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 fn main() {
-    let conn = Connection::open("/Users/theodore/Library/Application Support/com.theodore.vnkey/vnkey.db").unwrap();
+    let conn = Connection::open("/Users/theodore/Library/Application Support/com.hoquangthaiholy.vnkey/vnkey.db").unwrap();
     let mut stmt = conn.prepare("SELECT word FROM english_dict").unwrap();
     let iter = stmt.query_map([], |row| {
         let enc_word: String = row.get(0).unwrap();

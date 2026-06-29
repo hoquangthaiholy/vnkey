@@ -1671,7 +1671,7 @@ extern "C" {
 
     bool macos_is_another_instance_running() {
         @autoreleasepool {
-            NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.theodore.vnkey"];
+            NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.hoquangthaiholy.vnkey"];
             pid_t ourPid = [[NSProcessInfo processInfo] processIdentifier];
             for (NSRunningApplication* app in apps) {
                 if (app.processIdentifier != ourPid) {
@@ -1683,7 +1683,7 @@ extern "C" {
     }
     void macos_activate_other_instance() {
         @autoreleasepool {
-            NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.theodore.vnkey"];
+            NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.hoquangthaiholy.vnkey"];
             pid_t ourPid = [[NSProcessInfo processInfo] processIdentifier];
             for (NSRunningApplication* app in apps) {
                 if (app.processIdentifier != ourPid) {
