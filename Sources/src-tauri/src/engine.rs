@@ -123,6 +123,7 @@ extern "C" {
     #[cfg(target_os = "macos")]
     pub fn macos_get_frontmost_app_pid() -> c_int;
     #[cfg(target_os = "macos")]
+    #[allow(dead_code)]
     pub fn macos_get_mouse_position(x: *mut f64, y: *mut f64);
     #[cfg(target_os = "macos")]
     pub fn macos_set_clipboard_hotkey(val: c_int);
@@ -409,6 +410,7 @@ pub fn get_application_info_by_name_json(name: &str) -> Option<String> {
     unsafe { take_string(macos_get_application_info_by_name_json(name_c.as_ptr())) }
 }
 
+#[allow(dead_code)]
 pub fn get_mouse_position() -> (f64, f64) {
     #[cfg(target_os = "macos")]
     {

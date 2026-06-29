@@ -41,6 +41,7 @@ static LAST_CHANGE_COUNT: std::sync::atomic::AtomicI64 = std::sync::atomic::Atom
 pub static IS_INTERNAL_COPY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 pub static USE_HUD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
+#[allow(dead_code)]
 extern "C" {
     fn macos_get_mouse_position(x: *mut f64, y: *mut f64);
 }
