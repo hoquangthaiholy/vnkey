@@ -59,6 +59,7 @@ static CGEventMask        eventMask = 0;
 static CFRunLoopSourceRef runLoopSource = NULL;
 static bool               _isInited = false;
 static id                 activeAppObserver = nil;
+static id                 wakeObserver = nil;
 static double             _lastAppSwitchTime = 0.0;
 
 extern "C" {
@@ -1059,6 +1060,15 @@ extern "C" {
             }
         }];
 
+        wakeObserver = [[[NSWorkspace sharedWorkspace] notificationCenter] addObserverForName:NSWorkspaceDidWakeNotification
+                                                                        object:nil
+                                                                         queue:[NSOperationQueue mainQueue]
+                                                                    usingBlock:^(NSNotification * _Nonnull note) {
+            (void)note;
+            refreshCurrentInputSource();
+            rust_onInputMethodChanged(vLanguage);
+        }];
+
         return true;
     }
 
@@ -1067,6 +1077,10 @@ extern "C" {
             if (activeAppObserver) {
                 [[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:activeAppObserver];
                 activeAppObserver = nil;
+            }
+            if (wakeObserver) {
+                [[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:wakeObserver];
+                wakeObserver = nil;
             }
             if (runLoopSource) {
                 CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopCommonModes);
@@ -1094,19 +1108,25 @@ extern "C" {
         NSString *htmlString = [pasteboard stringForType:NSPasteboardTypeHTML];
         NSString *rawString = [pasteboard stringForType:NSPasteboardTypeString];
         bool converted = false;
-        if (htmlString != nil) {
-            htmlString = [NSString stringWithUTF8String:convertUtil([htmlString UTF8String]).c_str()];
-            converted = true;
+        if (htmlString != nil && [htmlString length] > 0) {
+            std::string convertedHtml = convertUtil([htmlString UTF8String]);
+            if (!convertedHtml.empty()) {
+                htmlString = [NSString stringWithUTF8String:convertedHtml.c_str()];
+                converted = true;
+            }
         }
-        if (rawString != nil) {
-            rawString = [NSString stringWithUTF8String:convertUtil([rawString UTF8String]).c_str()];
-            converted = true;
+        if (rawString != nil && [rawString length] > 0) {
+            std::string convertedRaw = convertUtil([rawString UTF8String]);
+            if (!convertedRaw.empty()) {
+                rawString = [NSString stringWithUTF8String:convertedRaw.c_str()];
+                converted = true;
+            }
         }
         if (converted) {
             [pasteboard clearContents];
-            if (htmlString != nil)
+            if (htmlString != nil && [htmlString length] > 0)
                 [pasteboard setString:htmlString forType:NSPasteboardTypeHTML];
-            if (rawString != nil)
+            if (rawString != nil && [rawString length] > 0)
                 [pasteboard setString:rawString forType:NSPasteboardTypeString];
             return true;
         }

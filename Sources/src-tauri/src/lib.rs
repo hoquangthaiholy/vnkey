@@ -1617,6 +1617,15 @@ pub extern "C" fn rust_onInputMethodChanged(val: std::os::raw::c_int) {
         engine::vLanguage = val;
     }
     
+    if let Some(handle) = APP_HANDLE.get() {
+        let handle_clone = handle.clone();
+        // Update tray icon on the main thread immediately on state change
+        let _ = handle.run_on_main_thread(move || {
+            update_tray_icon(&handle_clone);
+        });
+    }
+    notify_frontend();
+
     // Deduplicate and throttle HUD triggers to prevent CPU spike and system lag
     // when the engine sends input method changes rapidly during typing.
     let old_val = LAST_HUD_VAL.swap(val, std::sync::atomic::Ordering::Relaxed);
@@ -1632,20 +1641,12 @@ pub extern "C" fn rust_onInputMethodChanged(val: std::os::raw::c_int) {
     }
 
     if let Some(handle) = APP_HANDLE.get() {
-        let handle_clone = handle.clone();
-        
-        // Update tray icon on the main thread
-        let _ = handle.run_on_main_thread(move || {
-            update_tray_icon(&handle_clone);
-        });
-
         // Query caret and trigger HUD on a background thread
         let handle_clone_hud = handle.clone();
         std::thread::spawn(move || {
             trigger_hud(&handle_clone_hud, val);
         });
     }
-    notify_frontend();
 }
 
 #[no_mangle]

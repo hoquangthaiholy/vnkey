@@ -129,6 +129,7 @@
   let isSaving = $state(false);
   let hasAccessibility = $state(true);
   let showResetModal = $state(false);
+  let isResetting = $state(false);
   let showMacroModal = $state(false);
 
   // Update online state
@@ -1994,11 +1995,13 @@
                     <span class="fsm-order-desc">{item.desc}</span>
                   </div>
                   <span class="fsm-order-badge {
+                    (item.id === 0 && settings.check_spelling !== 1) ||
                     (item.id === 1 && settings.use_english_dictionary !== 1) ||
                     (item.id === 2 && settings.check_programming_keywords !== 1)
                       ? 'badge-off' : 'badge-on'
                   }">
-                    {(item.id === 1 && settings.use_english_dictionary !== 1) ||
+                    {(item.id === 0 && settings.check_spelling !== 1) ||
+                     (item.id === 1 && settings.use_english_dictionary !== 1) ||
                      (item.id === 2 && settings.check_programming_keywords !== 1) ? 'Tắt' : 'Bật'}
                   </span>
                 </div>
@@ -2612,21 +2615,25 @@
                 <li>Đặt lại thứ tự ưu tiên ngôn ngữ về mặc định</li>
               </ul>
               <div class="modal-actions">
-                <button class="btn btn-secondary" onclick={() => showResetModal = false}>Hủy</button>
+                <button class="btn btn-secondary" disabled={isResetting} onclick={() => showResetModal = false}>Hủy</button>
                 <button
                   class="btn"
                   style="background: #ff453a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;"
+                  disabled={isResetting}
                   onclick={async () => {
-                    showResetModal = false;
+                    isResetting = true;
                     try {
                       await invoke("reset_settings");
                       alert("Đã đặt lại thiết lập về mặc định.");
+                      showResetModal = false;
                     } catch (e) {
                       console.error(e);
+                    } finally {
+                      isResetting = false;
                     }
                   }}
                 >
-                  Xác nhận đặt lại
+                  {isResetting ? "Đang xử lý..." : "Xác nhận đặt lại"}
                 </button>
               </div>
             </div>

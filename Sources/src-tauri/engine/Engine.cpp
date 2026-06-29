@@ -1773,21 +1773,29 @@ void vKeyHandleEvent(const vKeyEvent& event,
                         }
                     }
                     if (vUseEnglishDictionary && vnkey::isValidEnglishWord(rawWord)) {
-                        // Check if there was any Telex/VNI transformation
-                        bool hasTransform = false;
-                        for (int ii = 0; ii < _index; ii++) {
-                            if (!IS_CONSONANT(CHR(ii)) &&
-                                (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
-                                hasTransform = true;
-                                break;
+                        int firstPriorityFsm = vFsmPriorityOrder[0];
+                        if (vUsePerceptronContext && predictIsEnglishOrProgramming(rawWord)) {
+                            firstPriorityFsm = 2; // PROG
+                        }
+                        if (firstPriorityFsm == 0 && !tempDisableKey) {
+                            // Vietnamese FSM has priority and spelling is valid, so do not restore raw typing
+                        } else {
+                            // Check if there was any Telex/VNI transformation
+                            bool hasTransform = false;
+                            for (int ii = 0; ii < _index; ii++) {
+                                if (!IS_CONSONANT(CHR(ii)) &&
+                                    (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
+                                    hasTransform = true;
+                                    break;
+                                }
                             }
-                        }
-                        if (_rawTyping.size() != (size_t)_index) {
-                            hasTransform = true;
-                        }
-                        if (hasTransform) {
-                            restoreRawTyping(vRestoreAndStartNewSession, false);
-                            restored = true;
+                            if (_rawTyping.size() != (size_t)_index) {
+                                hasTransform = true;
+                            }
+                            if (hasTransform) {
+                                restoreRawTyping(vRestoreAndStartNewSession, false);
+                                restored = true;
+                            }
                         }
                     }
                 }
