@@ -7,11 +7,11 @@
 //
 
 #include "SmartSwitchKey.h"
-#include <map>
+#include <unordered_map>
 #include <memory.h>
 
-//main data, i use `map` because it has O(Log(n))
-static map<string, Int8> _smartSwitchKeyData;
+//main data, i use `unordered_map` because it has O(1)
+static unordered_map<string, Int8> _smartSwitchKeyData;
 static string _cacheKey = ""; //use cache for faster
 static Int8 _cacheData = 0; //use cache for faster
 
@@ -52,7 +52,7 @@ void getSmartSwitchKeySaveData(vector<Byte>& outData) {
     outData.push_back((Byte)count);
     outData.push_back((Byte)(count>>8));
     
-    for (std::map<string, Int8>::iterator it = _smartSwitchKeyData.begin(); it != _smartSwitchKeyData.end(); ++it) {
+    for (auto it = _smartSwitchKeyData.begin(); it != _smartSwitchKeyData.end(); ++it) {
         outData.push_back((Byte)it->first.length());
         for (size_t j = 0; j < it->first.length(); j++) {
             outData.push_back(it->first[j]);

@@ -39,6 +39,7 @@ extern "C" {
     pub static mut vTelexWAsU: c_int;
     pub static mut vTelexBracketAsO: c_int;
     pub static mut vSmartPunctCheck: c_int;
+    pub static mut vUsePerceptronContext: c_int;
 
     pub fn vKeyInit() -> *mut c_void;
     pub fn startNewSession();

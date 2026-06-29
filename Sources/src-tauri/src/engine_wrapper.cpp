@@ -28,6 +28,8 @@ extern "C" {
     int vAllCapsAutoEscape = 1;
     int vUsePasteWorkaround = 1;
     int vSmartPunctCheck = 1;
+    int vUsePerceptronContext = 1;
+    char vCurrentAppBundleId[256] = "";
     int vUseMacro = 1;
     int vUseMacroInEnglishMode = 0;
     int vAutoCapsMacro = 1;

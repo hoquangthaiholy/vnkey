@@ -11,7 +11,10 @@
 #include "ProgrammingFSM.h"
 #include <string.h>
 #include <list>
+#include <unordered_set>
 #include "Macro.h"
+
+
 
 static Uint16 ProcessingChar[][11] = {
     {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z}, //Telex
@@ -1425,6 +1428,88 @@ static bool restoreRawTyping(const int& handleCode, bool excludeLast = true) {
     return true;
 }
 
+
+
+static const std::unordered_set<std::string> englishContextMarkers = {
+    "the", "a", "an", "of", "in", "to", "for", "with", "on", "at", "by", "this", "that", "is", "are", "was", "were", "it", "they", "we", "he", "she", "you", "and", "or", "but", "as", "from"
+};
+
+std::string getPreviousWord() {
+    if (_typingStates.empty()) return "";
+    for (auto it = _typingStates.rbegin(); it != _typingStates.rend(); ++it) {
+        std::string word;
+        for (Uint32 val : *it) {
+            Uint32 charCode = getCharacterCode(val);
+            if (charCode >= 32 && charCode < 127) {
+                char c = static_cast<char>(charCode);
+                if (std::isalnum(static_cast<unsigned char>(c))) {
+                    word.push_back(c);
+                } else {
+                    if (!word.empty()) break;
+                }
+            }
+        }
+        if (!word.empty()) {
+            return word;
+        }
+    }
+    return "";
+}
+
+bool isPreviousWordEnglishMarker() {
+    std::string prev = getPreviousWord();
+    for (char &c : prev) c = std::tolower(static_cast<unsigned char>(c));
+    return englishContextMarkers.count(prev) > 0;
+}
+
+bool predictIsEnglishOrProgramming(const std::string& word) {
+    if (!vUsePerceptronContext) return false;
+
+    // x1: Active app environment (1.0 if coding/terminal, -1.0 if chat/text editor)
+    double x1 = -1.0;
+    std::string app = vCurrentAppBundleId;
+    for (char &c : app) c = std::tolower(static_cast<unsigned char>(c));
+    if (app.find("vscode") != std::string::npos || 
+        app.find("xcode") != std::string::npos || 
+        app.find("intellij") != std::string::npos ||
+        app.find("terminal") != std::string::npos ||
+        app.find("iterm") != std::string::npos ||
+        app.find("sublime") != std::string::npos ||
+        app.find("studio") != std::string::npos) {
+        x1 = 1.0;
+    }
+
+    // x2: Has programming characters
+    double x2 = -1.0;
+    for (char c : word) {
+        if (c == '_' || c == '$') {
+            x2 = 1.0;
+            break;
+        }
+    }
+
+    // x3: CamelCase / PascalCase clue
+    double x3 = -1.0;
+    if (word.length() >= 2) {
+        for (size_t i = 0; i < word.length() - 1; ++i) {
+            if (std::islower(static_cast<unsigned char>(word[i])) && std::isupper(static_cast<unsigned char>(word[i+1]))) {
+                x3 = 1.0;
+                break;
+            }
+        }
+    }
+
+    // x4: Word length > 5
+    double x4 = (word.length() > 5) ? 1.0 : -1.0;
+
+    // x5: Pre-context English marker
+    double x5 = isPreviousWordEnglishMarker() ? 1.0 : -1.0;
+
+    // weights and bias:
+    double score = 1.5 * x1 + 2.0 * x2 + 1.5 * x3 + 0.5 * x4 + 1.2 * x5 - 0.2;
+    return score > 0.0;
+}
+
 bool applyFsmRestorations(const int& handleCode) {
     if (_rawTyping.size() < 2) {
         _isAllCapsLockActive = false;
@@ -1492,8 +1577,20 @@ bool applyFsmRestorations(const int& handleCode) {
 
     // 3. Apply FSM checks in user-configured priority order
     // FSM IDs: 0 = Vietnamese, 1 = English, 2 = Programming
+    int localPriorityOrder[3];
+    if (vUsePerceptronContext && predictIsEnglishOrProgramming(rawWord)) {
+        // Boost English/Programming to the front
+        localPriorityOrder[0] = 2; // PROG
+        localPriorityOrder[1] = 1; // EN
+        localPriorityOrder[2] = 0; // VI
+    } else {
+        localPriorityOrder[0] = vFsmPriorityOrder[0];
+        localPriorityOrder[1] = vFsmPriorityOrder[1];
+        localPriorityOrder[2] = vFsmPriorityOrder[2];
+    }
+
     for (int _pri = 0; _pri < 3; ++_pri) {
-        const int fsmId = vFsmPriorityOrder[_pri];
+        const int fsmId = localPriorityOrder[_pri];
         if (fsmId == 0) {
             // Vietnamese FSM
             if (!tempDisableKey) {
@@ -1818,6 +1915,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         vCheckSpelling = _useSpellCheckingBefore;
         _willTempOffEngine = false;
     } else if (data == KEY_DELETE) {
+
         hCode = vDoNothing;
         hExt = 2; //delete
         if (_specialChar.size() > 0) {

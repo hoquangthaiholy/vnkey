@@ -67,6 +67,7 @@
     use_paste_workaround: number;
     use_hud: number;
     smart_punct_check: number;
+    use_perceptron_context: number;
   }
 
   let settings = $state<Settings>({
@@ -121,6 +122,7 @@
     use_paste_workaround: 1,
     use_hud: 1,
     smart_punct_check: 1,
+    use_perceptron_context: 1,
   });
 
   let activeTab = $state(0);
@@ -676,6 +678,8 @@
     customEnglishWords = customEnglishWords.filter((item) => item !== word);
     await saveCustomEnglishWords();
   }
+
+
 
   async function saveCustomProgrammingKeywords() {
     savingKeywords = true;
@@ -1318,6 +1322,7 @@
     }).then((unsub) => {
       stopListeningCheckUpdates = unsub;
     });
+
 
     listen<void>("english-dict-reset", () => {
       loadCustomEnglishWords();
@@ -2467,9 +2472,17 @@
               </label>
 
               <label class="toggle-container">
-                <span class="toggle-text">Hiển thị bảng trạng thái nổi (HUD) khi đổi chế độ gõ <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Bảng trạng thái nổi (HUD):</strong><br/>Hiển thị cửa sổ chỉ báo nhỏ <kbd>VI</kbd> hoặc <kbd>EN</kbd> xuất hiện sát con trỏ chuột mỗi khi bạn chuyển đổi chế độ gõ (bằng phím tắt hoặc chuyển ứng dụng). Cửa sổ sẽ tự mờ dần sau 1.5 giây và không cản trở các thao tác gõ hay nhấn chuột của bạn."}>?</span></span>
+                <span class="toggle-text">Hiển thị bảng trạng thái nổi khi đổi chế độ gõ <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Bảng trạng thái nổi:</strong><br/>Hiển thị cửa sổ chỉ báo nhỏ <kbd>VI</kbd> hoặc <kbd>EN</kbd> xuất hiện sát con trỏ chuột mỗi khi bạn chuyển đổi chế độ gõ (bằng phím tắt hoặc chuyển ứng dụng). Cửa sổ sẽ tự mờ dần sau 1.5 giây và không cản trở các thao tác gõ hay nhấn chuột của bạn."}>?</span></span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_hud === 1} onchange={(e) => handleCheckboxChange('use_hud', (e.target as HTMLInputElement).checked)} />
+                  <span class="slider"></span>
+                </div>
+              </label>
+
+              <label class="toggle-container">
+                <span class="toggle-text">Nhận diện ngữ cảnh thông minh<span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Bộ phân lớp ngữ cảnh:</strong><br/>Tự động phân lớp để chọn bộ nhận diện ngôn ngữ tối ưu dựa trên ứng dụng đang hoạt động (như VS Code/Xcode vs Telegram/Browser) và cấu trúc từ đang gõ."}>?</span></span>
+                <div class="switch">
+                  <input type="checkbox" checked={settings.use_perceptron_context === 1} onchange={(e) => handleCheckboxChange('use_perceptron_context', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
                 </div>
               </label>

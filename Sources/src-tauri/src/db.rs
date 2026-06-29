@@ -83,6 +83,8 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
         [],
     )?;
 
+
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS programming_keywords (
             word TEXT PRIMARY KEY
@@ -393,3 +395,5 @@ pub fn db_clear_clipboard() {
         let _ = conn.execute("DELETE FROM clipboard_history", []);
     }
 }
+
+

@@ -16,6 +16,7 @@
 bool isProtectedEnglishWord(const std::string& word);
 bool hasProtectedEnglishPrefix(const std::string& prefix);
 void setCustomEnglishWords(const std::string& content);
+void addWordToTrie(const std::string& word);
 const std::string& getDefaultEnglishWords();
 
 #endif /* EnglishDictionary_h */

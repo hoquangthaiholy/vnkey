@@ -193,6 +193,8 @@ extern int vFsmPriorityOrder[3];
  */
 extern int vTelexWAsU;
 extern int vTelexBracketAsO;
+extern int vUsePerceptronContext;
+extern char vCurrentAppBundleId[256];
 
 /**
  * Call this function first to receive data pointer

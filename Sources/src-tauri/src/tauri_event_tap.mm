@@ -185,6 +185,10 @@ extern "C" {
         } else {
             _frontMostApp = @"UnknownApp";
         }
+        if (_frontMostApp != nil) {
+            strncpy(vCurrentAppBundleId, _frontMostApp.UTF8String, sizeof(vCurrentAppBundleId) - 1);
+            vCurrentAppBundleId[sizeof(vCurrentAppBundleId) - 1] = '\0';
+        }
         _frontMostAppCheckedAt = CFAbsoluteTimeGetCurrent();
     }
 
@@ -1045,6 +1049,10 @@ extern "C" {
                     _frontMostApp = app.localizedName;
                 } else {
                     _frontMostApp = @"UnknownApp";
+                }
+                if (_frontMostApp != nil) {
+                    strncpy(vCurrentAppBundleId, _frontMostApp.UTF8String, sizeof(vCurrentAppBundleId) - 1);
+                    vCurrentAppBundleId[sizeof(vCurrentAppBundleId) - 1] = '\0';
                 }
                 _lastAppSwitchTime = CFAbsoluteTimeGetCurrent();
                 OnActiveAppChanged();

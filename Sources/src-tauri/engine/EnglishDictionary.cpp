@@ -4,6 +4,7 @@
 //
 
 #include "EnglishDictionary.h"
+#include "StringUtil.h"
 
 #include <algorithm>
 #include <cctype>
@@ -24,76 +25,54 @@ namespace {
 // English dictionary: only words that are common in Vietnamese technical text
 // and are vulnerable to Telex transformations belong here.
 
-
 struct TrieNode {
   bool isWord = false;
-  TrieNode* children[26] = {nullptr};
-  
-  ~TrieNode() {
-    for (int i = 0; i < 26; ++i) {
-      delete children[i];
-    }
-  }
+  std::unique_ptr<TrieNode> children[26];
 };
 
 class Trie {
 public:
-  TrieNode* root;
+  std::unique_ptr<TrieNode> root;
   Trie() {
-    root = new TrieNode();
-  }
-  ~Trie() {
-    delete root;
+    root = std::make_unique<TrieNode>();
   }
   
   void insert(const std::string& word) {
-    TrieNode* curr = root;
+    TrieNode* curr = root.get();
     for (char c : word) {
       int idx = c - 'a';
       if (idx < 0 || idx >= 26) return;
       if (!curr->children[idx]) {
-        curr->children[idx] = new TrieNode();
+        curr->children[idx] = std::make_unique<TrieNode>();
       }
-      curr = curr->children[idx];
+      curr = curr->children[idx].get();
     }
     curr->isWord = true;
   }
   
   bool search(const std::string& word) const {
-    TrieNode* curr = root;
+    TrieNode* curr = root.get();
     for (char c : word) {
       int idx = c - 'a';
       if (idx < 0 || idx >= 26) return false;
       if (!curr->children[idx]) return false;
-      curr = curr->children[idx];
+      curr = curr->children[idx].get();
     }
     return curr->isWord;
   }
   
   bool startsWith(const std::string& prefix) const {
     if (prefix.empty()) return false;
-    TrieNode* curr = root;
+    TrieNode* curr = root.get();
     for (char c : prefix) {
       int idx = c - 'a';
       if (idx < 0 || idx >= 26) return false;
       if (!curr->children[idx]) return false;
-      curr = curr->children[idx];
+      curr = curr->children[idx].get();
     }
     return true;
   }
 };
-
-std::string lowerAscii(const std::string &word) {
-  std::string normalized;
-  normalized.reserve(word.size());
-  for (const unsigned char character : word) {
-    if (!std::isalpha(character)) {
-      return std::string();
-    }
-    normalized.push_back(static_cast<char>(std::tolower(character)));
-  }
-  return normalized;
-}
 
 std::shared_ptr<const Trie> gCustomEnglishWords = []() {
   auto customTrie = std::make_shared<Trie>();
@@ -101,7 +80,7 @@ std::shared_ptr<const Trie> gCustomEnglishWords = []() {
   std::string word;
   while (ss >> word) {
     if (word.empty()) continue;
-    std::string normalized = lowerAscii(word);
+    std::string normalized = vnkey::lowerAsciiOnly(word);
     if (!normalized.empty()) {
       customTrie->insert(normalized);
     }
@@ -112,7 +91,7 @@ std::shared_ptr<const Trie> gCustomEnglishWords = []() {
 } // namespace
 
 bool isProtectedEnglishWord(const std::string &word) {
-  const std::string normalized = lowerAscii(word);
+  const std::string normalized = vnkey::lowerAsciiOnly(word);
   if (normalized.empty()) {
     return false;
   }
@@ -121,7 +100,7 @@ bool isProtectedEnglishWord(const std::string &word) {
 }
 
 bool hasProtectedEnglishPrefix(const std::string& prefix) {
-  const std::string normalized = lowerAscii(prefix);
+  const std::string normalized = vnkey::lowerAsciiOnly(prefix);
   if (normalized.empty()) {
     return false;
   }
@@ -140,7 +119,7 @@ void setCustomEnglishWords(const std::string& content) {
       std::getline(ss, comment);
       continue;
     }
-    std::string normalized = lowerAscii(word);
+    std::string normalized = vnkey::lowerAsciiOnly(word);
     if (!normalized.empty()) {
       customTrie->insert(normalized);
     }
@@ -148,6 +127,15 @@ void setCustomEnglishWords(const std::string& content) {
   std::atomic_store(
       &gCustomEnglishWords,
       std::static_pointer_cast<const Trie>(customTrie));
+}
+
+void addWordToTrie(const std::string& word) {
+  const std::string normalized = vnkey::lowerAsciiOnly(word);
+  if (normalized.empty()) return;
+  auto trie = std::atomic_load(&gCustomEnglishWords);
+  if (trie) {
+    const_cast<Trie*>(trie.get())->insert(normalized);
+  }
 }
 
 

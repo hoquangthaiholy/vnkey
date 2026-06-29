@@ -110,6 +110,7 @@ fn default_settings() -> Settings {
         use_paste_workaround: 1,
         use_hud: 1,
         smart_punct_check: 1,
+        use_perceptron_context: 1,
     }
 }
 
@@ -177,6 +178,8 @@ pub struct Settings {
     pub use_hud: i32,
     #[serde(default = "default_one")]
     pub smart_punct_check: i32,
+    #[serde(default = "default_one")]
+    pub use_perceptron_context: i32,
 }
 
 fn default_one() -> i32 { 1 }
@@ -557,6 +560,7 @@ fn get_settings() -> Settings {
             use_paste_workaround: engine::vUsePasteWorkaround,
             use_hud: if USE_HUD.load(std::sync::atomic::Ordering::Relaxed) { 1 } else { 0 },
             smart_punct_check: engine::vSmartPunctCheck,
+            use_perceptron_context: engine::vUsePerceptronContext,
         }
     }
 }
@@ -601,6 +605,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
                         engine::vUsePasteWorkaround = settings.use_paste_workaround;
                         engine::vSmartPunctCheck = settings.smart_punct_check;
+                        engine::vUsePerceptronContext = settings.use_perceptron_context;
                         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
                         engine::vTelexWAsU = settings.telex_w_as_u;
                         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
@@ -738,6 +743,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
         engine::vUsePasteWorkaround = settings.use_paste_workaround;
         engine::vSmartPunctCheck = settings.smart_punct_check;
+        engine::vUsePerceptronContext = settings.use_perceptron_context;
         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
         engine::vTelexWAsU = settings.telex_w_as_u;
         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
@@ -2679,3 +2685,5 @@ pub fn run() {
 pub extern "C" fn set_is_internal_copy(val: bool) {
     IS_INTERNAL_COPY.store(val, std::sync::atomic::Ordering::Relaxed);
 }
+
+
