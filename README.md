@@ -30,6 +30,7 @@ VNKey là ứng dụng gõ tiếng Việt hiện đại được phát triển t
 ### Cài đặt thủ công
 Tải bản VNKey mới nhất từ [GitHub Releases](https://github.com/hoquangthaiholy/vnkey/releases/latest), mở file `.dmg` (trên macOS) hoặc file cài đặt phù hợp với hệ điều hành của bạn, tiến hành kéo thả/cài đặt vào hệ thống.
 
+<!--
 ### Cài đặt qua Homebrew (dành cho macOS)
 Nếu bạn sử dụng Homebrew, có thể cài đặt nhanh bằng lệnh:
 ```bash
@@ -39,6 +40,7 @@ brew install --cask vnkey
 ```bash
 brew upgrade --cask vnkey
 ```
+-->
 
 ### Lưu ý cấp quyền Accessibility (macOS)
 Để VNKey có thể bắt và gửi phím chính xác trên hệ thống macOS, bạn cần cấp quyền Accessibility (Trợ năng):
