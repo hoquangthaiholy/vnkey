@@ -1,6 +1,6 @@
 [package]
 name = "VNKey"
-version = "1.0.0"
+version = "1.0.1"
 description = "VNKey cross-platform Vietnamese input method"
 authors = ["Hồ Quang Thái"]
 edition = "2021"
