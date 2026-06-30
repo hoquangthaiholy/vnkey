@@ -9,7 +9,12 @@ Phần giao diện Webview đảm nhận toàn bộ các màn hình cấu hình 
 - Cấu hình tương thích cho từng ứng dụng;
 - Quản lý trạng thái menu hệ thống (tray icon).
 
-Việc bắt và xử lý sự kiện bàn phím cho từng nền tảng cụ thể được thực hiện qua các adapter native riêng. Trên macOS sử dụng `tauri_event_tap.mm`; Windows và Linux có thể sử dụng các adapter tương ứng của họ mà không cần thay đổi phần bảng điều khiển hoặc API lệnh.
+Việc bắt và xử lý sự kiện bàn phím cho từng nền tảng cụ thể được thực hiện qua các adapter native riêng. Trên macOS sử dụng `tauri_event_tap.mm`; Windows và Linux sử dụng các cơ chế hook tương ứng.
+
+Chức năng **Smart Switch** (Theo dõi ứng dụng đang chạy để tự động áp dụng cấu hình/bảng mã tương ứng) được hỗ trợ đầy đủ trên cả ba nền tảng thông qua các module Backend viết bằng Rust:
+- **macOS:** Sử dụng Workspace APIs thông qua Objective-C++ bridge (`macos_apps.mm`).
+- **Windows:** Sử dụng Windows SDK APIs (`win_apps.rs` qua `EnumWindows` và trích xuất icon từ tệp `.exe`).
+- **Linux:** Sử dụng `xprop` cho môi trường X11 và quét `/proc` cho môi trường Wayland (`linux_apps.rs`), tự động ánh xạ biểu tượng từ thư mục icon hệ thống.
 
 ---
 

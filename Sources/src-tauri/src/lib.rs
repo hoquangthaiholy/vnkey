@@ -6,6 +6,11 @@ mod db;
 mod cloud_sync;
 mod google_sync;
 
+#[cfg(target_os = "windows")]
+mod win_apps;
+#[cfg(target_os = "linux")]
+mod linux_apps;
+
 use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -1949,7 +1954,15 @@ async fn get_running_applications() -> Result<Option<String>, String> {
         }
         Ok(None)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(win_apps::get_running_applications_json())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(linux_apps::get_running_applications_json())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         Ok(None)
     }
@@ -1964,7 +1977,15 @@ async fn get_application_info_by_path(path: String) -> Result<Option<String>, St
         }).await.map_err(|e| e.to_string())?;
         Ok(res)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(win_apps::get_application_info_by_path_json(&path))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(linux_apps::get_application_info_by_path_json(&path))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         Ok(None)
     }
@@ -1979,7 +2000,15 @@ async fn get_application_info_by_bundle_id(bundle_id: String) -> Result<Option<S
         }).await.map_err(|e| e.to_string())?;
         Ok(res)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(win_apps::get_application_info_by_bundle_id_json(&bundle_id))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(linux_apps::get_application_info_by_bundle_id_json(&bundle_id))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         Ok(None)
     }
@@ -1994,7 +2023,15 @@ async fn get_application_info_by_name(name: String) -> Result<Option<String>, St
         }).await.map_err(|e| e.to_string())?;
         Ok(res)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Ok(win_apps::get_application_info_by_name_json(&name))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(linux_apps::get_application_info_by_name_json(&name))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         Ok(None)
     }
@@ -2472,9 +2509,28 @@ pub fn run() {
                 loop {
                     std::thread::sleep(std::time::Duration::from_millis(250));
 
-                    #[cfg(target_os = "macos")]
+                    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
                     {
-                        if let Some(current_app) = engine::get_frontmost_app_bundle_id() {
+                        let current_app = {
+                            #[cfg(target_os = "macos")]
+                            {
+                                engine::get_frontmost_app_bundle_id()
+                            }
+                            #[cfg(target_os = "windows")]
+                            {
+                                win_apps::get_frontmost_app_bundle_id()
+                            }
+                            #[cfg(target_os = "linux")]
+                            {
+                                linux_apps::get_frontmost_app_bundle_id()
+                            }
+                            #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+                            {
+                                None
+                            }
+                        };
+
+                        if let Some(current_app) = current_app {
                             let should_update = match &last_app {
                                 Some(last) => last != &current_app,
                                 None => true,
