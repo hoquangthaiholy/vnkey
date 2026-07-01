@@ -8,6 +8,16 @@ jobs:
   homebrew:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Homebrew path
+        run: echo /home/linuxbrew/.linuxbrew/bin >> $GITHUB_PATH
+
+      - name: Tap and trust the formula
+        run: |
+          # Tap uses the full GitHub repo name (homebrew-vnkey).
+          # Homebrew strips the 'homebrew-' prefix for the tap name (vnkey), which is used by brew trust.
+          brew tap hoquangthaiholy/homebrew-vnkey
+          brew trust hoquangthaiholy/vnkey
+
       - name: Bump Formula
         uses: dawidd6/action-homebrew-bump-formula@v3
         with:
