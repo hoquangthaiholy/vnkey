@@ -9,7 +9,7 @@
   import { getVersion } from "@tauri-apps/api/app";
   import { check } from "@tauri-apps/plugin-updater";
   import { relaunch } from "@tauri-apps/plugin-process";
-  import { Terminal, Copyright } from '@lucide/svelte';
+  import { Terminal, Copyright, Sparkles, Wrench, ShieldCheck, ListChecks, Download as DownloadIcon } from '@lucide/svelte';
   import VietnamFlag from './VietnamFlag.svelte';
   import USFlag from './USFlag.svelte';
   import ProgIcon from './ProgIcon.svelte';
@@ -126,6 +126,40 @@
   });
 
   let activeTab = $state(0);
+
+  function selectTab(tab: number) {
+    if (tab === activeTab) return;
+    activeTab = tab;
+    // Reset scroll so the sticky panel-header of the incoming tab doesn't
+    // briefly overlap the outgoing one mid-transition.
+    document.querySelector(".content-area")?.scrollTo({ top: 0 });
+  }
+
+  // Keep the top edge-fade's height matched to the sticky panel-header's
+  // actual rendered height (it varies slightly when a longer subtitle wraps
+  // to two lines), so the fade never falls short of or overshoots the title.
+  let headerFadeObserver: ResizeObserver | null = null;
+  $effect(() => {
+    activeTab;
+    // The outgoing panel's out:fade and the incoming panel's in:fly both run
+    // for ~350ms, during which two ".panel-header" nodes briefly coexist in
+    // the DOM — querying too early (e.g. a microtask) can grab the outgoing
+    // one. Wait past the full transition so only the incoming header remains.
+    const timer = setTimeout(() => {
+      const header = document.querySelector(".panel-header") as HTMLElement | null;
+      headerFadeObserver?.disconnect();
+      if (!header) return;
+      headerFadeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const h = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+          document.documentElement.style.setProperty("--header-fade-h", `${h}px`);
+        }
+      });
+      headerFadeObserver.observe(header);
+    }, 400);
+    return () => clearTimeout(timer);
+  });
+
   let isSaving = $state(false);
   let hasAccessibility = $state(true);
   let showResetModal = $state(false);
@@ -164,6 +198,7 @@
   }
 
   let updateProgress = $state<string>("");
+  let downloadPercent = $state<number>(0);
   let isDownloading = $state<boolean>(false);
   let activeUpdate = $state<any>(null);
 
@@ -249,6 +284,7 @@
     
     isDownloading = true;
     updateProgress = "0%";
+    downloadPercent = 0;
     try {
       let downloaded = 0;
       let contentLength = 0;
@@ -262,12 +298,14 @@
             downloaded += event.data.chunkLength;
             if (contentLength > 0) {
               const percentage = Math.round((downloaded / contentLength) * 100);
+              downloadPercent = percentage;
               updateProgress = `Đang tải: ${percentage}%`;
             } else {
               updateProgress = "Đang tải...";
             }
             break;
           case 'Finished':
+            downloadPercent = 100;
             updateProgress = "Đang giải nén...";
             break;
         }
@@ -280,6 +318,61 @@
       isDownloading = false;
     }
   }
+
+  // ── Release notes rendering ────────────────────────────────────────────
+  // GitHub release bodies are simple markdown: "### Category" headings with
+  // "- bullet" items underneath (see CHANGELOG.md for the source style).
+  // Parse just enough of that structure to render a richer, categorized
+  // "what's new" view instead of a wall of raw text.
+  interface ReleaseSection { title: string; items: string[]; }
+
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function inlineMarkdown(s: string): string {
+    let out = escapeHtml(s);
+    out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+    out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    return out;
+  }
+
+  function parseReleaseNotes(raw: string): ReleaseSection[] {
+    const lines = raw.split(/\r?\n/);
+    const sections: ReleaseSection[] = [];
+    let current: ReleaseSection | null = null;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (/^#{1,4}\s*\[?v?[\d.]+/i.test(line)) continue; // skip version/date headers
+      const headingMatch = line.match(/^#{2,4}\s+(.*)$/);
+      if (headingMatch) {
+        current = { title: headingMatch[1].trim(), items: [] };
+        sections.push(current);
+        continue;
+      }
+      const bulletMatch = line.match(/^[-*]\s+(.*)$/);
+      const text = bulletMatch ? bulletMatch[1] : line;
+      if (!current) {
+        current = { title: "Cập nhật", items: [] };
+        sections.push(current);
+      }
+      current.items.push(text);
+    }
+    return sections;
+  }
+
+  function sectionIconKind(title: string): "sparkles" | "wrench" | "shield" | "list" {
+    const t = title.toLowerCase();
+    if (t.includes("bảo mật") || t.includes("security")) return "shield";
+    if (t.includes("sửa") || t.includes("fix") || t.includes("cải tiến") || t.includes("improve") || t.includes("tối ưu")) return "wrench";
+    if (t.includes("thêm") || t.includes("mới") || t.includes("feature") || t.includes("new")) return "sparkles";
+    return "list";
+  }
+
+  let parsedReleaseNotes = $derived<ReleaseSection[]>(
+    updateInfo ? parseReleaseNotes(updateInfo.releaseNotes) : []
+  );
 
   // English Dictionary state
   let customEnglishWords = $state<string[]>([]);
@@ -1555,27 +1648,27 @@
       </div>
 
       <nav class="nav-menu" data-tauri-drag-region>
-        <button class="nav-item" class:active={activeTab === 0} onclick={() => activeTab = 0}>
+        <button class="nav-item" class:active={activeTab === 0} onclick={() => selectTab(0)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
           Gõ phím
         </button>
-        <button class="nav-item" class:active={activeTab === 1} onclick={() => activeTab = 1}>
+        <button class="nav-item" class:active={activeTab === 1} onclick={() => selectTab(1)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
           Gõ tắt
         </button>
-        <button class="nav-item" class:active={activeTab === 2} onclick={() => activeTab = 2}>
+        <button class="nav-item" class:active={activeTab === 2} onclick={() => selectTab(2)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1V23M17 23L13 19M17 23L21 19M7 23V1M7 1L3 5M7 1L11 5" /></svg>
           Chuyển mã
         </button>
-        <button class="nav-item" class:active={activeTab === 5} onclick={() => activeTab = 5}>
+        <button class="nav-item" class:active={activeTab === 5} onclick={() => selectTab(5)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           Bảng ghi nhớ
         </button>
-        <button class="nav-item" class:active={activeTab === 6} onclick={() => activeTab = 6}>
+        <button class="nav-item" class:active={activeTab === 6} onclick={() => selectTab(6)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
           Ứng dụng
         </button>
-        <button class="nav-item" class:active={activeTab === 7} onclick={() => activeTab = 7}>
+        <button class="nav-item" class:active={activeTab === 7} onclick={() => selectTab(7)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
@@ -1583,11 +1676,11 @@
           </svg>
           Đồng bộ
         </button>
-        <button class="nav-item" class:active={activeTab === 3} onclick={() => activeTab = 3}>
+        <button class="nav-item" class:active={activeTab === 3} onclick={() => selectTab(3)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           Hệ thống
         </button>
-        <button class="nav-item" class:active={activeTab === 4} onclick={() => activeTab = 4}>
+        <button class="nav-item" class:active={activeTab === 4} onclick={() => selectTab(4)}>
           <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
           Thông tin
         </button>
@@ -3019,9 +3112,6 @@
                 <h3>VNKey</h3>
                 <p class="version">
                   Phiên bản {appVersion}
-                  {#if updateStatus === 'checking'}
-                    <span style="color: var(--text-secondary); margin-left: 8px; font-size: 11px;">(Đang kiểm tra...)</span>
-                  {/if}
                 </p>
               </div>
             </div>
@@ -3121,30 +3211,62 @@
 
     {#if showUpdateModal && updateInfo}
       <div class="modal-overlay" transition:fade={{ duration: 150 }} role="dialog" aria-modal="true" aria-label="Thông báo cập nhật phiên bản mới">
-        <div class="modal-content" transition:scale={{ duration: 180, start: 0.95 }} onclick={(e) => e.stopPropagation()} style="max-width: 500px;" role="presentation">
-          <h3 style="margin-bottom: 5px; font-size: 18px; font-weight: 600;">Cập nhật phiên bản mới</h3>
-          <p style="margin-bottom: 15px; font-size: 13px; color: var(--text-secondary);">
-            Phiên bản mới <strong>{updateInfo.version}</strong> đã sẵn sàng (phát hành ngày {updateInfo.date}).
-          </p>
-          
-          <div style="margin-bottom: 20px;">
-            <span style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: var(--text-primary);">Nhật ký thay đổi:</span>
-            <div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; max-height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: var(--text-secondary);">
-              {updateInfo.releaseNotes}
+        <div class="modal-content update-modal" transition:scale={{ duration: 180, start: 0.96 }} onclick={(e) => e.stopPropagation()} role="presentation">
+          <div class="update-modal-header">
+            <div class="update-modal-icon"><Sparkles size={20} strokeWidth={2} /></div>
+            <div>
+              <h3>Đã có phiên bản mới</h3>
+              <p class="update-modal-subtitle">
+                VNKey <strong>{updateInfo.version}</strong>{#if updateInfo.date} · phát hành ngày {updateInfo.date}{/if}
+              </p>
             </div>
           </div>
 
-          <div class="modal-actions" style="margin-top: 0; align-items: center; justify-content: flex-end; gap: 10px;">
+          <div class="update-notes">
+            {#if parsedReleaseNotes.length === 0}
+              <p class="update-notes-empty">Không có mô tả chi tiết.</p>
+            {:else}
+              {#each parsedReleaseNotes as section}
+                <div class="update-section">
+                  <div class="update-section-title">
+                    <span class="update-section-icon kind-{sectionIconKind(section.title)}">
+                      {#if sectionIconKind(section.title) === 'sparkles'}
+                        <Sparkles size={13} strokeWidth={2.25} />
+                      {:else if sectionIconKind(section.title) === 'wrench'}
+                        <Wrench size={13} strokeWidth={2.25} />
+                      {:else if sectionIconKind(section.title) === 'shield'}
+                        <ShieldCheck size={13} strokeWidth={2.25} />
+                      {:else}
+                        <ListChecks size={13} strokeWidth={2.25} />
+                      {/if}
+                    </span>
+                    {section.title}
+                  </div>
+                  <ul class="update-section-list">
+                    {#each section.items as item}
+                      <li>{@html inlineMarkdown(item)}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/each}
+            {/if}
+          </div>
+
+          <div class="modal-actions update-modal-actions">
             {#if isDownloading}
-              <span style="font-size: 13px; color: var(--color-accent); font-weight: 500;">
-                {updateProgress}
-              </span>
+              <div class="update-progress">
+                <div class="update-progress-track">
+                  <div class="update-progress-fill" style="width: {downloadPercent}%"></div>
+                </div>
+                <span class="update-progress-label">{updateProgress}</span>
+              </div>
             {:else}
               <button class="btn btn-secondary" onclick={() => showUpdateModal = false}>Để sau</button>
-              <button 
-                class="btn btn-primary" 
+              <button
+                class="btn btn-primary"
                 onclick={downloadAndInstallUpdate}
               >
+                <DownloadIcon size={14} strokeWidth={2.25} />
                 {activeUpdate ? "Cập nhật & Khởi động lại" : "Tải về bản mới"}
               </button>
             {/if}
@@ -3257,9 +3379,9 @@
   }
   
   .app-item.active {
-    background: rgba(0, 122, 255, 0.1);
+    background: rgba(var(--accent-rgb), 0.1);
     color: var(--color-accent);
-    border-color: rgba(0, 122, 255, 0.15);
+    border-color: rgba(var(--accent-rgb), 0.15);
   }
   
   .app-item-delete {
@@ -3367,31 +3489,43 @@
 
   :root {
     color-scheme: dark;
-    --bg-app: #121216;
-    --bg-sidebar: #191922;
-    --bg-card: #1f1f2a;
-    --bg-input: #121216;
-    --bg-switch-off: #3a3a4c;
-    --text-primary: #f5f5f7;
-    --text-secondary: #a1a1b5;
-    --color-accent: #007aff;
-    --color-success: #30d158;
-    --border-color: rgba(255, 255, 255, 0.08);
+    --bg-app: #0d0d0e;
+    --bg-sidebar: #131314;
+    --bg-card: #1a1a1c;
+    --bg-card-hover: #202023;
+    --bg-input: #0a0a0b;
+    --bg-switch-off: #38383c;
+    --text-primary: #f2f2f0;
+    --text-secondary: #93939a;
+    --text-tertiary: #616166;
+    --color-accent: #4c8dff;
+    --accent-rgb: 76, 141, 255;
+    --color-success: #32d74b;
+    --color-danger: #ff5449;
+    --border-color: rgba(255, 255, 255, 0.07);
+    --border-color-strong: rgba(255, 255, 255, 0.14);
+    --shadow-color: rgba(0, 0, 0, 0.35);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   :global(.light) {
     color-scheme: light;
-    --bg-app: #f4f4f6;
-    --bg-sidebar: #ffffff;
-    --bg-card: #f9f9fb;
+    --bg-app: #f7f7f5;
+    --bg-sidebar: #fbfbfa;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f2f2f0;
     --bg-input: #ffffff;
-    --bg-switch-off: #e5e5ea;
-    --text-primary: #1c1c1e;
-    --text-secondary: #6c6c78;
-    --color-accent: #007aff;
-    --color-success: #34c759;
+    --bg-switch-off: #e2e2e0;
+    --text-primary: #17171a;
+    --text-secondary: #6c6c72;
+    --text-tertiary: #97979d;
+    --color-accent: #2f6fe0;
+    --accent-rgb: 47, 111, 224;
+    --color-success: #21a341;
+    --color-danger: #d92c20;
     --border-color: rgba(0, 0, 0, 0.08);
+    --border-color-strong: rgba(0, 0, 0, 0.16);
+    --shadow-color: rgba(0, 0, 0, 0.08);
   }
 
   :global(body) {
@@ -3420,7 +3554,7 @@
     flex-direction: column;
     flex-shrink: 0;
     box-sizing: border-box;
-    padding-top: 52px; /* Margin to clear native macOS Traffic Lights */
+    padding-top: 56px; /* Clears native macOS traffic lights; matches .content-area's top padding */
     height: 100%;
   }
 
@@ -3577,28 +3711,88 @@
     box-shadow: 0 0 8px #ff9500;
   }
 
-  /* Content drag bar helper for frameless dragging on the right */
+  /* Content drag bar + top edge fade: content scrolls underneath this fixed
+     strip and softly dissolves into the background, like Claude Code's
+     chat header. Pure CSS (the strip is a sibling overlay above the
+     scrolling .content-area), no scroll listener needed. Its height tracks
+     --header-fade-h (kept in sync with the sticky .panel-header's actual
+     height via ResizeObserver in script), so the fade always matches the
+     title bar it sits behind instead of a guessed fixed value. */
   .content-top-drag-bar {
     position: absolute;
     top: 0;
     left: 220px;
     right: 0;
-    height: 48px;
+    height: var(--header-fade-h, 56px);
     z-index: 10;
+    background: linear-gradient(
+      to bottom,
+      var(--bg-app) 0%,
+      color-mix(in srgb, var(--bg-app) 82%, transparent) 70%,
+      transparent 100%
+    );
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    mask-image: linear-gradient(to bottom, black 0%, black 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 70%, transparent 100%);
   }
 
   /* Content area scrollable */
   .content-area {
     flex-grow: 1;
-    padding: 48px 40px 32px 40px;
+    padding: 56px 40px 32px 40px;
     overflow-y: auto;
     box-sizing: border-box;
     height: 100%;
     position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color-strong) transparent;
   }
 
+  .content-area::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .content-area::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .content-area::-webkit-scrollbar-thumb {
+    background-color: var(--border-color-strong);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .content-area::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-tertiary, rgba(255,255,255,0.3));
+  }
+
+  /* Sticks to the top of .content-area, above the edge-fade overlay (which
+     is z-index 10), so the section title stays put and legible while the
+     rest of the panel scrolls underneath it. A flat translucent fill here
+     just multiplies with the fade-bar underneath into another flat tone —
+     it can't reproduce a gradient by itself. So the fade is drawn directly
+     on the header instead: solid behind the title text, easing toward
+     transparent over its last ~30%, so cards scrolling up dissolve into it
+     instead of hitting a hard edge. */
   .panel-header {
-    margin-bottom: 20px;
+    position: sticky;
+    /* content-area's own 56px top padding is folded into the sticky
+       reference edge here, so "top: 0" would rest 56px below the true
+       window top and let a peek of the panel behind show above it —
+       cancel that padding out so the header locks flush at the very
+       top, right above the fade overlay. */
+    top: -56px;
+    z-index: 15;
+    margin: 0 0 20px 0;
+    padding: 20px 0 28px 0;
+    background: linear-gradient(
+      to bottom,
+      var(--bg-app) 0%,
+      var(--bg-app) 45%,
+      transparent 100%
+    );
   }
 
   .panel h2 {
@@ -3841,8 +4035,8 @@
   }
 
   .running-app-item:hover {
-    border-color: var(--accent-color, #007bff);
-    background: var(--bg-hover, rgba(0,123,255,0.05));
+    border-color: var(--color-accent);
+    background: rgba(var(--accent-rgb), 0.08);
   }
 
   .running-app-item img {
@@ -3888,8 +4082,8 @@
   }
 
   select:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
   }
 
   :global(.dark) select {
@@ -3980,14 +4174,32 @@
 
   /* Buttons */
   .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: none;
     outline: none;
     padding: 7px 16px;
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+  }
+
+  .btn:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px rgba(var(--accent-rgb), 0.55);
   }
 
   .btn-primary {
@@ -3996,7 +4208,7 @@
   }
 
   .btn-primary:hover {
-    background-color: #0062cc;
+    background-color: color-mix(in srgb, var(--color-accent) 85%, white 15%);
   }
 
   .btn-secondary {
@@ -4013,6 +4225,7 @@
 
   .btn-secondary:hover {
     background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-color-strong);
   }
 
   @media (prefers-color-scheme: light) {
@@ -4499,11 +4712,12 @@
 
   .modal-content {
     background: var(--bg-card);
-    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
     padding: 24px;
     max-width: 440px;
     width: 90%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 12px 40px var(--shadow-color, rgba(0, 0, 0, 0.25));
   }
 
   .modal-content h3 {
@@ -4532,7 +4746,200 @@
     gap: 10px;
   }
 
+  /* ── Update / changelog modal ──────────────────────────────────────── */
+  .update-modal {
+    max-width: 560px;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: min(640px, 84vh);
+  }
 
+  .update-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  .update-modal-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-rgb), 0.06));
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
+  }
+
+  .update-modal-header h3 {
+    margin: 0;
+    font-size: 16.5px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  .update-modal-subtitle {
+    margin: 3px 0 0 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  .update-modal-subtitle strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .update-notes {
+    overflow-y: auto;
+    padding: 18px 24px;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color-strong) transparent;
+  }
+
+  .update-notes::-webkit-scrollbar {
+    width: 7px;
+  }
+  .update-notes::-webkit-scrollbar-thumb {
+    background-color: var(--border-color-strong);
+    border-radius: 8px;
+  }
+
+  .update-notes-empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .update-section {
+    margin-bottom: 18px;
+  }
+
+  .update-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .update-section-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+
+  .update-section-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .update-section-icon.kind-sparkles {
+    color: var(--color-accent);
+    background: rgba(var(--accent-rgb), 0.12);
+  }
+
+  .update-section-icon.kind-wrench {
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  }
+
+  .update-section-icon.kind-shield {
+    color: #ff9f0a;
+    background: rgba(255, 159, 10, 0.14);
+  }
+
+  .update-section-icon.kind-list {
+    color: var(--text-secondary);
+    background: var(--bg-input);
+  }
+
+  .update-section-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .update-section-list li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-primary);
+  }
+
+  .update-section-list li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 0.62em;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-tertiary, var(--text-secondary));
+  }
+
+  .update-section-list :global(code) {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .update-modal-actions {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .update-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .update-progress-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--bg-input);
+    overflow: hidden;
+  }
+
+  .update-progress-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+  }
+
+  .update-progress-label {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+  }
 
   .fsm-order-list {
     display: flex;

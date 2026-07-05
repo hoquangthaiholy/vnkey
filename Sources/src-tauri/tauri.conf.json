@@ -20,7 +20,9 @@
         "minWidth": 800,
         "minHeight": 560,
         "center": true,
-        "titleBarStyle": "Transparent",
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "visible": false
       },
       {
@@ -46,6 +48,8 @@
         "height": 520,
         "resizable": false,
         "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": false,

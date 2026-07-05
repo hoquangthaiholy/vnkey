@@ -94,22 +94,29 @@
 
 <style>
   :root {
-    --bg-app: #121216;
-    --bg-card: rgba(31, 31, 42, 0.45);
-    --text-primary: #f5f5f7;
-    --text-secondary: #a1a1b5;
-    --color-accent: #007aff;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+    color-scheme: dark;
+    --bg-app: #0d0d0e;
+    --bg-card: rgba(26, 26, 28, 0.55);
+    --text-primary: #f2f2f0;
+    --text-secondary: #93939a;
+    --color-accent: #4c8dff;
+    --accent-rgb: 76, 141, 255;
+    --border-color: rgba(255, 255, 255, 0.07);
+    --border-color-strong: rgba(255, 255, 255, 0.14);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
 
   :global(.light) {
-    --bg-app: #f4f4f6;
+    color-scheme: light;
+    --bg-app: #f7f7f5;
     --bg-card: rgba(255, 255, 255, 0.75);
-    --text-primary: #1c1c1e;
-    --text-secondary: #6c6c78;
+    --text-primary: #17171a;
+    --text-secondary: #6c6c72;
+    --color-accent: #2f6fe0;
+    --accent-rgb: 47, 111, 224;
     --border-color: rgba(0, 0, 0, 0.08);
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    --border-color-strong: rgba(0, 0, 0, 0.16);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   }
 
   :global(html), :global(body) {
@@ -205,7 +212,7 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #007aff, #0056b3);
+    background: linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 60%, black 40%));
     color: #ffffff;
     display: flex;
     align-items: center;
@@ -323,17 +330,17 @@
   .btn-primary {
     background-color: var(--color-accent);
     color: white;
-    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.2);
+    box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.2);
   }
 
   .btn-primary:hover {
-    background-color: #006ce6;
+    background-color: color-mix(in srgb, var(--color-accent) 85%, white 15%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.3);
   }
 
   .btn-primary:active {
-    background-color: #0056b3;
+    background-color: color-mix(in srgb, var(--color-accent) 70%, black 30%);
     transform: translateY(0);
   }
 
