@@ -129,13 +129,3 @@ void setCustomEnglishWords(const std::string& content) {
       std::static_pointer_cast<const Trie>(customTrie));
 }
 
-void addWordToTrie(const std::string& word) {
-  const std::string normalized = vnkey::lowerAsciiOnly(word);
-  if (normalized.empty()) return;
-  auto trie = std::atomic_load(&gCustomEnglishWords);
-  if (trie) {
-    const_cast<Trie*>(trie.get())->insert(normalized);
-  }
-}
-
-

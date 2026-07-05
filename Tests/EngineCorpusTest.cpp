@@ -40,6 +40,11 @@ int vCheckProgrammingKeywords = 0;
 int vFsmPriorityOrder[3] = {0, 1, 2};
 int vTelexWAsU = 1;
 int vTelexBracketAsO = 1;
+int vLateAccentTransformation = 0;
+int vAllCapsAutoEscape = 1;
+int vSmartPunctCheck = 1;
+int vUsePerceptronContext = 1;
+char vCurrentAppBundleId[256] = "";
 
 namespace {
 
@@ -563,6 +568,45 @@ int runToneMarkPositionTests() {
     }
   }
   std::cout << "ToneMarkPos passed=" << passed << " failed=" << failed << "\n";
+  return failed;
+}
+
+// Regression tests for the double-mark-key Telex escape (e.g. pressing "s"
+// twice in a row cancels the accent and both keystrokes must survive as
+// literal ASCII). A prior bug silently dropped the second keystroke from
+// the committed buffer, which broke English-word restoration for words
+// like "password", "coffee", "issue".
+int runMarkEscapeTests() {
+  struct Case {
+    const char *keys;
+    const char *expected;
+  };
+  static const Case cases[] = {
+    {"ass", "ass"},
+    {"loss", "loss"},
+    {"off", "off"},
+    {"password", "password"},
+    {"coffee", "coffee"},
+    {"issue", "issue"},
+    {"class", "class"},
+    {"stress", "stress"},
+    {"buffer", "buffer"},
+  };
+
+  int passed = 0, failed = 0;
+  const int n = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
+  for (int idx = 0; idx < n; ++idx) {
+    const auto &c = cases[idx];
+    const std::string got = simulateTelexRaw(c.keys);
+    if (got != std::string(c.expected)) {
+      ++failed;
+      std::cout << "  [FAIL] MarkEscape '" << c.keys << "' expected '"
+                << c.expected << "' got '" << got << "'\n";
+    } else {
+      ++passed;
+    }
+  }
+  std::cout << "MarkEscape passed=" << passed << " failed=" << failed << "\n";
   return failed;
 }
 

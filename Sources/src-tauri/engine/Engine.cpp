@@ -968,25 +968,38 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
     kk = _index - 1 - VSI;
     //if duplicate same mark -> restore
     if (TypingWord[VWSM] & markMask) {
-        
+
         TypingWord[VWSM] &= ~MARK_MASK;
         if (canModifyFlag) {
             hCode = vRestore;
             if (markMask == MARK1_MASK || markMask == MARK2_MASK || markMask == MARK3_MASK || markMask == MARK4_MASK || markMask == MARK5_MASK) {
-                if (!_rawTyping.empty()) _rawTyping.pop_back();
-                if (_stateIndex > 0) _stateIndex--;
+                // Pressing the same mark key twice in a row is the standard Telex/VNI
+                // escape: it cancels the mark and the key itself becomes a literal
+                // character (e.g. "as"+"s" -> "ass", not "as"). The literal keystroke
+                // must occupy its own slot in TypingWord, otherwise it is silently
+                // dropped from the buffer and from _rawTyping (breaking English-word
+                // restoration for words like "password"/"coffee"/"issue").
+                if (_index < MAX_BUFF) {
+                    int markIdx = (markMask == MARK1_MASK) ? 0 :
+                                  (markMask == MARK2_MASK) ? 1 :
+                                  (markMask == MARK3_MASK) ? 2 :
+                                  (markMask == MARK4_MASK) ? 3 : 4;
+                    setKeyData(_index++, ProcessingChar[vInputType][markIdx], _isCaps);
+                }
             }
         }
+        kk = _index - 1 - VSI;
         for (ii = VSI; ii < _index; ii++) {
             TypingWord[ii] &= ~MARK_MASK;
             hData[kk--] = GET(TypingWord[ii]);
         }
         //_index = 0;
         tempDisableKey = true;
+        hNCC = _index - VSI;
     } else {
         //remove other mark
         TypingWord[VWSM] &= ~MARK_MASK;
-        
+
         //add mark
         TypingWord[VWSM] |= markMask;
         for (ii = VSI; ii < _index; ii++) {
@@ -995,10 +1008,10 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
             }
             hData[kk--] = GET(TypingWord[ii]);
         }
-        
+
         hBPC = _index - VSI;
+        hNCC = hBPC;
     }
-    hNCC = hBPC;
 }
 
 void insertD(const Uint16& data, const bool& isCaps) {
