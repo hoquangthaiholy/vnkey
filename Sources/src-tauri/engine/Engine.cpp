@@ -980,6 +980,16 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
                 // dropped from the buffer and from _rawTyping (breaking English-word
                 // restoration for words like "password"/"coffee"/"issue").
                 if (_index < MAX_BUFF) {
+                    // hBPC may have been computed above against VEI (handleModernMark/
+                    // handleOldMark, or the single-vowel case), which can sit to the
+                    // right of VSI whenever the syllable spans more than one vowel
+                    // (e.g. a horn/breve modifier expanded the run). Re-anchor it to
+                    // VSI here, before _index grows by one for the escaped literal,
+                    // so the eventual backspace count always matches the rebuilt
+                    // range [VSI, _index) and never leaves stale characters on
+                    // screen (this previously duplicated letters in words like
+                    // "forward").
+                    hBPC = _index - VSI;
                     int markIdx = (markMask == MARK1_MASK) ? 0 :
                                   (markMask == MARK2_MASK) ? 1 :
                                   (markMask == MARK3_MASK) ? 2 :

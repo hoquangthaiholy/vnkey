@@ -580,6 +580,13 @@ int runMarkEscapeTests() {
   struct Case {
     const char *keys;
     const char *expected;
+    // Words fully resolved by the mid-word escape alone (no further Telex
+    // triggers after it) only need the bare Telex simulation. Words that
+    // also pick up a separate transform (e.g. a "w" horn/breve modifier)
+    // still need the word-final English-dictionary restore to reach their
+    // literal spelling, so they run through the full production-style
+    // pipeline instead.
+    bool needsFullRestore = false;
   };
   static const Case cases[] = {
     {"ass", "ass"},
@@ -591,13 +598,23 @@ int runMarkEscapeTests() {
     {"class", "class"},
     {"stress", "stress"},
     {"buffer", "buffer"},
+    // Non-adjacent repeat of the same tone key across a horn/breve ("w")
+    // modifier, which expands the vowel run past the mark position used by
+    // the initial hBPC calculation. Previously left a stale character behind
+    // (e.g. "forward" -> "fforward") because hBPC wasn't re-anchored to VSI
+    // before the escaped literal grew _index.
+    {"forward", "forward", true},
+    {"toward", "toward", true},
+    {"award", "award", true},
   };
 
   int passed = 0, failed = 0;
   const int n = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
   for (int idx = 0; idx < n; ++idx) {
     const auto &c = cases[idx];
-    const std::string got = simulateTelexRaw(c.keys);
+    const std::string got = c.needsFullRestore
+        ? simulateWord(c.keys, /*restore=*/true, /*useDictionary=*/true)
+        : simulateTelexRaw(c.keys);
     if (got != std::string(c.expected)) {
       ++failed;
       std::cout << "  [FAIL] MarkEscape '" << c.keys << "' expected '"
@@ -801,6 +818,7 @@ int main(int argc, char *argv[]) {
     failures += runEnglishFSMTests();
     failures += runProgrammingFSMTests();
     failures += runToneMarkPositionTests();
+    failures += runMarkEscapeTests();
     std::cout << (failures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n");
     return failures > 0 ? 1 : 0;
   }
@@ -814,7 +832,7 @@ int main(int argc, char *argv[]) {
 
   // ── FSM unit tests ────────────────────────────────────────────────────────
   std::cout << "=== FSM Unit Tests ===\n";
-  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runToneMarkPositionTests();
+  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runToneMarkPositionTests() + runMarkEscapeTests();
   std::cout << (fsmFailures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n") << "\n";
 
   // ── Corpus accuracy tests ─────────────────────────────────────────────────

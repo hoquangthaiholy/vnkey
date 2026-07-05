@@ -419,12 +419,28 @@ struct ConvertRequest {
     remove_mark: bool,
 }
 
+fn gui_domain_target() -> Option<String> {
+    let output = std::process::Command::new("id").arg("-u").output().ok()?;
+    let uid = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    Some(format!("gui/{}", uid))
+}
+
 fn update_autostart_config(enabled: bool) {
     if let Ok(home) = std::env::var("HOME") {
         let mut path = PathBuf::from(home);
         path.push("Library");
         path.push("LaunchAgents");
         path.push("com.hoquangthaiholy.vnkey.plist");
+
+        // Unload any previously registered agent first so launchd picks up
+        // the change immediately instead of waiting for the next login.
+        if let Some(domain) = gui_domain_target() {
+            let _ = std::process::Command::new("launchctl")
+                .arg("bootout")
+                .arg(&domain)
+                .arg(&path)
+                .output();
+        }
 
         if enabled {
             if let Ok(exe_path) = std::env::current_exe() {
@@ -446,13 +462,21 @@ fn update_autostart_config(enabled: bool) {
 </plist>"#,
                     exe_str
                 );
-                
+
                 if let Some(parent) = path.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
 
                 if let Ok(mut file) = File::create(&path) {
                     let _ = file.write_all(plist_content.as_bytes());
+                }
+
+                if let Some(domain) = gui_domain_target() {
+                    let _ = std::process::Command::new("launchctl")
+                        .arg("bootstrap")
+                        .arg(&domain)
+                        .arg(&path)
+                        .output();
                 }
             }
         } else {

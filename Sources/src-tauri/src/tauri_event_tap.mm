@@ -11,6 +11,8 @@
 #import <QuickLook/QuickLook.h>
 #import "Engine.h"
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/file.h>
 extern "C" {
     void rust_onInputMethodChanged(int val);
     void rust_onCodeTableChanged(int val);
@@ -927,13 +929,23 @@ extern "C" {
                 
                 //send backspace
                 if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
+                    // Only apps known to race on rapid backspace/retype (Apple's own
+                    // text fields and Chromium-based browsers, same set used by the
+                    // autocomplete/compositing workarounds above) need this pacing.
+                    // Blocking the CGEventTap callback thread with usleep() on every
+                    // tone-mark correction (which happens on most typed Vietnamese
+                    // syllables) was adding several ms of input lag for the vast
+                    // majority of apps that never needed it.
+                    const bool needsOsBufferDelay = containUnicodeCompoundApp(FRONT_APP);
                     for (_i = 0; _i < pData->backspaceCount; _i++) {
                         SendBackspace();
-                        if (pData->backspaceCount > 1) {
+                        if (pData->backspaceCount > 1 && needsOsBufferDelay) {
                             usleep(3000); // Trễ 3ms cho bộ đệm OS
                         }
                     }
-                    usleep(3000); // Trễ 3ms trước khi chèn chữ mới
+                    if (needsOsBufferDelay) {
+                        usleep(3000); // Trễ 3ms trước khi chèn chữ mới
+                    }
                 }
                 
                 //send new character
@@ -1697,8 +1709,37 @@ extern "C" {
         clipboardHistoryEnabled = enabled;
     }
 
+    // NSRunningApplication only tracks processes Launch Services registered under
+    // our bundle identifier (i.e. launched by double-clicking the .app / `open -a`).
+    // A raw binary invocation (e.g. `tauri dev`, or running the built executable
+    // directly from a terminal) has no bundle identity and is invisible to that
+    // check, so it would slip past it and run as a second, undetected instance
+    // (two CGEventTaps and two menu bar icons racing each other). An advisory
+    // file lock works regardless of how the process was started.
+    static int g_singleInstanceLockFd = -1;
+
+    bool macos_acquire_single_instance_lock() {
+        NSString* supportDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/com.hoquangthaiholy.vnkey"];
+        [[NSFileManager defaultManager] createDirectoryAtPath:supportDir withIntermediateDirectories:YES attributes:nil error:nil];
+        NSString* lockPath = [supportDir stringByAppendingPathComponent:@"vnkey.lock"];
+
+        int fd = open([lockPath fileSystemRepresentation], O_CREAT | O_RDWR, 0600);
+        if (fd < 0) {
+            return true; // Can't determine lock state; don't block startup on it.
+        }
+        if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+            close(fd);
+            return false; // Another instance already holds the lock.
+        }
+        g_singleInstanceLockFd = fd; // Keep held for the lifetime of the process.
+        return true;
+    }
+
     bool macos_is_another_instance_running() {
         @autoreleasepool {
+            if (!macos_acquire_single_instance_lock()) {
+                return true;
+            }
             NSArray<NSRunningApplication*>* apps = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.hoquangthaiholy.vnkey"];
             pid_t ourPid = [[NSProcessInfo processInfo] processIdentifier];
             for (NSRunningApplication* app in apps) {
