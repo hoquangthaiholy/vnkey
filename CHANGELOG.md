@@ -1,5 +1,17 @@
 # Nhật ký thay đổi (CHANGELOG)
 
+## [1.0.2] - 2026-07-05
+### Thêm mới
+- **Cơ chế hủy dấu Telex/VNI thông minh**: Cho phép gõ đúp phím dấu để hủy dấu tiếng Việt và giữ lại ký tự gốc (ví dụ: gõ `as` + `s` -> `ass`, `oo` -> `oo` thay vì `ô`...). Giúp cải thiện trải nghiệm gõ các từ tiếng Anh chứa ký tự lặp hoặc chữ có chứa phím trùng dấu (như `password`, `coffee`, `issue`).
+
+### Cải tiến & Sửa lỗi
+- **Tối ưu hóa độ trễ phản hồi phím**: Giảm đáng kể độ trễ gõ phím trên macOS bằng cách chỉ áp dụng độ trễ điều phối (3ms) trên các ứng dụng thực sự cần thiết (các trình duyệt Chromium, ứng dụng gốc của Apple...), tăng tốc độ phản hồi phím cho phần lớn các ứng dụng khác.
+- **Khắc phục lỗi ký tự rác (stale character)**: Sửa lỗi hiển thị thừa ký tự khi khôi phục các từ tiếng Anh chứa ký tự dấu lặp lại không liền kề kết hợp với ký tự biến âm (ví dụ: gõ `forward`, `toward`, `award` bị lỗi hiển thị thừa chữ).
+- **Cải thiện quản lý tiến trình (Single Instance) trên macOS**: Sử dụng kỹ thuật khóa tệp tin khuyên nghị (advisory file lock) để ngăn chặn chạy song song nhiều tiến trình ứng dụng (khi chạy từ terminal, `tauri dev` hoặc file chạy trực tiếp), tránh xung đột bộ bắt sự kiện phím (CGEventTap) và nhân đôi biểu tượng thanh trạng thái.
+- **Tối ưu hóa khởi động cùng hệ thống**: Đăng ký dịch vụ khởi động cùng hệ thống trên macOS thông qua lệnh `launchctl bootstrap` ngay sau khi tạo tệp cấu hình `.plist`.
+- **Cải tiến giao diện người dùng (UI)**: Cập nhật các biến màu sắc, tinh chỉnh thiết kế cửa sổ và tích hợp trình quản lý tab cùng bộ phân tích cú pháp nhật ký thay đổi (Release Notes) hiển thị trực tiếp trong ứng dụng.
+- **Dọn dẹp tài nguyên**: Loại bỏ các biểu tượng cũ và tối ưu hóa tài nguyên hình ảnh dự án bằng cách chuyển đổi sang định dạng đóng gói `.icns` tiêu chuẩn.
+
 ## [1.0.1] - 2026-06-29
 ### Thêm mới
 - Thêm tính năng nhận diện ngữ cảnh thông minh (Perceptron model) để tự động ưu tiên thứ tự xử lý ngôn ngữ dựa trên ứng dụng đang hoạt động và cấu trúc từ.
