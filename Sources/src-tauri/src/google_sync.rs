@@ -286,14 +286,8 @@ pub async fn upload_sync_data_gdrive(sync_password: &str) -> Result<(), String> 
     if let Some(data) = payloads.settings {
         upload_file(&client, &access_token, &folder_id, "vnkey_sync_settings.enc", data).await?;
     }
-    if let Some(data) = payloads.vietnamese_dict {
-        upload_file(&client, &access_token, &folder_id, "vnkey_sync_vietnamese_dict.enc", data).await?;
-    }
-    if let Some(data) = payloads.english_dict {
-        upload_file(&client, &access_token, &folder_id, "vnkey_sync_english_dict.enc", data).await?;
-    }
-    if let Some(data) = payloads.programming_keywords {
-        upload_file(&client, &access_token, &folder_id, "vnkey_sync_programming_keywords.enc", data).await?;
+    if let Some(data) = payloads.priority_dict {
+        upload_file(&client, &access_token, &folder_id, "vnkey_sync_priority_dict.enc", data).await?;
     }
     if let Some(data) = payloads.macros {
         upload_file(&client, &access_token, &folder_id, "vnkey_sync_macros.enc", data).await?;
@@ -314,18 +308,14 @@ pub async fn download_sync_data_gdrive(sync_password: &str) -> Result<(), String
     let folder_id = get_or_create_vnkey_folder(&client, &access_token).await?;
     
     let settings = download_file(&client, &access_token, &folder_id, "vnkey_sync_settings.enc").await?;
-    let vietnamese_dict = download_file(&client, &access_token, &folder_id, "vnkey_sync_vietnamese_dict.enc").await?;
-    let english_dict = download_file(&client, &access_token, &folder_id, "vnkey_sync_english_dict.enc").await?;
-    let programming_keywords = download_file(&client, &access_token, &folder_id, "vnkey_sync_programming_keywords.enc").await?;
+    let priority_dict = download_file(&client, &access_token, &folder_id, "vnkey_sync_priority_dict.enc").await?;
     let macros = download_file(&client, &access_token, &folder_id, "vnkey_sync_macros.enc").await?;
     let clipboard = download_file(&client, &access_token, &folder_id, "vnkey_sync_clipboard.enc").await?;
     let app_configs = download_file(&client, &access_token, &folder_id, "vnkey_sync_app_configs.enc").await?;
     
     crate::cloud_sync::apply_sync_payloads(
         settings.as_deref(),
-        vietnamese_dict.as_deref(),
-        english_dict.as_deref(),
-        programming_keywords.as_deref(),
+        priority_dict.as_deref(),
         macros.as_deref(),
         clipboard.as_deref(),
         app_configs.as_deref(),

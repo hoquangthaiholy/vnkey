@@ -32,7 +32,9 @@ enum vKeyEventState {
 
 enum vKeyInputType {
     vTelex = 0,
-    vVNI
+    vVNI,
+    vSimpleTelex1,
+    vSimpleTelex2
 };
 
 typedef unsigned char Byte;

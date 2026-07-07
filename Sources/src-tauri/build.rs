@@ -27,9 +27,6 @@ fn main() {
         .opt_level(2)
         .file("engine/ConvertTool.cpp")
         .file("engine/Engine.cpp")
-        .file("engine/EnglishDictionary.cpp")
-        .file("engine/EnglishFSM.cpp")
-        .file("engine/ProgrammingFSM.cpp")
         .file("engine/Macro.cpp")
         .file("engine/SmartSwitchKey.cpp")
         .file("engine/Vietnamese.cpp")
@@ -38,9 +35,6 @@ fn main() {
 
     println!("cargo:rerun-if-changed=engine/ConvertTool.cpp");
     println!("cargo:rerun-if-changed=engine/Engine.cpp");
-    println!("cargo:rerun-if-changed=engine/EnglishDictionary.cpp");
-    println!("cargo:rerun-if-changed=engine/EnglishFSM.cpp");
-    println!("cargo:rerun-if-changed=engine/ProgrammingFSM.cpp");
     println!("cargo:rerun-if-changed=engine/Macro.cpp");
     println!("cargo:rerun-if-changed=engine/SmartSwitchKey.cpp");
     println!("cargo:rerun-if-changed=engine/Vietnamese.cpp");

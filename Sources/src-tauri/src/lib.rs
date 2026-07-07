@@ -67,8 +67,6 @@ fn default_settings() -> Settings {
         check_spelling: 1,
         use_modern_orthography: 0,
         quick_telex: 0,
-        use_english_dictionary: 1,
-        fix_recommend_browser: 1,
         fix_spotlight: 1,
         use_macro: 1,
         use_macro_in_english_mode: 0,
@@ -98,19 +96,15 @@ fn default_settings() -> Settings {
         clipboard_auto_hide: 1,
         clipboard_max_items: 10,
         clipboard_hotkey: 0x56000C09,
-        check_programming_keywords: 1,
-        fsm_priority_order: vec![2, 0, 1],
         telex_w_as_u: 0,
         telex_bracket_as_o: 0,
         autostart: 1,
         open_panel_on_start: 1,
         panel_hotkey: 0x50000C23,
-        late_accent_transformation: 0,
-        all_caps_auto_escape: 1,
-        use_paste_workaround: 1,
         use_hud: 1,
         smart_punct_check: 1,
         use_perceptron_context: 1,
+        use_priority_dictionary: 1,
     }
 }
 
@@ -124,9 +118,6 @@ pub struct Settings {
     pub check_spelling: i32,
     pub use_modern_orthography: i32,
     pub quick_telex: i32,
-    pub use_english_dictionary: i32,
-    pub check_programming_keywords: i32,
-    pub fix_recommend_browser: i32,
     pub fix_spotlight: i32,
     pub use_macro: i32,
     pub use_macro_in_english_mode: i32,
@@ -156,8 +147,6 @@ pub struct Settings {
     pub clipboard_auto_hide: i32,
     pub clipboard_max_items: i32,
     pub clipboard_hotkey: i32,
-    #[serde(default = "default_fsm_priority_order")]
-    pub fsm_priority_order: Vec<i32>,
     #[serde(default = "default_zero")]
     pub telex_w_as_u: i32,
     #[serde(default = "default_zero")]
@@ -166,29 +155,23 @@ pub struct Settings {
     pub autostart: i32,
     #[serde(default = "default_one")]
     pub open_panel_on_start: i32,
-    #[serde(default = "default_zero")]
-    pub late_accent_transformation: i32,
     #[serde(default = "default_panel_hotkey")]
     pub panel_hotkey: i32,
-    #[serde(default = "default_one")]
-    pub all_caps_auto_escape: i32,
-    #[serde(default = "default_one")]
-    pub use_paste_workaround: i32,
     #[serde(default = "default_one")]
     pub use_hud: i32,
     #[serde(default = "default_one")]
     pub smart_punct_check: i32,
     #[serde(default = "default_one")]
     pub use_perceptron_context: i32,
+    #[serde(default = "default_one")]
+    pub use_priority_dictionary: i32,
 }
 
 fn default_one() -> i32 { 1 }
 fn default_zero() -> i32 { 0 }
 fn default_panel_hotkey() -> i32 { 0x50000C23 }
 
-fn default_fsm_priority_order() -> Vec<i32> {
-    vec![2, 0, 1]
-}
+
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ClipboardItem {
@@ -204,13 +187,8 @@ pub struct ClipboardItem {
 }
 
 #[derive(serde::Serialize)]
-struct EnglishDictionary {
+struct PriorityDictionary {
     custom_words: Vec<String>,
-}
-
-#[derive(serde::Serialize)]
-struct ProgrammingKeywordDictionary {
-    custom_keywords: Vec<String>,
 }
 
 static CLIPBOARD_HISTORY: OnceLock<Mutex<Vec<ClipboardItem>>> = OnceLock::new();
@@ -541,8 +519,6 @@ fn get_settings() -> Settings {
             convert_hotkey = 0xFE0000FEu32 as i32; // EMPTY_HOTKEY
             engine::set_convert_tool_hotkey(convert_hotkey);
         }
-        let mut fsm_order = [0, 1, 2];
-        engine::get_fsm_priority_order(&mut fsm_order);
 
         Settings {
             language: engine::vLanguage,
@@ -553,9 +529,6 @@ fn get_settings() -> Settings {
             check_spelling: engine::vCheckSpelling,
             use_modern_orthography: engine::vUseModernOrthography,
             quick_telex: engine::vQuickTelex,
-            use_english_dictionary: engine::vUseEnglishDictionary,
-            check_programming_keywords: engine::vCheckProgrammingKeywords,
-            fix_recommend_browser: engine::vFixRecommendBrowser,
             fix_spotlight: engine::vFixSpotlight,
             use_macro: engine::vUseMacro,
             use_macro_in_english_mode: engine::vUseMacroInEnglishMode,
@@ -606,7 +579,6 @@ fn get_settings() -> Settings {
             },
             clipboard_max_items: CLIPBOARD_MAX_ITEMS.load(std::sync::atomic::Ordering::Relaxed),
             clipboard_hotkey: CLIPBOARD_HOTKEY.load(std::sync::atomic::Ordering::Relaxed),
-            fsm_priority_order: fsm_order.to_vec(),
             telex_w_as_u: engine::vTelexWAsU,
             telex_bracket_as_o: engine::vTelexBracketAsO,
             autostart: if AUTOSTART.load(std::sync::atomic::Ordering::Relaxed) {
@@ -619,13 +591,11 @@ fn get_settings() -> Settings {
             } else {
                 0
             },
-            late_accent_transformation: engine::vLateAccentTransformation,
             panel_hotkey: PANEL_HOTKEY.load(std::sync::atomic::Ordering::Relaxed),
-            all_caps_auto_escape: engine::vAllCapsAutoEscape,
-            use_paste_workaround: engine::vUsePasteWorkaround,
             use_hud: if USE_HUD.load(std::sync::atomic::Ordering::Relaxed) { 1 } else { 0 },
             smart_punct_check: engine::vSmartPunctCheck,
             use_perceptron_context: engine::vUsePerceptronContext,
+            use_priority_dictionary: engine::vUsePriorityDictionary,
         }
     }
 }
@@ -664,24 +634,11 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vCheckSpelling = settings.check_spelling;
                         engine::vUseModernOrthography = settings.use_modern_orthography;
                         engine::vQuickTelex = settings.quick_telex;
-                        engine::vUseEnglishDictionary = settings.use_english_dictionary;
-                        engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
-                        engine::vLateAccentTransformation = settings.late_accent_transformation;
-                        engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
-                        engine::vUsePasteWorkaround = settings.use_paste_workaround;
                         engine::vSmartPunctCheck = settings.smart_punct_check;
                         engine::vUsePerceptronContext = settings.use_perceptron_context;
                         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
                         engine::vTelexWAsU = settings.telex_w_as_u;
                         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
-                        let order = &settings.fsm_priority_order;
-                        let fsm_order: [i32; 3] = [
-                            order.get(0).copied().unwrap_or(0),
-                            order.get(1).copied().unwrap_or(2),
-                            order.get(2).copied().unwrap_or(1),
-                        ];
-                        engine::set_fsm_priority_order(&fsm_order);
-                        engine::vFixRecommendBrowser = settings.fix_recommend_browser;
                         engine::vFixSpotlight = settings.fix_spotlight;
                         engine::vUseMacro = settings.use_macro;
                         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
@@ -693,6 +650,8 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
                         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
                         engine::vPerformLayoutCompat = settings.perform_layout_compat;
+                        engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+                        engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
                         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
                         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
                         engine::set_convert_tool_to_all_non_caps(
@@ -802,24 +761,11 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vCheckSpelling = settings.check_spelling;
         engine::vUseModernOrthography = settings.use_modern_orthography;
         engine::vQuickTelex = settings.quick_telex;
-        engine::vUseEnglishDictionary = settings.use_english_dictionary;
-        engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
-        engine::vLateAccentTransformation = settings.late_accent_transformation;
-        engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
-        engine::vUsePasteWorkaround = settings.use_paste_workaround;
         engine::vSmartPunctCheck = settings.smart_punct_check;
         engine::vUsePerceptronContext = settings.use_perceptron_context;
         USE_HUD.store(settings.use_hud == 1, std::sync::atomic::Ordering::Relaxed);
         engine::vTelexWAsU = settings.telex_w_as_u;
         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
-        let order = &settings.fsm_priority_order;
-        let fsm_order: [i32; 3] = [
-            order.get(0).copied().unwrap_or(0),
-            order.get(1).copied().unwrap_or(2),
-            order.get(2).copied().unwrap_or(1),
-        ];
-        engine::set_fsm_priority_order(&fsm_order);
-        engine::vFixRecommendBrowser = settings.fix_recommend_browser;
         engine::vFixSpotlight = settings.fix_spotlight;
         engine::vUseMacro = settings.use_macro;
         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
@@ -831,6 +777,8 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
+        engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+        engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
         engine::set_convert_tool_to_all_non_caps(settings.convert_tool_to_all_non_caps);
@@ -916,18 +864,8 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vCheckSpelling = settings.check_spelling;
         engine::vUseModernOrthography = settings.use_modern_orthography;
         engine::vQuickTelex = settings.quick_telex;
-        engine::vUseEnglishDictionary = settings.use_english_dictionary;
-        engine::vCheckProgrammingKeywords = settings.check_programming_keywords;
         engine::vTelexWAsU = settings.telex_w_as_u;
         engine::vTelexBracketAsO = settings.telex_bracket_as_o;
-        let order = &settings.fsm_priority_order;
-        let fsm_order: [i32; 3] = [
-            order.get(0).copied().unwrap_or(0),
-            order.get(1).copied().unwrap_or(2),
-            order.get(2).copied().unwrap_or(1),
-        ];
-        engine::set_fsm_priority_order(&fsm_order);
-        engine::vFixRecommendBrowser = settings.fix_recommend_browser;
         engine::vFixSpotlight = settings.fix_spotlight;
         engine::vUseMacro = settings.use_macro;
         engine::vUseMacroInEnglishMode = settings.use_macro_in_english_mode;
@@ -939,10 +877,9 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
-        engine::vLateAccentTransformation = settings.late_accent_transformation;
-        engine::vAllCapsAutoEscape = settings.all_caps_auto_escape;
-        engine::vUsePasteWorkaround = settings.use_paste_workaround;
         engine::vSmartPunctCheck = settings.smart_punct_check;
+        engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+        engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
         engine::set_convert_tool_to_all_non_caps(settings.convert_tool_to_all_non_caps);
@@ -979,17 +916,10 @@ fn reset_settings(handle: tauri::AppHandle) {
     update_autostart_config(settings.autostart == 1);
     OPEN_PANEL_ON_START.store(settings.open_panel_on_start == 1, std::sync::atomic::Ordering::Relaxed);
     save_settings_to_disk(&handle, &settings);
-    db::db_reset_english_words();
-    let words = db::db_get_english_words();
-    engine::set_custom_english_words(&words.join("\n"));
-    db::db_clear_vietnamese_words();
-    engine::set_custom_vietnamese_words("");
-    db::db_reset_programming_keywords();
-    let prog_words = db::db_get_programming_keywords();
-    engine::set_custom_programming_keywords(&prog_words.join("\n"));
+    db::db_clear_priority_words();
+    engine::set_priority_dictionary("");
     let _ = handle.emit("settings-changed", settings.clone());
-    let _ = handle.emit("english-dict-reset", true);
-    let _ = handle.emit("programming-keywords-reset", true);
+    let _ = handle.emit("priority-dict-reset", true);
     update_tray_icon(&handle);
 }
 
@@ -1026,86 +956,21 @@ fn load_macros_from_disk(handle: &tauri::AppHandle) {
     }
 }
 
-fn get_english_dict_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    let mut path = handle.path().app_config_dir().ok()?;
-    create_dir_all(&path).ok()?;
-    path.push("english.txt");
-    Some(path)
-}
-
-fn load_english_dict_from_disk(handle: &tauri::AppHandle) {
-    if let Some(path) = get_english_dict_path(handle) {
-        if path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let mut merged_words = parse_english_words(&content);
-                merged_words.sort_unstable();
-                merged_words.dedup();
-                db::db_insert_english_words(&merged_words);
-                let _ = std::fs::remove_file(&path); // delete legacy file
-            }
-        }
-    }
-    
-    let words = db::db_get_english_words();
-    engine::set_custom_english_words(&words.join("\n"));
-}
-
-fn load_vietnamese_dict_from_disk(_handle: &tauri::AppHandle) {
-    let words = db::db_get_vietnamese_words();
-    engine::set_custom_vietnamese_words(&words.join("\n"));
+fn load_priority_dictionary_from_disk(_handle: &tauri::AppHandle) {
+    let words = db::db_get_priority_words();
+    engine::set_priority_dictionary(&words.join("\n"));
 }
 
 #[tauri::command]
-fn get_english_dictionary() -> Result<EnglishDictionary, String> {
-    let custom_words = db::db_get_english_words();
-    Ok(EnglishDictionary {
-        custom_words,
-    })
-}
-
-fn parse_english_words(content: &str) -> Vec<String> {
-    let mut words: Vec<String> = content
-        .lines()
-        .filter(|line| !line.trim_start().starts_with('#'))
-        .flat_map(str::split_whitespace)
-        .filter_map(|word| {
-            let normalized = word.to_ascii_lowercase();
-            normalized
-                .bytes()
-                .all(|byte| byte.is_ascii_alphabetic())
-                .then_some(normalized)
-        })
-        .collect();
-    words.sort_unstable();
-    words.dedup();
-    words
-}
-
-#[tauri::command]
-fn save_custom_english_words(words: String) -> Result<(), String> {
-    let normalized = parse_english_words(&words);
-    db::db_clear_english_words();
-    db::db_insert_english_words(&normalized);
-    engine::set_custom_english_words(&normalized.join("\n"));
-    auto_sync_to_cloud();
-    Ok(())
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub struct VietnameseDictionary {
-    pub custom_words: Vec<String>,
-}
-
-#[tauri::command]
-fn get_vietnamese_dictionary() -> Result<VietnameseDictionary, String> {
-    let custom_words = db::db_get_vietnamese_words();
-    Ok(VietnameseDictionary {
+fn get_priority_dictionary() -> Result<PriorityDictionary, String> {
+    let custom_words = db::db_get_priority_words();
+    Ok(PriorityDictionary {
         custom_words,
     })
 }
 
 #[tauri::command]
-fn save_custom_vietnamese_words(words: String) -> Result<(), String> {
+fn save_priority_words(words: String) -> Result<(), String> {
     let mut normalized: Vec<String> = words
         .lines()
         .flat_map(str::split_whitespace)
@@ -1114,45 +979,9 @@ fn save_custom_vietnamese_words(words: String) -> Result<(), String> {
         .collect();
     normalized.sort_unstable();
     normalized.dedup();
-    db::db_clear_vietnamese_words();
-    db::db_insert_vietnamese_words(&normalized);
-    engine::set_custom_vietnamese_words(&normalized.join("\n"));
-    auto_sync_to_cloud();
-    Ok(())
-}
-
-fn load_programming_keywords_from_disk(_handle: &tauri::AppHandle) {
-    let keywords = db::db_get_programming_keywords();
-    engine::set_custom_programming_keywords(&keywords.join("\n"));
-}
-
-#[tauri::command]
-fn get_programming_keywords() -> Result<ProgrammingKeywordDictionary, String> {
-    let custom_keywords = db::db_get_programming_keywords();
-    Ok(ProgrammingKeywordDictionary { custom_keywords })
-}
-
-fn parse_programming_keywords(content: &str) -> Vec<String> {
-    let mut keywords: Vec<String> = content
-        .lines()
-        .filter(|line| !line.trim_start().starts_with('#'))
-        .flat_map(str::split_whitespace)
-        .filter_map(|word| {
-            let w = word.trim().to_string();
-            if w.is_empty() { None } else { Some(w) }
-        })
-        .collect();
-    keywords.sort_unstable();
-    keywords.dedup();
-    keywords
-}
-
-#[tauri::command]
-fn save_custom_programming_keywords(keywords: String) -> Result<(), String> {
-    let normalized = parse_programming_keywords(&keywords);
-    db::db_clear_programming_keywords();
-    db::db_insert_programming_keywords(&normalized);
-    engine::set_custom_programming_keywords(&normalized.join("\n"));
+    db::db_clear_priority_words();
+    db::db_insert_priority_words(&normalized);
+    engine::set_priority_dictionary(&normalized.join("\n"));
     auto_sync_to_cloud();
     Ok(())
 }
@@ -1768,9 +1597,7 @@ pub extern "C" fn rust_onAccessibilityRevoked() {
                     // Load configuration and dictionaries in the background thread
                     load_settings_from_disk(&handle_clone_3);
                     load_macros_from_disk(&handle_clone_3);
-                    load_english_dict_from_disk(&handle_clone_3);
-                    load_vietnamese_dict_from_disk(&handle_clone_3);
-                    load_programming_keywords_from_disk(&handle_clone_3);
+                    load_priority_dictionary_from_disk(&handle_clone_3);
 
                     // Dispatch UI operations and start event tap to the main thread
                     let handle_for_regrant_ui = handle_clone_2.clone();
@@ -1959,7 +1786,6 @@ pub struct AppConfig {
     pub check_spelling: i32,
     pub use_modern_orthography: i32,
     pub quick_telex: i32,
-    pub use_english_dictionary: i32,
     pub use_macro: i32,
     pub use_macro_in_english_mode: i32,
     pub auto_caps_macro: i32,
@@ -1967,10 +1793,8 @@ pub struct AppConfig {
     pub allow_consonant_zfwj: i32,
     pub quick_start_consonant: i32,
     pub quick_end_consonant: i32,
-    #[serde(default)]
-    pub check_programming_keywords: i32,
-    #[serde(default = "default_fsm_priority_order")]
-    pub fsm_priority_order: Vec<i32>,
+    #[serde(default = "default_one")]
+    pub use_priority_dictionary: i32,
     pub name: Option<String>,
 }
 
@@ -2152,21 +1976,13 @@ fn apply_app_config_by_bundle_id(handle: &tauri::AppHandle, bundle_id: &str) {
             engine::vCheckSpelling = config.check_spelling;
             engine::vUseModernOrthography = config.use_modern_orthography;
             engine::vQuickTelex = config.quick_telex;
-            engine::vUseEnglishDictionary = config.use_english_dictionary;
             engine::vUseMacro = config.use_macro;
             engine::vUseMacroInEnglishMode = config.use_macro_in_english_mode;
             engine::vAutoCapsMacro = config.auto_caps_macro;
             engine::vUpperCaseFirstChar = config.upper_case_first_char;
             engine::vQuickStartConsonant = config.quick_start_consonant;
             engine::vQuickEndConsonant = config.quick_end_consonant;
-            engine::vCheckProgrammingKeywords = config.check_programming_keywords;
-            let order = &config.fsm_priority_order;
-            let fsm_order: [i32; 3] = [
-                order.get(0).copied().unwrap_or(0),
-                order.get(1).copied().unwrap_or(2),
-                order.get(2).copied().unwrap_or(1),
-            ];
-            engine::set_fsm_priority_order(&fsm_order);
+            engine::vUsePriorityDictionary = config.use_priority_dictionary;
             engine::startNewSession();
             engine::code_table_changed();
         }
@@ -2485,10 +2301,6 @@ pub fn run() {
             check_accessibility,
             request_accessibility,
             trigger_quick_convert,
-            get_english_dictionary,
-            save_custom_english_words,
-            get_vietnamese_dictionary,
-            save_custom_vietnamese_words,
             quit,
             get_clipboard_items,
             remove_clipboard_item,
@@ -2514,8 +2326,8 @@ pub fn run() {
             get_google_client_id,
             sync_to_gdrive,
             sync_from_gdrive,
-            get_programming_keywords,
-            save_custom_programming_keywords
+            get_priority_dictionary,
+            save_priority_words
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -2573,9 +2385,7 @@ pub fn run() {
             if has_access {
                 load_settings_from_disk(&handle);
                 load_macros_from_disk(&handle);
-                load_english_dict_from_disk(&handle);
-                load_vietnamese_dict_from_disk(&handle);
-                load_programming_keywords_from_disk(&handle);
+                load_priority_dictionary_from_disk(&handle);
                 unsafe {
                     engine::start_event_tap();
                 }
@@ -2614,9 +2424,7 @@ pub fn run() {
                             // 1. Load configuration and dictionaries in the background thread
                             load_settings_from_disk(&handle_clone_2);
                             load_macros_from_disk(&handle_clone_2);
-                            load_english_dict_from_disk(&handle_clone_2);
-                            load_vietnamese_dict_from_disk(&handle_clone_2);
-                            load_programming_keywords_from_disk(&handle_clone_2);
+                            load_priority_dictionary_from_disk(&handle_clone_2);
 
                             // 2. Dispatch UI operations and start event tap to the main thread
                             let _ = handle_clone.run_on_main_thread(move || {

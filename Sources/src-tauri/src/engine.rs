@@ -16,14 +16,13 @@ extern "C" {
     pub static mut vCheckSpelling: c_int;
     pub static mut vUseModernOrthography: c_int;
     pub static mut vQuickTelex: c_int;
-    pub static mut vUseEnglishDictionary: c_int;
-    pub static mut vFixRecommendBrowser: c_int;
     pub static mut vFixSpotlight: c_int;
     pub static mut vUseMacro: c_int;
     pub static mut vUseMacroInEnglishMode: c_int;
     pub static mut vAutoCapsMacro: c_int;
     pub static mut vUseSmartSwitchKey: c_int;
     pub static mut vUpperCaseFirstChar: c_int;
+    pub static mut vAllowConsonantZFWJ: c_int;
 
     pub static mut vQuickStartConsonant: c_int;
     pub static mut vQuickEndConsonant: c_int;
@@ -32,14 +31,12 @@ extern "C" {
     pub static mut vSendKeyStepByStep: c_int;
     pub static mut vFixChromiumBrowser: c_int;
     pub static mut vPerformLayoutCompat: c_int;
-    pub static mut vCheckProgrammingKeywords: c_int;
-    pub static mut vLateAccentTransformation: c_int;
-    pub static mut vAllCapsAutoEscape: c_int;
-    pub static mut vUsePasteWorkaround: c_int;
     pub static mut vTelexWAsU: c_int;
     pub static mut vTelexBracketAsO: c_int;
     pub static mut vSmartPunctCheck: c_int;
     pub static mut vUsePerceptronContext: c_int;
+
+    pub static mut vUsePriorityDictionary: c_int;
 
     pub fn vKeyInit() -> *mut c_void;
     pub fn startNewSession();
@@ -56,11 +53,7 @@ extern "C" {
     fn vnkey_on_code_table_changed();
 
     fn vnkey_load_macros(path: *const c_char);
-    fn vnkey_set_custom_english_words(content: *const c_char);
-    fn vnkey_set_custom_vietnamese_words(content: *const c_char);
-    fn vnkey_set_custom_programming_keywords(content: *const c_char);
-    fn vnkey_set_fsm_priority_order(a: c_int, b: c_int, c: c_int);
-    fn vnkey_get_fsm_priority_order(a: *mut c_int, b: *mut c_int, c: *mut c_int);
+    fn vnkey_set_priority_dictionary(content: *const c_char);
     fn vnkey_convert_text(
         source: *const c_char,
         from_code: c_int,
@@ -243,33 +236,9 @@ pub fn convert_text(
     }
 }
 
-pub fn set_custom_english_words(content: &str) {
+pub fn set_priority_dictionary(content: &str) {
     if let Ok(c_content) = CString::new(content) {
-        unsafe { vnkey_set_custom_english_words(c_content.as_ptr()) };
-    }
-}
-
-pub fn set_custom_vietnamese_words(content: &str) {
-    if let Ok(c_content) = CString::new(content) {
-        unsafe { vnkey_set_custom_vietnamese_words(c_content.as_ptr()) };
-    }
-}
-
-pub fn set_custom_programming_keywords(content: &str) {
-    if let Ok(c_content) = CString::new(content) {
-        unsafe { vnkey_set_custom_programming_keywords(c_content.as_ptr()) };
-    }
-}
-
-pub fn set_fsm_priority_order(order: &[i32; 3]) {
-    unsafe {
-        vnkey_set_fsm_priority_order(order[0], order[1], order[2]);
-    }
-}
-
-pub fn get_fsm_priority_order(order: &mut [i32; 3]) {
-    unsafe {
-        vnkey_get_fsm_priority_order(&mut order[0], &mut order[1], &mut order[2]);
+        unsafe { vnkey_set_priority_dictionary(c_content.as_ptr()) };
     }
 }
 

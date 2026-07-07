@@ -1,6 +1,4 @@
 #include "Engine.h"
-#include "../engine/EnglishDictionary.h"
-#include "../engine/ProgrammingFSM.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -10,7 +8,6 @@
 
 extern "C" {
     int vFixChromiumBrowser = 0;
-    int vFixRecommendBrowser = 1;
     int vFixSpotlight = 1;
     int vPerformLayoutCompat = 0;
     int vSendKeyStepByStep = 0;
@@ -22,11 +19,6 @@ extern "C" {
     int vCheckSpelling = 1;
     int vUseModernOrthography = 0;
     int vQuickTelex = 0;
-    int vUseEnglishDictionary = 1;
-    int vCheckProgrammingKeywords = 1;
-    int vLateAccentTransformation = 0;
-    int vAllCapsAutoEscape = 1;
-    int vUsePasteWorkaround = 1;
     int vSmartPunctCheck = 1;
     int vUsePerceptronContext = 1;
     char vCurrentAppBundleId[256] = "";
@@ -35,13 +27,16 @@ extern "C" {
     int vAutoCapsMacro = 1;
     int vUseSmartSwitchKey = 1;
     int vUpperCaseFirstChar = 1;
+    int vAllowConsonantZFWJ = 1;
 
     int vQuickStartConsonant = 0;
     int vQuickEndConsonant = 0;
     int vRememberCode = 1;
     int vDisableHotkeys = 0;
-    // FSM priority order: 0=VI, 1=EN, 2=PROG. Default: PROG → VI → EN
-    int vFsmPriorityOrder[3] = {2, 0, 1};
+
+    int vUsePriorityDictionary = 1;
+    int vRestoreIfWrongSpelling = 1;
+    int vFreeMark = 1;
 
     // Telex sub-options (only effective when vInputType == vTelex):
     //   vTelexWAsU=1  → W standalone at word start becomes ư (classic Telex)
@@ -131,42 +126,7 @@ extern "C" {
         initMacroMap(data.data(), static_cast<int>(data.size()));
     }
 
-    void vnkey_set_custom_english_words(const char* content) {
-        if (content == nullptr) {
-            setCustomEnglishWords("");
-        } else {
-            setCustomEnglishWords(content);
-        }
-    }
 
-    void vnkey_set_custom_vietnamese_words(const char* content) {
-        if (content == nullptr) {
-            setCustomVietnameseWords("");
-        } else {
-            setCustomVietnameseWords(content);
-        }
-    }
-
-
-    void vnkey_set_custom_programming_keywords(const char* content) {
-        if (content == nullptr) {
-            vnkey::setCustomProgrammingKeywords("");
-        } else {
-            vnkey::setCustomProgrammingKeywords(content);
-        }
-    }
-
-    void vnkey_set_fsm_priority_order(int a, int b, int c) {
-        vFsmPriorityOrder[0] = a;
-        vFsmPriorityOrder[1] = b;
-        vFsmPriorityOrder[2] = c;
-    }
-
-    void vnkey_get_fsm_priority_order(int* a, int* b, int* c) {
-        *a = vFsmPriorityOrder[0];
-        *b = vFsmPriorityOrder[1];
-        *c = vFsmPriorityOrder[2];
-    }
 
     char* vnkey_convert_text(
         const char* source,

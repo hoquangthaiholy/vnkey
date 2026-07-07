@@ -10,9 +10,6 @@
   import { check } from "@tauri-apps/plugin-updater";
   import { relaunch } from "@tauri-apps/plugin-process";
   import { Terminal, Copyright, Sparkles, Wrench, ShieldCheck, ListChecks, Download as DownloadIcon } from '@lucide/svelte';
-  import VietnamFlag from './VietnamFlag.svelte';
-  import USFlag from './USFlag.svelte';
-  import ProgIcon from './ProgIcon.svelte';
   import { tooltip } from "$lib/tooltip";
 
   interface Settings {
@@ -24,10 +21,7 @@
     check_spelling: number;
     use_modern_orthography: number;
     quick_telex: number;
-    use_english_dictionary: number;
-    check_programming_keywords: number;
-    fsm_priority_order: number[];
-    fix_recommend_browser: number;
+    use_priority_dictionary: number;
     fix_spotlight: number;
     use_macro: number;
     use_macro_in_english_mode: number;
@@ -62,9 +56,7 @@
     autostart: number;
     open_panel_on_start: number;
     panel_hotkey: number;
-    late_accent_transformation: number;
-    all_caps_auto_escape: number;
-    use_paste_workaround: number;
+
     use_hud: number;
     smart_punct_check: number;
     use_perceptron_context: number;
@@ -79,10 +71,7 @@
     check_spelling: 1,
     use_modern_orthography: 0,
     quick_telex: 0,
-    use_english_dictionary: 1,
-    check_programming_keywords: 1,
-    fsm_priority_order: [2, 0, 1],
-    fix_recommend_browser: 1,
+    use_priority_dictionary: 1,
     fix_spotlight: 1,
     use_macro: 1,
     use_macro_in_english_mode: 0,
@@ -117,9 +106,7 @@
     autostart: 1,
     open_panel_on_start: 1,
     panel_hotkey: 0x50000C23,
-    late_accent_transformation: 0,
-    all_caps_auto_escape: 1,
-    use_paste_workaround: 1,
+
     use_hud: 1,
     smart_punct_check: 1,
     use_perceptron_context: 1,
@@ -374,18 +361,6 @@
     updateInfo ? parseReleaseNotes(updateInfo.releaseNotes) : []
   );
 
-  // English Dictionary state
-  let customEnglishWords = $state<string[]>([]);
-  let dictionarySearch = $state("");
-  let newEnglishWord = $state("");
-  let dictionaryError = $state("");
-  let savingDict = $state(false);
-  let saveDictSuccess = $state(false);
-  let filteredEnglishWords = $derived(
-    customEnglishWords
-      .filter((word) => word.includes(dictionarySearch.trim().toLowerCase()))
-      .map(word => ({ word }))
-  );
   let newShortcut = $state("");
   let newContent = $state("");
   let macroError = $state("");
@@ -403,85 +378,20 @@
       .map(word => ({ word }))
   );
 
-  // Programming Keywords state
-  let customProgrammingKeywords = $state<string[]>([]);
-  let keywordSearch = $state("");
-  let newKeyword = $state("");
-  let keywordError = $state("");
-  let savingKeywords = $state(false);
-  let saveKeywordsSuccess = $state(false);
-  let filteredProgrammingKeywords = $derived(
-    customProgrammingKeywords
-      .filter((kw) => kw.toLowerCase().includes(keywordSearch.trim().toLowerCase()))
-      .map(kw => ({ kw }))
+  // Priority Dictionary state
+  let customPriorityWords = $state<string[]>([]);
+  let prioritySearch = $state("");
+  let newPriorityWord = $state("");
+  let priorityError = $state("");
+  let savingPriority = $state(false);
+  let savePrioritySuccess = $state(false);
+  let filteredPriorityWords = $derived(
+    customPriorityWords
+      .filter((word) => word.includes(prioritySearch.trim().toLowerCase()))
+      .map(word => ({ word }))
   );
 
-  // FSM Priority drag-and-drop — vertical-only, bounded within container
-  const FSM_DEFS = [
-    { id: 0, icon: VietnamFlag, name: 'Tiếng Việt',  desc: 'Kiểm tra âm tiết tiếng Việt' },
-    { id: 1, icon: USFlag, name: 'Tiếng Anh',   desc: 'Luật cấu thành từ + từ điển tùy chỉnh' },
-    { id: 2, icon: ProgIcon,  name: 'Lập trình',   desc: 'Keyword, camelCase, snake_case, ALL_CAPS' },
-  ];
-  let fsmDragIndex    = $state<number | null>(null);
-  let fsmDragOverIndex = $state<number | null>(null);
-  let fsmIsDragging   = $state(false);
-  let fsmListEl       = $state<HTMLElement | null>(null);
 
-  function fsmOrderedItems() {
-    return settings.fsm_priority_order.map(id => FSM_DEFS.find(d => d.id === id)!);
-  }
-
-  // Hit-test: given clientY, return which row index (0..n-1) the pointer is over,
-  // or null if outside the container bounds.
-  function fsmSlotAtY(clientY: number): number | null {
-    if (!fsmListEl) return null;
-    const rect = fsmListEl.getBoundingClientRect();
-    if (clientY < rect.top || clientY > rect.bottom) return null; // out of bounds
-    
-    // Use math based on container height rather than child bounding boxes
-    // to avoid jitter when elements are animating.
-    const itemCount = settings.fsm_priority_order.length;
-    if (itemCount === 0) return null;
-    const itemHeight = rect.height / itemCount;
-    const relativeY = clientY - rect.top;
-    const slot = Math.floor(relativeY / itemHeight);
-    return Math.max(0, Math.min(itemCount - 1, slot));
-  }
-
-  function onFsmContainerPointerDown(e: PointerEvent) {
-    // Find which row was clicked by hit-testing Y
-    const slot = fsmSlotAtY(e.clientY);
-    if (slot === null) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    fsmDragIndex  = slot;
-    fsmDragOverIndex = slot;
-    fsmIsDragging = true;
-    e.preventDefault();
-  }
-
-  function onFsmContainerPointerMove(e: PointerEvent) {
-    if (!fsmIsDragging || fsmDragIndex === null) return;
-    const slot = fsmSlotAtY(e.clientY);
-    if (slot !== null && slot !== fsmDragIndex) {
-      // Swap immediately for real-time animation
-      const newOrder = [...settings.fsm_priority_order];
-      const [moved] = newOrder.splice(fsmDragIndex, 1);
-      newOrder.splice(slot, 0, moved);
-      settings.fsm_priority_order = newOrder;
-      
-      fsmDragIndex = slot;
-      fsmDragOverIndex = slot;
-    }
-  }
-
-  function onFsmContainerPointerUp(_e: PointerEvent) {
-    if (fsmIsDragging) {
-      saveSettings(); // Commit the new order to backend
-    }
-    fsmDragIndex    = null;
-    fsmDragOverIndex = null;
-    fsmIsDragging   = false;
-  }
 
   // Convert Tool state
   let sourceText = $state("");
@@ -548,11 +458,13 @@
   // Sync Options
   let syncSettings = $state(true);
   let syncVietnameseDict = $state(true);
-  let syncEnglishDict = $state(true);
-  let syncProgrammingKeywords = $state(true);
+  let syncPriorityDict = $state(true);
   let syncMacros = $state(true);
   let syncClipboard = $state(false);
   let syncAppConfigs = $state(true);
+
+  // UI state
+  let showPriorityTable = $state(false);
 
   const charToMacKeyCode: Record<string, number> = {
     "`": 50, "~": 50, "1": 18, "!": 18, "2": 19, "@": 19, "3": 20, "#": 20, "4": 21, "$": 21,
@@ -673,40 +585,6 @@
     }
   }
 
-  async function loadCustomEnglishWords() {
-    try {
-      const dictionary = await invoke<{ custom_words: string[] }>("get_english_dictionary");
-      customEnglishWords = dictionary.custom_words;
-    } catch (e) {
-      console.error("Failed to load custom English words:", e);
-    }
-  }
-
-  async function loadCustomProgrammingKeywords() {
-    try {
-      const dict = await invoke<{ custom_keywords: string[] }>("get_programming_keywords");
-      customProgrammingKeywords = dict.custom_keywords;
-    } catch (e) {
-      console.error("Failed to load programming keywords:", e);
-    }
-  }
-
-  async function saveCustomEnglishWords() {
-    savingDict = true;
-    saveDictSuccess = false;
-    try {
-      await invoke("save_custom_english_words", { words: customEnglishWords.join("\n") });
-      saveDictSuccess = true;
-      setTimeout(() => {
-        saveDictSuccess = false;
-      }, 3000);
-    } catch (e) {
-      console.error("Failed to save custom English words:", e);
-    } finally {
-      savingDict = false;
-    }
-  }
-
   async function loadCustomVietnameseWords() {
     try {
       const dictionary = await invoke<{ custom_words: string[] }>("get_vietnamese_dictionary");
@@ -752,62 +630,49 @@
     await saveCustomVietnameseWords();
   }
 
-  async function addEnglishWord() {
-    dictionaryError = "";
-    const word = newEnglishWord.trim().toLowerCase();
-    if (!/^[a-z]+$/.test(word)) {
-      dictionaryError = "Chỉ nhập một từ gồm các chữ cái tiếng Anh a-z.";
-      return;
-    }
-    if (customEnglishWords.includes(word)) {
-      dictionaryError = "Từ này đã có trong từ điển.";
-      return;
-    }
-    customEnglishWords = [...customEnglishWords, word].sort();
-    newEnglishWord = "";
-    await saveCustomEnglishWords();
-  }
-
-  async function deleteEnglishWord(word: string) {
-    customEnglishWords = customEnglishWords.filter((item) => item !== word);
-    await saveCustomEnglishWords();
-  }
-
-
-
-  async function saveCustomProgrammingKeywords() {
-    savingKeywords = true;
-    saveKeywordsSuccess = false;
+  async function loadPriorityDictionary() {
     try {
-      await invoke("save_custom_programming_keywords", { keywords: customProgrammingKeywords.join("\n") });
-      saveKeywordsSuccess = true;
-      setTimeout(() => { saveKeywordsSuccess = false; }, 3000);
+      const dictionary = await invoke<{ custom_words: string[] }>("get_priority_dictionary");
+      customPriorityWords = dictionary.custom_words;
     } catch (e) {
-      console.error("Failed to save programming keywords:", e);
+      console.error("Failed to load priority dictionary:", e);
+    }
+  }
+
+  async function savePriorityWords() {
+    savingPriority = true;
+    savePrioritySuccess = false;
+    try {
+      await invoke("save_priority_words", { words: customPriorityWords.join("\n") });
+      savePrioritySuccess = true;
+      setTimeout(() => {
+        savePrioritySuccess = false;
+      }, 3000);
+    } catch (e) {
+      console.error("Failed to save priority words:", e);
     } finally {
-      savingKeywords = false;
+      savingPriority = false;
     }
   }
 
-  async function addProgrammingKeyword() {
-    keywordError = "";
-    const kw = newKeyword.trim();
-    if (!kw) {
-      keywordError = "Từ khóa không được để trống.";
+  async function addPriorityWord() {
+    priorityError = "";
+    const word = newPriorityWord.trim().toLowerCase();
+    if (word.length === 0) {
       return;
     }
-    if (customProgrammingKeywords.includes(kw)) {
-      keywordError = "Từ khóa này đã có trong danh sách.";
+    if (customPriorityWords.includes(word)) {
+      priorityError = "Từ này đã có trong danh sách ưu tiên.";
       return;
     }
-    customProgrammingKeywords = [...customProgrammingKeywords, kw].sort();
-    newKeyword = "";
-    await saveCustomProgrammingKeywords();
+    customPriorityWords = [...customPriorityWords, word].sort();
+    newPriorityWord = "";
+    await savePriorityWords();
   }
 
-  async function deleteProgrammingKeyword(kw: string) {
-    customProgrammingKeywords = customProgrammingKeywords.filter((item) => item !== kw);
-    await saveCustomProgrammingKeywords();
+  async function deletePriorityWord(word: string) {
+    customPriorityWords = customPriorityWords.filter((item) => item !== word);
+    await savePriorityWords();
   }
 
   async function loadAppConfigs() {
@@ -895,7 +760,6 @@
       allow_consonant_zfwj: settings.allow_consonant_zfwj,
       quick_start_consonant: settings.quick_start_consonant,
       quick_end_consonant: settings.quick_end_consonant,
-      fsm_priority_order: [...settings.fsm_priority_order],
       name: name,
     };
 
@@ -919,60 +783,7 @@
     }
   }
 
-  let appFsmDragIndex = $state<number | null>(null);
-  let appFsmDragOverIndex = $state<number | null>(null);
-  let appFsmIsDragging = $state(false);
-  let appFsmListEl = $state<HTMLElement | null>(null);
 
-  function appFsmOrderedItems() {
-    if (!selectedApp || !appConfigs[selectedApp]) return [];
-    const order: number[] = appConfigs[selectedApp].fsm_priority_order || [2, 0, 1];
-    return order
-      .map((id: number) => FSM_DEFS.find((d) => d.id === id))
-      .filter((d): d is Exclude<typeof d, undefined> => !!d);
-  }
-
-  function appFsmSlotAtY(clientY: number): number | null {
-    if (!appFsmListEl) return null;
-    const rect = appFsmListEl.getBoundingClientRect();
-    const order = appConfigs[selectedApp]?.fsm_priority_order || [2, 0, 1];
-    const itemCount = order.length;
-    if (itemCount === 0) return null;
-    const itemHeight = rect.height / itemCount;
-    const relativeY = clientY - rect.top;
-    const slot = Math.floor(relativeY / itemHeight);
-    return Math.max(0, Math.min(itemCount - 1, slot));
-  }
-
-  function onAppFsmContainerPointerDown(e: PointerEvent) {
-    const slot = appFsmSlotAtY(e.clientY);
-    if (slot === null) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    appFsmDragIndex = slot;
-    appFsmDragOverIndex = slot;
-    appFsmIsDragging = true;
-    e.preventDefault();
-  }
-
-  function onAppFsmContainerPointerMove(e: PointerEvent) {
-    if (!appFsmIsDragging || appFsmDragIndex === null) return;
-    const slot = appFsmSlotAtY(e.clientY);
-    if (slot !== null && slot !== appFsmDragIndex) {
-      const currentOrder = appConfigs[selectedApp]?.fsm_priority_order || [2, 0, 1];
-      const newOrder = [...currentOrder];
-      const [moved] = newOrder.splice(appFsmDragIndex, 1);
-      newOrder.splice(slot, 0, moved);
-      updateAppConfigField('fsm_priority_order', newOrder);
-      appFsmDragIndex = slot;
-      appFsmDragOverIndex = slot;
-    }
-  }
-
-  function onAppFsmContainerPointerUp(_e: PointerEvent) {
-    appFsmDragIndex = null;
-    appFsmDragOverIndex = null;
-    appFsmIsDragging = false;
-  }
 
   async function deleteAppConfig(bundleId: string, name: string) {
     if (!confirm(`Bạn có chắc chắn muốn xóa cấu hình riêng cho ứng dụng "${name}"?`)) {
@@ -1274,8 +1085,7 @@
     (settings as Record<NumericSettingsKey, number>)[key] = value ? 1 : 0;
     if (value) {
       if (key === 'check_spelling') showViDictTable = true;
-      if (key === 'use_english_dictionary') showEnDictTable = true;
-      if (key === 'check_programming_keywords') showProgDictTable = true;
+      if (key === 'use_priority_dictionary') showPriorityTable = true;
     }
     saveSettings();
   }
@@ -1286,19 +1096,8 @@
     saveSettings();
   }
 
-  function handleUsePasteWorkaroundChange(checked: boolean) {
-    settings.use_paste_workaround = checked ? 1 : 0;
-    if (checked) {
-      settings.send_key_step_by_step = 0;
-    }
-    saveSettings();
-  }
-
   function handleSendKeyStepByStepChange(checked: boolean) {
     settings.send_key_step_by_step = checked ? 1 : 0;
-    if (checked) {
-      settings.use_paste_workaround = 0;
-    }
     saveSettings();
   }
 
@@ -1314,7 +1113,7 @@
     let stopListeningSettings: (() => void) | undefined;
     let stopListeningAccessibility: (() => void) | undefined;
     let stopListeningShowTab: (() => void) | undefined;
-    let stopListeningEnglishDictReset: (() => void) | undefined;
+    let stopListeningPriorityDictReset: (() => void) | undefined;
 
     getVersion().then((ver) => {
       appVersion = ver;
@@ -1341,9 +1140,8 @@
       if (granted) {
         loadSettings();
         loadMacros();
-        loadCustomEnglishWords();
         loadCustomVietnameseWords();
-        loadCustomProgrammingKeywords();
+        loadPriorityDictionary();
         loadAppConfigs();
       } else {
         pollingInterval = window.setInterval(async () => {
@@ -1351,9 +1149,8 @@
           if (ok) {
             loadSettings();
             loadMacros();
-            loadCustomEnglishWords();
             loadCustomVietnameseWords();
-            loadCustomProgrammingKeywords();
+            loadPriorityDictionary();
             loadAppConfigs();
             if (pollingInterval) {
               clearInterval(pollingInterval);
@@ -1418,17 +1215,17 @@
     });
 
 
-    listen<void>("english-dict-reset", () => {
-      loadCustomEnglishWords();
+    listen<void>("priority-dict-reset", () => {
+      loadPriorityDictionary();
     }).then((unsub) => {
-      stopListeningEnglishDictReset = unsub;
+      stopListeningPriorityDictReset = unsub;
     });
 
     return () => {
       if (stopListeningSettings) stopListeningSettings();
       if (stopListeningAccessibility) stopListeningAccessibility();
       if (stopListeningShowTab) stopListeningShowTab();
-      if (stopListeningEnglishDictReset) stopListeningEnglishDictReset();
+      if (stopListeningPriorityDictReset) stopListeningPriorityDictReset();
       if (stopListeningWebAuth) stopListeningWebAuth();
       if (stopListeningCheckUpdates) stopListeningCheckUpdates();
       if (pollingInterval) clearInterval(pollingInterval);
@@ -1447,8 +1244,7 @@
       gdriveConnected = gToken !== "";
       syncSettings = (await invoke<string>("get_kv", { key: "syncSettings" })) !== "0";
       syncVietnameseDict = (await invoke<string>("get_kv", { key: "syncVietnameseDict" })) !== "0";
-      syncEnglishDict = (await invoke<string>("get_kv", { key: "syncEnglishDict" })) !== "0";
-      syncProgrammingKeywords = (await invoke<string>("get_kv", { key: "syncProgrammingKeywords" })) !== "0";
+      syncPriorityDict = (await invoke<string>("get_kv", { key: "syncPriorityDict" })) !== "0";
       syncMacros = (await invoke<string>("get_kv", { key: "syncMacros" })) !== "0";
       syncClipboard = (await invoke<string>("get_kv", { key: "syncClipboard" })) === "1";
       syncAppConfigs = (await invoke<string>("get_kv", { key: "syncAppConfigs" })) !== "0";
@@ -1466,8 +1262,7 @@
       await invoke("set_kv", { key: "syncMethod", value: syncMethod });
       await invoke("set_kv", { key: "syncSettings", value: syncSettings ? "1" : "0" });
       await invoke("set_kv", { key: "syncVietnameseDict", value: syncVietnameseDict ? "1" : "0" });
-      await invoke("set_kv", { key: "syncEnglishDict", value: syncEnglishDict ? "1" : "0" });
-      await invoke("set_kv", { key: "syncProgrammingKeywords", value: syncProgrammingKeywords ? "1" : "0" });
+      await invoke("set_kv", { key: "syncPriorityDict", value: syncPriorityDict ? "1" : "0" });
       await invoke("set_kv", { key: "syncMacros", value: syncMacros ? "1" : "0" });
       await invoke("set_kv", { key: "syncClipboard", value: syncClipboard ? "1" : "0" });
       await invoke("set_kv", { key: "syncAppConfigs", value: syncAppConfigs ? "1" : "0" });
@@ -1808,13 +1603,7 @@
                 </div>
               </label>
 
-              <label class="toggle-container">
-                <span class="toggle-text">Chỉ bỏ dấu khi kết thúc từ <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Chỉ bỏ dấu khi kết thúc từ:</strong><br/>Hoãn việc bỏ dấu tiếng Việt trong quá trình gõ thô. Khi bạn gõ xong từ và nhấn phím cách (Space) hoặc phím ngắt từ, bộ gõ mới tự động bỏ dấu toàn bộ từ cùng một lúc. Giúp tránh xung đột dấu khi gõ xen kẽ từ ngoại ngữ."}>?</span></span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.late_accent_transformation === 1} onchange={(e) => handleCheckboxChange('late_accent_transformation', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
+
 
               <label class="toggle-container">
                 <span class="toggle-text">Đặt dấu hiện đại <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Đặt dấu hiện đại:</strong><br/>Đặt dấu trên nguyên âm chính trong các cụm như <kbd>oà</kbd>, <kbd>uý</kbd> (thay vì kiểu cũ <kbd>òa</kbd>, <kbd>úy</kbd>). Áp dụng cho các cụm <kbd>oa</kbd>, <kbd>oe</kbd>, <kbd>uy</kbd>."}>?</span></span>
@@ -1857,8 +1646,7 @@
             <!-- SECTION 1: VIETNAMESE -->
             <div class="spell-section">
               <label class="toggle-container">
-                <span class="toggle-text font-bold" style="font-size:14.5px; display: inline-flex; align-items: center; gap: 10px;">
-                  <VietnamFlag size={20} />
+                <span class="toggle-text font-bold" style="font-size:14.5px;">
                   Kiểm tra chính tả tiếng Việt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra chính tả tiếng Việt:</strong><br/>Theo dõi cấu trúc âm tiết tiếng Việt chuẩn hóa để hạn chế các trường hợp tự động chuyển đổi sai dấu."}>?</span>
                 </span>
                 <div class="switch">
@@ -1915,191 +1703,54 @@
 
             <div class="dict-section-divider"></div>
 
-            <!-- SECTION 2: ENGLISH -->
+            <!-- SECTION 2: PRIORITY DICTIONARY -->
             <div class="spell-section">
               <label class="toggle-container">
-                <span class="toggle-text font-bold" style="font-size:14.5px; display: inline-flex; align-items: center; gap: 10px;">
-                  <USFlag size={20} />
-                  Kiểm tra chính tả tiếng Anh <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra từ tiếng Anh:</strong><br/>Dùng luật cấu thành từ tiếng Anh và từ điển tùy chỉnh để giữ nguyên các từ tiếng Anh dễ bị Telex biến đổi thành chữ tiếng Việt."}>?</span>
+                <span class="toggle-text font-bold" style="font-size:14.5px;">
+                  Từ điển ưu tiên <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Từ điển ưu tiên:</strong><br/>Các từ nằm trong từ điển này sẽ được tự động giữ nguyên (khôi phục từ gốc) thay vì tự động chuyển đổi sang tiếng Việt có dấu."}>?</span>
                 </span>
                 <div class="switch">
-                  <input type="checkbox" checked={settings.use_english_dictionary === 1} onchange={(e) => handleCheckboxChange('use_english_dictionary', (e.target as HTMLInputElement).checked)} />
+                  <input type="checkbox" checked={settings.use_priority_dictionary === 1} onchange={(e) => handleCheckboxChange('use_priority_dictionary', (e.target as HTMLInputElement).checked)} />
                   <span class="slider"></span>
                 </div>
               </label>
 
-              {#if settings.use_english_dictionary === 1}
+              {#if settings.use_priority_dictionary === 1}
                 <div class="spell-sub-section" transition:slide={{ duration: 200 }}>
-                  <label class="toggle-container sub-toggle">
-                    <span class="toggle-text">Sử dụng thêm bảng từ điển tiếng Anh cá nhân</span>
-                    <div class="switch">
-                      <input type="checkbox" checked={showEnDictTable} onchange={(e) => showEnDictTable = (e.target as HTMLInputElement).checked} />
-                      <span class="slider"></span>
+                  <div class="dict-editor-container mt-10">
+                    <p class="dict-hint">Nhập các từ ưu tiên muốn giữ nguyên (không tự động bỏ dấu/thêm dấu tiếng Việt).</p>
+                    <div class="dict-toolbar">
+                      <input type="search" placeholder="Tìm trong từ điển..." bind:value={prioritySearch} aria-label="Tìm trong từ điển ưu tiên" />
+                      <div class="dict-add-row">
+                        <input type="text" placeholder="Thêm từ mới" bind:value={newPriorityWord} onkeydown={(event) => event.key === "Enter" && addPriorityWord()} aria-label="Từ ưu tiên mới" />
+                        <button class="btn btn-primary" onclick={addPriorityWord} disabled={savingPriority}>Thêm</button>
+                      </div>
                     </div>
-                  </label>
-
-                  {#if showEnDictTable}
-                    <div class="dict-editor-container mt-10" transition:slide={{ duration: 250 }}>
-                      <div class="dict-toolbar">
-                        <input type="search" placeholder="Tìm trong từ điển..." bind:value={dictionarySearch} aria-label="Tìm trong từ điển tiếng Anh" />
-                        <div class="dict-add-row">
-                          <input type="text" placeholder="Thêm từ mới (a-z)" bind:value={newEnglishWord} onkeydown={(event) => event.key === "Enter" && addEnglishWord()} aria-label="Từ tiếng Anh mới" />
-                          <button class="btn btn-primary" onclick={addEnglishWord} disabled={savingDict}>Thêm</button>
+                    {#if priorityError}<p class="form-error">{priorityError}</p>{/if}
+                    
+                    <div class="dict-grid-container" aria-label="Danh sách từ ưu tiên">
+                      {#if filteredPriorityWords.length === 0}
+                        <div class="dict-empty">Không tìm thấy từ phù hợp.</div>
+                      {:else}
+                        <div class="dict-words-grid">
+                          {#each filteredPriorityWords as entry (entry.word)}
+                            <div class="dict-word-badge">
+                              <span class="font-mono word-text">{entry.word}</span>
+                              <button class="btn-delete-x" onclick={() => deletePriorityWord(entry.word)} aria-label="Xóa">×</button>
+                            </div>
+                          {/each}
                         </div>
-                      </div>
-                      {#if dictionaryError}<p class="form-error">{dictionaryError}</p>{/if}
-                      
-                      <div class="dict-grid-container" aria-label="Danh sách từ tiếng Anh">
-                        {#if filteredEnglishWords.length === 0}
-                          <div class="dict-empty">Không tìm thấy từ phù hợp.</div>
-                        {:else}
-                          <div class="dict-words-grid">
-                            {#each filteredEnglishWords as entry (entry.word)}
-                              <div class="dict-word-badge">
-                                <span class="font-mono word-text">{entry.word}</span>
-                                <button class="btn-delete-x" onclick={() => deleteEnglishWord(entry.word)} aria-label="Xóa">×</button>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </div>
-                      <div class="dict-footer">
-                        <span class="dict-count-muted">{customEnglishWords.length} từ</span>
-                        {#if saveDictSuccess}<span class="save-status success">Đã đồng bộ từ điển.</span>{/if}
-                      </div>
+                      {/if}
                     </div>
-                  {/if}
+                    <div class="dict-footer">
+                      <span class="dict-count-muted">{customPriorityWords.length} từ</span>
+                      {#if savePrioritySuccess}<span class="save-status success">Đã đồng bộ từ điển.</span>{/if}
+                    </div>
+                  </div>
                 </div>
               {/if}
             </div>
 
-            <div class="dict-section-divider"></div>
-
-            <!-- SECTION 3: PROGRAMMING -->
-            <div class="spell-section">
-              <label class="toggle-container">
-                <span class="toggle-text font-bold" style="font-size:14.5px; display: inline-flex; align-items: center; gap: 10px;">
-                  <ProgIcon size={20} />
-                  Kiểm tra cú pháp lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra cú pháp lập trình:</strong><br/>Nhận diện các từ khóa lập trình phổ biến, kiểm tra cú pháp Caps và từ tiếng Anh trước ký hiệu lập trình để tối ưu việc gõ code."}>?</span>
-                </span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.check_programming_keywords === 1} onchange={(e) => handleCheckboxChange('check_programming_keywords', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-
-              {#if settings.check_programming_keywords === 1}
-                <div class="spell-sub-section" transition:slide={{ duration: 200 }}>
-                  <label class="toggle-container sub-toggle">
-                    <span class="toggle-text">Khóa Caps thông minh <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Khóa Caps thông minh:</strong><br/>Tự động phát hiện khi bạn gõ 2 chữ viết hoa liên tiếp ở đầu từ (như <kbd>DA...</kbd> trong <kbd>DATABASE_URL</kbd>) để giữ nguyên chế độ gõ chữ thô tiếng Anh, tránh bị dính dấu tiếng Việt."}>?</span></span>
-                    <div class="switch">
-                      <input type="checkbox" checked={settings.all_caps_auto_escape === 1} onchange={(e) => handleCheckboxChange('all_caps_auto_escape', (e.target as HTMLInputElement).checked)} />
-                      <span class="slider"></span>
-                    </div>
-                  </label>
-
-                  <label class="toggle-container sub-toggle mt-10">
-                    <span class="toggle-text">Khôi phục từ tiếng Anh trước ký tự lập trình/tên file <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Khôi phục trước ký tự lập trình:</strong><br/>Tự động khôi phục từ tiếng Anh gốc khi gõ liền trước các ký tự lập trình đặc trưng (như <kbd>.</kbd>, <kbd>&quot;</kbd>, <kbd>()</kbd>, <kbd>[]</kbd>, <kbd>{}</kbd>). Ví dụ: gõ <kbd>tar.gz</kbd> không bị thành <kbd>tả.gz</kbd>."}>?</span></span>
-                    <div class="switch">
-                      <input type="checkbox" checked={settings.smart_punct_check === 1} onchange={(e) => handleCheckboxChange('smart_punct_check', (e.target as HTMLInputElement).checked)} />
-                      <span class="slider"></span>
-                    </div>
-                  </label>
-
-                  <label class="toggle-container sub-toggle mt-10">
-                    <span class="toggle-text">Sử dụng thêm bảng từ khóa lập trình cá nhân</span>
-                    <div class="switch">
-                      <input type="checkbox" checked={showProgDictTable} onchange={(e) => showProgDictTable = (e.target as HTMLInputElement).checked} />
-                      <span class="slider"></span>
-                    </div>
-                  </label>
-
-                  {#if showProgDictTable}
-                    <div class="dict-editor-container mt-10" transition:slide={{ duration: 250 }}>
-                      <p class="dict-hint">Đã bao gồm các từ khóa phổ biến của C++, Java, JavaScript, TypeScript, PHP, Python, Go, Rust, ...</p>
-                      <div class="dict-toolbar">
-                        <input type="search" placeholder="Tìm từ khóa..." bind:value={keywordSearch} aria-label="Tìm từ khóa lập trình" />
-                        <div class="dict-add-row">
-                          <input type="text" placeholder="Thêm từ khóa (vd: useState)" bind:value={newKeyword} onkeydown={(event) => event.key === "Enter" && addProgrammingKeyword()} aria-label="Từ khóa lập trình mới" />
-                          <button class="btn btn-primary" onclick={addProgrammingKeyword} disabled={savingKeywords}>Thêm</button>
-                        </div>
-                      </div>
-                      {#if keywordError}<p class="form-error">{keywordError}</p>{/if}
-                      
-                      <div class="dict-grid-container" aria-label="Danh sách từ khóa lập trình">
-                        {#if filteredProgrammingKeywords.length === 0}
-                          <div class="dict-empty">Không tìm thấy từ khóa phù hợp.</div>
-                        {:else}
-                          <div class="dict-words-grid">
-                            {#each filteredProgrammingKeywords as entry (entry.kw)}
-                              <div class="dict-word-badge">
-                                <span class="font-mono word-text">{entry.kw}</span>
-                                <button class="btn-delete-x" onclick={() => deleteProgrammingKeyword(entry.kw)} aria-label="Xóa">×</button>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </div>
-                      <div class="dict-footer">
-                        <span class="dict-count-muted">{customProgrammingKeywords.length} từ khóa</span>
-                        {#if saveKeywordsSuccess}<span class="save-status success">Đã đồng bộ từ khóa.</span>{/if}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-
-          </div>
-
-          <!-- Card 4: Thứ tự ưu tiên ngôn ngữ -->
-          <div class="card mt-20">
-            <h3>Thứ tự ưu tiên ngôn ngữ</h3>
-            <p class="dict-hint" style="margin-bottom:14px;">Ngôn ngữ đứng trước được kiểm tra trước. Ví dụ: đặt <strong>Lập trình</strong> lên đầu để giữ nguyên <code>if</code>, <code>return</code>... thay vì bị chuyển thành tiếng Việt.</p>
-
-            <div
-              class="fsm-order-list"
-              class:fsm-list-dragging={fsmIsDragging}
-              role="list"
-              aria-label="Thứ tự ưu tiên ngôn ngữ"
-              bind:this={fsmListEl}
-              onpointerdown={onFsmContainerPointerDown}
-              onpointermove={onFsmContainerPointerMove}
-              onpointerup={onFsmContainerPointerUp}
-              onpointercancel={onFsmContainerPointerUp}
-            >
-              {#each fsmOrderedItems() as item, index (item.id)}
-                {@const FlagIcon = item.icon}
-                <div
-                  class="fsm-order-item"
-                  class:fsm-dragging={fsmDragIndex === index}
-                  class:drag-over={fsmDragOverIndex === index && fsmDragIndex !== index}
-                  role="listitem"
-                  aria-label="{item.name}, vị trí {index + 1}"
-                  animate:flip={{ duration: 250, easing: quintOut }}
-                >
-                  <span class="fsm-order-drag-handle" aria-hidden="true">⠿</span>
-                  <span class="fsm-order-rank">{index + 1}</span>
-                  <div class="fsm-order-emoji" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: 12px; color: var(--text-color);">
-                    <FlagIcon size={20} />
-                  </div>
-                  <div class="fsm-order-info">
-                    <span class="fsm-order-name">{item.name}</span>
-                    <span class="fsm-order-desc">{item.desc}</span>
-                  </div>
-                  <span class="fsm-order-badge {
-                    (item.id === 0 && settings.check_spelling !== 1) ||
-                    (item.id === 1 && settings.use_english_dictionary !== 1) ||
-                    (item.id === 2 && settings.check_programming_keywords !== 1)
-                      ? 'badge-off' : 'badge-on'
-                  }">
-                    {(item.id === 0 && settings.check_spelling !== 1) ||
-                     (item.id === 1 && settings.use_english_dictionary !== 1) ||
-                     (item.id === 2 && settings.check_programming_keywords !== 1) ? 'Tắt' : 'Bật'}
-                  </span>
-                </div>
-              {/each}
-            </div>
           </div>
         </section>
 
@@ -2409,16 +2060,9 @@
                 </div>
               </label>
               <label class="toggle-container">
-                <span class="toggle-text">Từ điển tiếng Anh cá nhân</span>
+                <span class="toggle-text">Từ điển ưu tiên cá nhân</span>
                 <div class="switch">
-                  <input type="checkbox" bind:checked={syncEnglishDict} onchange={saveCloudSettings} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-              <label class="toggle-container">
-                <span class="toggle-text">Từ khóa lập trình cá nhân</span>
-                <div class="switch">
-                  <input type="checkbox" bind:checked={syncProgrammingKeywords} onchange={saveCloudSettings} />
+                  <input type="checkbox" bind:checked={syncPriorityDict} onchange={saveCloudSettings} />
                   <span class="slider"></span>
                 </div>
               </label>
@@ -2636,13 +2280,7 @@
           <div class="card mt-20">
             <h3>Khắc phục lỗi & Tương thích</h3>
             <div class="toggles-grid">
-              <label class="toggle-container">
-                <span class="toggle-text">Sửa lỗi gõ trên thanh địa chỉ của trình duyệt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Sửa lỗi thanh địa chỉ trình duyệt:</strong><br/>Sử dụng cách thay thế văn bản tương thích cao với ô gợi ý và thanh địa chỉ (có thể làm thao tác thay chữ chậm hơn một chút)."}>?</span></span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.fix_recommend_browser === 1} onchange={(e) => handleCheckboxChange('fix_recommend_browser', (e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
+
 
               <label class="toggle-container">
                 <span class="toggle-text">Sửa lỗi Google Chrome/Chromium & Spotlight <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Sửa lỗi Chrome & Spotlight:</strong><br/>Khắc phục lỗi tự động gợi ý/mất dấu trên Chrome/Chromium (sử dụng bôi đen thay thế Backspace) và lỗi lặp nguyên âm khi gõ từ đầu tiên trên thanh tìm kiếm macOS Spotlight."}>?</span></span>
@@ -2652,13 +2290,7 @@
                 </div>
               </label>
 
-              <label class="toggle-container">
-                <span class="toggle-text">Sử dụng cơ chế dán từ giảm độ trễ trong Trình duyệt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Cơ chế dán giảm trễ:</strong><br/>Khi gõ trong các trình duyệt (Chrome, Safari, Firefox,...), bộ gõ sẽ gửi các từ đã sửa dấu qua bộ nhớ đệm (Paste) thay vì gửi từng phím xóa và ký tự đơn lẻ. Giúp tăng tốc độ phản hồi và triệt tiêu giật lag trên các trang web nặng như Gemini, Claude, Facebook."}>?</span></span>
-                <div class="switch">
-                  <input type="checkbox" checked={settings.use_paste_workaround === 1} onchange={(e) => handleUsePasteWorkaroundChange((e.target as HTMLInputElement).checked)} />
-                  <span class="slider"></span>
-                </div>
-              </label>
+
 
               <label class="toggle-container">
                 <span class="toggle-text">Gửi phím từng bước <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Gửi phím từng bước:</strong><br/>Gửi từng ký tự riêng để tương thích tốt với một số ứng dụng đặc biệt, tốc độ sẽ chậm hơn chế độ gửi chuỗi. <span style='color:#ff9f0a;'>Chỉ bật khi gặp lỗi lặp hoặc mất chữ.</span>"}>?</span></span>
@@ -2994,17 +2626,9 @@
                       </label>
 
                       <label class="toggle-container">
-                        <span class="toggle-text">Kiểm tra chính tả tiếng Anh <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra từ tiếng Anh:</strong><br/>Dùng luật cấu thành từ tiếng Anh và từ điển tùy chỉnh để giữ nguyên các từ tiếng Anh dễ bị Telex biến đổi thành chữ tiếng Việt."}>?</span></span>
+                        <span class="toggle-text">Từ điển ưu tiên <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Từ điển ưu tiên:</strong><br/>Giữ nguyên các từ nằm trong từ điển ưu tiên cá nhân khi gõ trong ứng dụng này."}>?</span></span>
                         <div class="switch">
-                          <input type="checkbox" checked={appConfigs[selectedApp].use_english_dictionary === 1} onchange={(e) => updateAppConfigField('use_english_dictionary', (e.target as HTMLInputElement).checked ? 1 : 0)} />
-                          <span class="slider"></span>
-                        </div>
-                      </label>
-
-                      <label class="toggle-container">
-                        <span class="toggle-text">Kiểm tra từ khóa lập trình <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra từ khóa lập trình:</strong><br/>Dùng luật nhận diện từ khóa lập trình phổ biến (<kbd>C++</kbd>, <kbd>Java</kbd>, <kbd>JS/TS</kbd>, <kbd>PHP</kbd>, <kbd>Python</kbd>, <kbd>Go</kbd>, <kbd>Rust</kbd>...) để giữ nguyên từ khi gõ code."}>?</span></span>
-                        <div class="switch">
-                          <input type="checkbox" checked={appConfigs[selectedApp].check_programming_keywords === 1} onchange={(e) => updateAppConfigField('check_programming_keywords', (e.target as HTMLInputElement).checked ? 1 : 0)} />
+                          <input type="checkbox" checked={appConfigs[selectedApp].use_priority_dictionary === 1} onchange={(e) => updateAppConfigField('use_priority_dictionary', (e.target as HTMLInputElement).checked ? 1 : 0)} />
                           <span class="slider"></span>
                         </div>
                       </label>
@@ -3041,51 +2665,7 @@
                     </div>
                   </div>
 
-                  <!-- Section 5: Thứ tự ưu tiên -->
-                  <div class="app-section">
-                    <h4>Thứ tự ưu tiên</h4>
-                    <p class="dict-hint" style="margin-bottom: 8px; font-size: 11px;">Kéo thả để sắp xếp thứ tự kiểm tra từ trên xuống.</p>
-                    <div 
-                      class="app-fsm-list"
-                      class:fsm-list-dragging={appFsmIsDragging}
-                      role="list"
-                      aria-label="Thứ tự ưu tiên cho ứng dụng"
-                      bind:this={appFsmListEl}
-                      onpointerdown={onAppFsmContainerPointerDown}
-                      onpointermove={onAppFsmContainerPointerMove}
-                      onpointerup={onAppFsmContainerPointerUp}
-                      onpointercancel={onAppFsmContainerPointerUp}
-                    >
-                      {#each appFsmOrderedItems() as item, index (item.id)}
-                        {@const FsmIcon = item.icon}
-                        <div 
-                          class="app-fsm-item"
-                          class:fsm-dragging={appFsmDragIndex === index}
-                          class:drag-over={appFsmDragOverIndex === index && appFsmDragIndex !== index}
-                          role="listitem"
-                          animate:flip={{ duration: 200, easing: quintOut }}
-                        >
-                          <span class="app-fsm-drag-handle" aria-hidden="true">⠿</span>
-                          <span class="app-fsm-rank">{index + 1}</span>
-                          <div class="app-fsm-icon">
-                            <FsmIcon size={15} />
-                          </div>
-                          <span class="app-fsm-name">{item.name}</span>
-                          <span class="app-fsm-badge {
-                            (item.id === 0 && appConfigs[selectedApp].check_spelling !== 1) ||
-                            (item.id === 1 && appConfigs[selectedApp].use_english_dictionary !== 1) ||
-                            (item.id === 2 && appConfigs[selectedApp].check_programming_keywords !== 1)
-                              ? 'badge-off' : 'badge-on'
-                          }">
-                            {(item.id === 0 && appConfigs[selectedApp].check_spelling !== 1) ||
-                             (item.id === 1 && appConfigs[selectedApp].use_english_dictionary !== 1) ||
-                             (item.id === 2 && appConfigs[selectedApp].check_programming_keywords !== 1)
-                              ? 'Tắt' : 'Bật'}
-                          </span>
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
+
                 </div>
               {:else}
                 <div class="apps-empty-state">

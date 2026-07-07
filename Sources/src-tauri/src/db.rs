@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
     static ref DB_CONN: Mutex<Option<Connection>> = Mutex::new(None);
 }
 
-const INITIAL_ENGLISH_WORDS: &[&str] = &[];
+
 
 
 // Generate a local encryption key (obfuscation key) for local DB encryption
@@ -63,30 +63,66 @@ pub fn decrypt_text(encrypted_b64: &str, key: &[u8; 32]) -> String {
     }
 }
 
+const DEFAULT_PRIORITY_WORDS: &[&str] = &[
+    // C++
+    "alignas", "alignof", "asm", "auto", "bool", "break", "case", "catch", "char", "char8_t",
+    "char16_t", "char32_t", "class", "const", "consteval", "constexpr", "constinit", "const_cast",
+    "continue", "co_await", "co_return", "co_yield", "decltype", "default", "delete", "do",
+    "double", "dynamic_cast", "else", "enum", "explicit", "export", "extern", "false", "float",
+    "for", "friend", "goto", "if", "inline", "int", "long", "mutable", "namespace", "new",
+    "noexcept", "nullptr", "operator", "private", "protected", "public", "register",
+    "reinterpret_cast", "requires", "return", "short", "signed", "sizeof", "static", "static_assert",
+    "static_cast", "struct", "switch", "template", "this", "thread_local", "throw", "true",
+    "try", "typedef", "typeid", "typename", "union", "unsigned", "using", "virtual", "void",
+    "volatile", "wchar_t", "while",
+    // PHP
+    "abstract", "array", "as", "callable", "clone", "declare", "die", "echo", "empty", "enddeclare",
+    "endfor", "endforeach", "endif", "endswitch", "endwhile", "eval", "exit", "extends", "final",
+    "finally", "fn", "foreach", "function", "global", "implements", "include", "include_once",
+    "instanceof", "insteadof", "interface", "isset", "list", "match", "print", "require",
+    "require_once", "trait", "use", "var", "yield",
+    // Java
+    "assert", "boolean", "byte", "native", "package", "strictfp", "super", "synchronized",
+    "throws", "transient",
+    // Python
+    "None", "False", "True", "and", "def", "del", "elif", "except", "global", "import", "in",
+    "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "with",
+    // Javascript & TypeScript
+    "let", "const", "var", "async", "await", "typeof", "debugger", "any", "constructor", "get",
+    "module", "number", "readonly", "set", "string", "symbol", "type", "from", "of",
+    // Shell bash
+    "alias", "bg", "bind", "builtin", "caller", "cd", "command", "coproc", "dirs", "disown",
+    "enable", "exec", "fc", "fg", "getopts", "hash", "help", "history", "jobs", "local",
+    "logout", "mapfile", "popd", "printf", "pushd", "pwd", "read", "readarray", "shift",
+    "shopt", "source", "suspend", "test", "times", "trap", "typeset", "ulimit", "umask",
+    "unalias", "unset", "wait",
+    // SQL
+    "select", "insert", "update", "delete", "create", "drop", "alter", "table", "index",
+    "where", "join", "inner", "outer", "left", "right", "group", "having", "order", "limit",
+    "offset", "between", "exists", "like", "into", "values", "null", "primary", "foreign",
+    "key", "references", "constraint", "union", "all", "any", "as", "from", "on", "into",
+    // Common confusing English & Vietnamese words
+    "game", "in", "or", "case", "true", "false", "new", "class", "function", "return",
+    "import", "export", "chat", "schema", "error", "warning", "info", "debug", "trace",
+    "config", "setting", "setup", "install", "uninstall", "update", "upgrade", "download",
+    "upload", "sync", "cloud", "local", "server", "client", "database", "query",
+    "username", "password", "email", "phone", "address", "name", "title", "description",
+    "content", "status", "type", "category", "tag", "image", "file", "folder", "directory",
+    "path", "url", "link", "button", "input", "output", "text", "date", "time", "datetime",
+    "timestamp", "event", "action", "handler", "listener", "callback", "promise", "future",
+    "task", "job", "process", "thread", "mutex", "lock", "unlock", "signal", "broadcast",
+    "notify", "subscribe", "publish", "message", "packet", "data", "payload", "header",
+    "body", "footer", "meta", "version", "build", "release"
+];
+
 pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
     std::fs::create_dir_all(app_config_dir).unwrap_or_default();
     let db_path = app_config_dir.join("vnkey.db");
-    let conn = Connection::open(db_path)?;
+    let mut conn = Connection::open(db_path)?;
 
     // Create tables
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS english_dict (
-            word TEXT PRIMARY KEY
-        )",
-        [],
-    )?;
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS vietnamese_dict (
-            word TEXT PRIMARY KEY
-        )",
-        [],
-    )?;
-
-
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS programming_keywords (
+        "CREATE TABLE IF NOT EXISTS priority_words (
             word TEXT PRIMARY KEY
         )",
         [],
@@ -117,27 +153,33 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
         [],
     )?;
 
-    *DB_CONN.lock().unwrap() = Some(conn);
-
-    let initialized = db_get_kv("english_dict_initialized").unwrap_or_else(|| "0".to_string());
-    if initialized == "0" {
-        let words: Vec<String> = INITIAL_ENGLISH_WORDS.iter().map(|s| s.to_string()).collect();
-        db_insert_english_words(&words);
-        db_set_kv("english_dict_initialized", "1");
+    // Pre-populate default priority words if empty
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM priority_words", [], |row| row.get(0))?;
+    if count == 0 {
+        let key = get_local_db_key();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare("INSERT OR IGNORE INTO priority_words (word) VALUES (?1)")?;
+            for &word in DEFAULT_PRIORITY_WORDS {
+                let enc_word = encrypt_text(&word.to_string(), &key);
+                let _ = stmt.execute(params![enc_word]);
+            }
+        }
+        tx.commit()?;
     }
 
-
+    *DB_CONN.lock().unwrap() = Some(conn);
 
     Ok(())
 }
 
-pub fn db_insert_english_words(words: &[String]) {
+pub fn db_insert_priority_words(words: &[String]) {
     let mut conn_guard = DB_CONN.lock().unwrap();
     if let Some(conn) = conn_guard.as_mut() {
         let key = get_local_db_key();
         let tx = conn.transaction().unwrap();
         {
-            let mut stmt = tx.prepare("INSERT OR IGNORE INTO english_dict (word) VALUES (?1)").unwrap();
+            let mut stmt = tx.prepare("INSERT OR IGNORE INTO priority_words (word) VALUES (?1)").unwrap();
             for word in words {
                 let enc_word = encrypt_text(word, &key);
                 let _ = stmt.execute(params![enc_word]);
@@ -147,11 +189,11 @@ pub fn db_insert_english_words(words: &[String]) {
     }
 }
 
-pub fn db_get_english_words() -> Vec<String> {
+pub fn db_get_priority_words() -> Vec<String> {
     let mut words = Vec::new();
     let key = get_local_db_key();
     if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        if let Ok(mut stmt) = conn.prepare("SELECT word FROM english_dict") {
+        if let Ok(mut stmt) = conn.prepare("SELECT word FROM priority_words") {
             let iter = stmt.query_map([], |row| {
                 let enc_word: String = row.get(0)?;
                 Ok(enc_word)
@@ -170,110 +212,10 @@ pub fn db_get_english_words() -> Vec<String> {
     words
 }
 
-pub fn db_insert_vietnamese_words(words: &[String]) {
-    let mut conn_guard = DB_CONN.lock().unwrap();
-    if let Some(conn) = conn_guard.as_mut() {
-        let key = get_local_db_key();
-        let tx = conn.transaction().unwrap();
-        {
-            let mut stmt = tx.prepare("INSERT OR IGNORE INTO vietnamese_dict (word) VALUES (?1)").unwrap();
-            for word in words {
-                let enc_word = encrypt_text(word, &key);
-                let _ = stmt.execute(params![enc_word]);
-            }
-        }
-        tx.commit().unwrap();
-    }
-}
-
-pub fn db_get_vietnamese_words() -> Vec<String> {
-    let mut words = Vec::new();
-    let key = get_local_db_key();
+pub fn db_clear_priority_words() {
     if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        if let Ok(mut stmt) = conn.prepare("SELECT word FROM vietnamese_dict") {
-            let iter = stmt.query_map([], |row| {
-                let enc_word: String = row.get(0)?;
-                Ok(enc_word)
-            });
-            if let Ok(iter) = iter {
-                for w_res in iter {
-                    if let Ok(w) = w_res {
-                        words.push(decrypt_text(&w, &key));
-                    }
-                }
-            }
-        }
+        let _ = conn.execute("DELETE FROM priority_words", []);
     }
-    words.sort();
-    words.dedup();
-    words
-}
-
-pub fn db_clear_vietnamese_words() {
-    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        let _ = conn.execute("DELETE FROM vietnamese_dict", []);
-    }
-}
-
-pub fn db_clear_english_words() {
-    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        let _ = conn.execute("DELETE FROM english_dict", []);
-    }
-}
-
-pub fn db_reset_english_words() {
-    db_clear_english_words();
-    let words: Vec<String> = INITIAL_ENGLISH_WORDS.iter().map(|s| s.to_string()).collect();
-    db_insert_english_words(&words);
-}
-
-pub fn db_insert_programming_keywords(words: &[String]) {
-    let mut conn_guard = DB_CONN.lock().unwrap();
-    if let Some(conn) = conn_guard.as_mut() {
-        let key = get_local_db_key();
-        let tx = conn.transaction().unwrap();
-        {
-            let mut stmt = tx.prepare("INSERT OR IGNORE INTO programming_keywords (word) VALUES (?1)").unwrap();
-            for word in words {
-                let enc_word = encrypt_text(word, &key);
-                let _ = stmt.execute(params![enc_word]);
-            }
-        }
-        tx.commit().unwrap();
-    }
-}
-
-pub fn db_get_programming_keywords() -> Vec<String> {
-    let mut words = Vec::new();
-    let key = get_local_db_key();
-    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        if let Ok(mut stmt) = conn.prepare("SELECT word FROM programming_keywords") {
-            let iter = stmt.query_map([], |row| {
-                let enc_word: String = row.get(0)?;
-                Ok(enc_word)
-            });
-            if let Ok(iter) = iter {
-                for w_res in iter {
-                    if let Ok(w) = w_res {
-                        words.push(decrypt_text(&w, &key));
-                    }
-                }
-            }
-        }
-    }
-    words.sort();
-    words.dedup();
-    words
-}
-
-pub fn db_clear_programming_keywords() {
-    if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
-        let _ = conn.execute("DELETE FROM programming_keywords", []);
-    }
-}
-
-pub fn db_reset_programming_keywords() {
-    db_clear_programming_keywords();
 }
 
 pub fn db_insert_macros(macros: &[(String, String)]) {

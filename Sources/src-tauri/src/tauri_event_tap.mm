@@ -73,7 +73,6 @@ extern "C" {
     extern int vPerformLayoutCompat;
     extern int vDisableHotkeys;
     extern int vFixSpotlight;
-    extern int vUsePasteWorkaround;
     
     bool _usePasteInsteadOfEvent = false;
 
@@ -302,10 +301,7 @@ extern "C" {
     }
 
     BOOL shouldUseRecommendWorkaround(NSString* topApp) {
-        if (!vFixRecommendBrowser) return false;
-        if (isSpotlightVisible()) return false;
-        if (topApp == nil) return true;
-        return !isRecommendWorkaroundDisabledApp(topApp);
+        return false;
     }
 
     BOOL shouldUseSelectionReplacement(NSString* topApp) {
@@ -775,7 +771,7 @@ extern "C" {
         }
         //send real data
         if (!vSendKeyStepByStep) {
-            if (vUsePasteWorkaround && containUnicodeCompoundApp(FRONT_APP)) {
+            if (containUnicodeCompoundApp(FRONT_APP)) {
                 _usePasteInsteadOfEvent = true;
             }
             SendNewCharString(true);
@@ -1037,7 +1033,7 @@ extern "C" {
                 
                 //send new character
                 if (!vSendKeyStepByStep) {
-                    if (vUsePasteWorkaround && containUnicodeCompoundApp(FRONT_APP) &&
+                    if (containUnicodeCompoundApp(FRONT_APP) &&
                         (pData->code == vRestore || pData->code == vRestoreAndStartNewSession)) {
                         _usePasteInsteadOfEvent = true;
                     }

@@ -90,7 +90,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "copyright": "Copyright © 2026 Hồ Quang Thái",
     "macOS": {
       "signingIdentity": "-"

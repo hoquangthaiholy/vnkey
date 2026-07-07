@@ -14,9 +14,7 @@ pub struct CloudCredentials {
 
 pub struct SyncPayloads {
     pub settings: Option<Vec<u8>>,
-    pub vietnamese_dict: Option<Vec<u8>>,
-    pub english_dict: Option<Vec<u8>>,
-    pub programming_keywords: Option<Vec<u8>>,
+    pub priority_dict: Option<Vec<u8>>,
     pub macros: Option<Vec<u8>>,
     pub clipboard: Option<Vec<u8>>,
     pub app_configs: Option<Vec<u8>>,
@@ -42,30 +40,20 @@ fn decrypt_json<T: serde::de::DeserializeOwned>(encrypted_bytes: &[u8], sync_pas
 pub fn get_sync_payloads(sync_password: &str) -> Result<SyncPayloads, Box<dyn Error>> {
     let mut payloads = SyncPayloads {
         settings: None,
-        vietnamese_dict: None,
-        english_dict: None,
-        programming_keywords: None,
+        priority_dict: None,
         macros: None,
         clipboard: None,
         app_configs: None,
     };
 
     let sync_settings = db::db_get_kv("syncSettings").unwrap_or_else(|| "1".to_string()) == "1";
-    let sync_vietnamese_dict = db::db_get_kv("syncVietnameseDict").unwrap_or_else(|| "1".to_string()) == "1";
-    let sync_english_dict = db::db_get_kv("syncEnglishDict").unwrap_or_else(|| "1".to_string()) == "1";
-    let sync_programming_keywords = db::db_get_kv("syncProgrammingKeywords").unwrap_or_else(|| "1".to_string()) == "1";
+    let sync_priority_dict = db::db_get_kv("syncPriorityDict").unwrap_or_else(|| "1".to_string()) == "1";
     let sync_macros = db::db_get_kv("syncMacros").unwrap_or_else(|| "1".to_string()) == "1";
     let sync_clipboard = db::db_get_kv("syncClipboard").unwrap_or_else(|| "0".to_string()) == "1";
     let sync_app_configs = db::db_get_kv("syncAppConfigs").unwrap_or_else(|| "1".to_string()) == "1";
 
-    if sync_vietnamese_dict {
-        payloads.vietnamese_dict = Some(encrypt_json(&db::db_get_vietnamese_words(), sync_password)?);
-    }
-    if sync_english_dict {
-        payloads.english_dict = Some(encrypt_json(&db::db_get_english_words(), sync_password)?);
-    }
-    if sync_programming_keywords {
-        payloads.programming_keywords = Some(encrypt_json(&db::db_get_programming_keywords(), sync_password)?);
+    if sync_priority_dict {
+        payloads.priority_dict = Some(encrypt_json(&db::db_get_priority_words(), sync_password)?);
     }
     if sync_macros {
         payloads.macros = Some(encrypt_json(&db::db_get_macros(), sync_password)?);
@@ -100,31 +88,18 @@ pub fn get_sync_payloads(sync_password: &str) -> Result<SyncPayloads, Box<dyn Er
 
 pub fn apply_sync_payloads(
     settings: Option<&[u8]>,
-    vietnamese_dict: Option<&[u8]>,
-    english_dict: Option<&[u8]>,
-    programming_keywords: Option<&[u8]>,
+    priority_dict: Option<&[u8]>,
     macros: Option<&[u8]>,
     clipboard: Option<&[u8]>,
     app_configs: Option<&[u8]>,
     sync_password: &str,
 ) -> Result<(), Box<dyn Error>> {
     
-    if let Some(bytes) = vietnamese_dict {
+    if let Some(bytes) = priority_dict {
         if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
-            db::db_insert_vietnamese_words(&words);
-            crate::engine::set_custom_vietnamese_words(&db::db_get_vietnamese_words().join("\n"));
-        }
-    }
-    if let Some(bytes) = english_dict {
-        if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
-            db::db_insert_english_words(&words);
-            crate::engine::set_custom_english_words(&db::db_get_english_words().join("\n"));
-        }
-    }
-    if let Some(bytes) = programming_keywords {
-        if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
-            db::db_insert_programming_keywords(&words);
-            crate::engine::set_custom_programming_keywords(&db::db_get_programming_keywords().join("\n"));
+            db::db_clear_priority_words();
+            db::db_insert_priority_words(&words);
+            crate::engine::set_priority_dictionary(&db::db_get_priority_words().join("\n"));
         }
     }
     if let Some(bytes) = macros {
@@ -195,16 +170,8 @@ pub async fn upload_sync_data(creds: &CloudCredentials, sync_password: &str) -> 
         let res = bucket.put_object("vnkey_sync_settings.enc", &data).await?;
         if res.status_code() < 200 || res.status_code() >= 300 { return Err(format!("Lỗi tải lên (HTTP {})", res.status_code()).into()); }
     }
-    if let Some(data) = payloads.vietnamese_dict {
-        let res = bucket.put_object("vnkey_sync_vietnamese_dict.enc", &data).await?;
-        if res.status_code() < 200 || res.status_code() >= 300 { return Err(format!("Lỗi tải lên (HTTP {})", res.status_code()).into()); }
-    }
-    if let Some(data) = payloads.english_dict {
-        let res = bucket.put_object("vnkey_sync_english_dict.enc", &data).await?;
-        if res.status_code() < 200 || res.status_code() >= 300 { return Err(format!("Lỗi tải lên (HTTP {})", res.status_code()).into()); }
-    }
-    if let Some(data) = payloads.programming_keywords {
-        let res = bucket.put_object("vnkey_sync_programming_keywords.enc", &data).await?;
+    if let Some(data) = payloads.priority_dict {
+        let res = bucket.put_object("vnkey_sync_priority_dict.enc", &data).await?;
         if res.status_code() < 200 || res.status_code() >= 300 { return Err(format!("Lỗi tải lên (HTTP {})", res.status_code()).into()); }
     }
     if let Some(data) = payloads.macros {
@@ -262,18 +229,14 @@ pub async fn download_sync_data(creds: &CloudCredentials, sync_password: &str) -
     }
 
     let settings = if first_res.status_code() >= 200 && first_res.status_code() < 300 { Some(first_res.bytes().to_vec()) } else { None };
-    let vietnamese_dict = get_s3_obj!("vnkey_sync_vietnamese_dict.enc");
-    let english_dict = get_s3_obj!("vnkey_sync_english_dict.enc");
-    let programming_keywords = get_s3_obj!("vnkey_sync_programming_keywords.enc");
+    let priority_dict = get_s3_obj!("vnkey_sync_priority_dict.enc");
     let macros = get_s3_obj!("vnkey_sync_macros.enc");
     let clipboard = get_s3_obj!("vnkey_sync_clipboard.enc");
     let app_configs = get_s3_obj!("vnkey_sync_app_configs.enc");
  
     apply_sync_payloads(
         settings.as_deref(),
-        vietnamese_dict.as_deref(),
-        english_dict.as_deref(),
-        programming_keywords.as_deref(),
+        priority_dict.as_deref(),
         macros.as_deref(),
         clipboard.as_deref(),
         app_configs.as_deref(),

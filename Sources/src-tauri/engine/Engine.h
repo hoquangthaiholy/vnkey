@@ -14,7 +14,6 @@
 #include "Macro.h"
 #include "SmartSwitchKey.h"
 #include "ConvertTool.h"
-#include "EnglishDictionary.h"
 
 #ifndef LOBYTE
 #define LOBYTE(data) (data & 0xFF)
@@ -79,6 +78,8 @@ extern int vSwitchKeyStatus;
  * 1: Yes
  */
 extern int vCheckSpelling;
+extern int vRestoreIfWrongSpelling;
+extern int vFreeMark;
 
 /*
  * 0: òa, úy
@@ -93,20 +94,7 @@ extern int vUseModernOrthography;
  */
 extern int vQuickTelex;
 
-/**
- * Restore protected English words that Telex changed.
- * Works together with FSM Priority Order.
- * 0: No
- * 1: Yes
- */
-extern int vUseEnglishDictionary;
 
-/*
- * Fix recommend browser's address, excel,...
- * 0: No
- * 1: Yes
- */
-extern int vFixRecommendBrowser;
 
 /*
  * Fix Spotlight first word double-vowel bug
@@ -170,18 +158,7 @@ extern int vQuickEndConsonant;
  */
 extern int vRememberCode;
 
-extern int vCheckProgrammingKeywords;
-extern int vLateAccentTransformation;
-extern int vAllCapsAutoEscape;
-extern int vUsePasteWorkaround;
 extern int vSmartPunctCheck;
-
-/**
- * FSM priority order: array of 3 values, each 0=VI, 1=EN, 2=PROG.
- * Controls the order in which FSMs are consulted in checkRestoreIfWrongSpelling.
- * Default: {0, 1, 2} (Vietnamese first, then English, then Programming).
- */
-extern int vFsmPriorityOrder[3];
 
 /**
  * Telex sub-options (effective only when vInputType == vTelex = 0):
@@ -195,6 +172,9 @@ extern int vTelexWAsU;
 extern int vTelexBracketAsO;
 extern int vUsePerceptronContext;
 extern char vCurrentAppBundleId[256];
+
+extern int vUsePriorityDictionary;
+extern int vAllowConsonantZFWJ;
 
 /**
  * Call this function first to receive data pointer
@@ -241,8 +221,8 @@ void vSetCheckSpelling();
  */
 void vTempOffEngine(const bool& off=true);
 
-// Set user-defined programming keywords list
-void vnkey_set_custom_programming_keywords(const char* content);
+// Set unified priority dictionary
+void vnkey_set_priority_dictionary(const char* content);
 
 #ifdef __cplusplus
 }
