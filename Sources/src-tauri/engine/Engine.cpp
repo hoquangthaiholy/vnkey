@@ -78,6 +78,7 @@ static Uint32 KeyStates[MAX_BUFF];
 static Byte _stateIndex = 0;
 static vector<Uint32> _rawTyping;
 
+static bool _duplicateMarkRestored = false;
 static bool tempDisableKey = false;
 static int capsElem;
 static int key;
@@ -110,6 +111,7 @@ static bool _isAllCapsLockActive = false;
 //function prototype
 void findAndCalculateVowel(const bool& forGrammar=false);
 void insertMark(const Uint32& markMask, const bool& canModifyFlag=true);
+bool applyFsmRestorations(const int& handleCode);
 
 wstring utf8ToWideString(const string& str) {
     wstring result;
@@ -972,6 +974,13 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
         TypingWord[VWSM] &= ~MARK_MASK;
         if (canModifyFlag) {
             hCode = vRestore;
+            
+            // Prioritize FSM restorations first when typing double signs
+            if (applyFsmRestorations(vRestore)) {
+                _duplicateMarkRestored = true;
+                return;
+            }
+
             if (markMask == MARK1_MASK || markMask == MARK2_MASK || markMask == MARK3_MASK || markMask == MARK4_MASK || markMask == MARK5_MASK) {
                 // Pressing the same mark key twice in a row is the standard Telex/VNI
                 // escape: it cancels the mark and the key itself becomes a literal
@@ -998,6 +1007,7 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
                 }
             }
         }
+        _duplicateMarkRestored = true;
         kk = _index - 1 - VSI;
         for (ii = VSI; ii < _index; ii++) {
             TypingWord[ii] &= ~MARK_MASK;
@@ -1440,14 +1450,16 @@ void handleQuickTelex(const Uint16& data, const bool& isCaps) {
 static bool restoreRawTyping(const int& handleCode, bool excludeLast = true) {
     hCode = handleCode;
     hBPC = _index;
-    hNCC = excludeLast ? (_stateIndex - 1) : _stateIndex;
-    for (i = 0; i < _stateIndex; i++) {
-        TypingWord[i] = KeyStates[i];
+    hNCC = excludeLast ? (_rawTyping.size() - 1) : _rawTyping.size();
+    for (size_t i = 0; i < _rawTyping.size(); i++) {
+        TypingWord[i] = _rawTyping[i];
+        KeyStates[i] = _rawTyping[i];
     }
     for (i = 0; i < hNCC; i++) {
-        hData[hNCC - 1 - i] = KeyStates[i];
+        hData[hNCC - 1 - i] = _rawTyping[i];
     }
-    _index = _stateIndex;
+    _index = static_cast<Byte>(_rawTyping.size());
+    _stateIndex = static_cast<Byte>(_rawTyping.size());
     return true;
 }
 
@@ -1825,6 +1837,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
                      const Uint16& data,
                      const Uint8& capsStatus,
                      const bool& otherControlKey) {
+    _duplicateMarkRestored = false;
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
     const bool wordBreak = isWordBreak(event, state, data) || 
@@ -2181,7 +2194,9 @@ void vKeyHandleEvent(const vKeyEvent& event,
         }
         
         if (hCode == vRestore) {
-            insertKey(data, _isCaps);
+            if (!_duplicateMarkRestored) {
+                insertKey(data, _isCaps);
+            }
         }
         
         //insert or replace key for macro feature

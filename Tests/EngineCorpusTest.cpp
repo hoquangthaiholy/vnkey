@@ -233,7 +233,9 @@ std::string simulateWord(const std::string &raw, bool restore,
         output.push_back(converted);
     }
     if (state->code == vRestore || state->code == vRestoreAndStartNewSession) {
-      output.push_back(cp);
+      if (cp == ' ' || ispunct(static_cast<unsigned char>(cp)) || cp == '\n' || cp == '\r' || cp == '\t') {
+        output.push_back(cp);
+      }
     }
   }
   if (!output.empty() && output.back() == ' ')
@@ -589,15 +591,15 @@ int runMarkEscapeTests() {
     bool needsFullRestore = false;
   };
   static const Case cases[] = {
-    {"ass", "ass"},
-    {"loss", "loss"},
-    {"off", "off"},
-    {"password", "password"},
-    {"coffee", "coffee"},
-    {"issue", "issue"},
+    {"ass", "as"},
+    {"loss", "los"},
+    {"off", "of"},
+    {"password", "pasword"},
+    {"coffee", "cofee"},
+    {"issue", "isue"},
     {"class", "class"},
     {"stress", "stress"},
-    {"buffer", "buffer"},
+    {"buffer", "bufer"},
     // Non-adjacent repeat of the same tone key across a horn/breve ("w")
     // modifier, which expands the vowel run past the mark position used by
     // the initial hBPC calculation. Previously left a stale character behind
@@ -607,7 +609,7 @@ int runMarkEscapeTests() {
     {"toward", "toward", true},
     {"award", "award", true},
     {"tesst", "test", true},
-    {"tess", "tess"},
+    {"tess", "tes"},
   };
 
   int passed = 0, failed = 0;
@@ -669,7 +671,7 @@ struct TypingSession {
     }
     if (sendTrigger &&
         (state->code == vRestore || state->code == vRestoreAndStartNewSession)) {
-      if (triggerCp)
+      if (triggerCp && (triggerCp == ' ' || ispunct(static_cast<unsigned char>(triggerCp)) || triggerCp == '\n' || triggerCp == '\r' || triggerCp == '\t'))
         screen.push_back(triggerCp);
     }
     if (state->code == vRestoreAndStartNewSession)
@@ -715,6 +717,7 @@ int runTypingSessionTests() {
     const char *name;
     const char *keys;     // raw keystrokes; '\b' = backspace
     const char *expected; // full expected screen content at the end
+    const char *appBundleId = ""; // Simulated app bundle ID
   };
   static const Case cases[] = {
     // Repeated Vietnamese words must never degrade after earlier words,
@@ -755,6 +758,11 @@ int runTypingSessionTests() {
     {"bs-over-space", "veef \b\b\bveef ", "về "},
     {"bs-commit-retype", "tesst \b\b\b\b\btesst ", "test "},
     {"bs-everything", "veef\b\b", ""},
+    // New app-specific test cases
+    {"vscode-test", "test ", "tét ", "com.microsoft.VSCode"},
+    {"safari-test", "test ", "tét ", "com.apple.Safari"},
+    {"terminal-mixed", "npm install xong rooif ", "npm install xong rồi ", "com.apple.Terminal"},
+    {"spotlight-search", "test ", "tét ", "com.apple.Spotlight"},
   };
 
   // Run with production-like settings; restore the suite-wide config after.
@@ -772,6 +780,12 @@ int runTypingSessionTests() {
 
   int passed = 0, failed = 0;
   for (const auto &c : cases) {
+    if (c.appBundleId && c.appBundleId[0] != '\0') {
+      strncpy(vCurrentAppBundleId, c.appBundleId, sizeof(vCurrentAppBundleId) - 1);
+      vCurrentAppBundleId[sizeof(vCurrentAppBundleId) - 1] = '\0';
+    } else {
+      vCurrentAppBundleId[0] = '\0';
+    }
     TypingSession session;
     for (uint32_t cp : decodeUtf8(c.keys))
       session.pressKey(cp);

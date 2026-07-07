@@ -65,7 +65,8 @@
         "transparent": true,
         "alwaysOnTop": true,
         "visible": false,
-        "url": "/hud"
+        "url": "/hud",
+        "shadow": false
       }
     ],
     "security": {

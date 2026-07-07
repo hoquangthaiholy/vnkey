@@ -63,6 +63,9 @@ static bool               _isInited = false;
 static id                 activeAppObserver = nil;
 static id                 wakeObserver = nil;
 static double             _lastAppSwitchTime = 0.0;
+static NSTimer            *secureInputTimer = nil;
+static BOOL               wasInPasswordField = NO;
+static int                previousLanguage = 1;
 
 extern "C" {
     extern int vSendKeyStepByStep;
@@ -316,6 +319,58 @@ extern "C" {
         [prefs setObject:_data forKey:@"smartSwitchKey"];
     }
     
+    void checkPasswordFieldStatus(BOOL force = NO) {
+        static NSTimeInterval lastCheckTime = 0.0;
+        NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+        if (!force && (now - lastCheckTime < 0.2)) {
+            return;
+        }
+        lastCheckTime = now;
+
+        AXUIElementRef systemWide = AXUIElementCreateSystemWide();
+        if (!systemWide) return;
+        
+        AXUIElementRef focusedElement = NULL;
+        BOOL isInPassword = NO;
+        
+        if (AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute, (CFTypeRef *)&focusedElement) == kAXErrorSuccess) {
+            CFTypeRef role = NULL;
+            if (AXUIElementCopyAttributeValue(focusedElement, kAXRoleAttribute, &role) == kAXErrorSuccess) {
+                if (CFGetTypeID(role) == CFStringGetTypeID()) {
+                    NSString *roleStr = (__bridge NSString *)role;
+                    if ([roleStr isEqualToString:@"AXSecureTextField"]) {
+                        NSRunningApplication *application = [[NSWorkspace sharedWorkspace] frontmostApplication];
+                        NSString *bundleId = application.bundleIdentifier;
+                        if (![bundleId isEqualToString:@"com.hoquangthaiholy.vnkey"] && 
+                            ![bundleId isEqualToString:@"com.vnkey.app"]) {
+                            isInPassword = YES;
+                        }
+                    }
+                }
+                CFRelease(role);
+            }
+            CFRelease(focusedElement);
+        }
+        CFRelease(systemWide);
+        
+        if (isInPassword && !wasInPasswordField) {
+            previousLanguage = vLanguage;
+            if (vLanguage != 0) {
+                vLanguage = 0;
+                rust_onInputMethodChanged(vLanguage);
+                startNewSession();
+            }
+            wasInPasswordField = YES;
+        } else if (!isInPassword && wasInPasswordField) {
+            if (vLanguage != previousLanguage) {
+                vLanguage = previousLanguage;
+                rust_onInputMethodChanged(vLanguage);
+                startNewSession();
+            }
+            wasInPasswordField = NO;
+        }
+    }
+
     void OnActiveAppChanged() { //use for smart switch key; improved on Sep 28th, 2019
         queryFrontMostApp();
         
@@ -325,6 +380,17 @@ extern "C" {
         RequestNewSession();
         
         _languageTemp = getAppInputMethodStatus(string(_frontMostApp.UTF8String), vLanguage | (vCodeTable << 1));
+        
+        if (vUseSmartSwitchKey) {
+            NSString* frontAppLower = [_frontMostApp lowercaseString];
+            BOOL isTerminal = [frontAppLower containsString:@"terminal"] || [frontAppLower containsString:@"iterm"];
+            if (isTerminal && _languageTemp == -1) {
+                _languageTemp = 0 | (vCodeTable << 1); // 0 = English
+                setAppInputMethodStatus(string(_frontMostApp.UTF8String), _languageTemp);
+                saveSmartSwitchKeyData();
+            }
+        }
+
         if ((_languageTemp & 0x01) != vLanguage) { //for input method
             if (_languageTemp != -1) {
                 vLanguage = _languageTemp & 0x01;
@@ -342,6 +408,7 @@ extern "C" {
                 saveSmartSwitchKeyData();
             }
         }
+        checkPasswordFieldStatus(YES);
     }
     
     void OnTableCodeChange() {
@@ -778,6 +845,10 @@ extern "C" {
             return event;
         }
         
+        if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown || type == kCGEventKeyDown) {
+            checkPasswordFieldStatus(NO);
+        }
+        
         _flag = CGEventGetFlags(event);
         _keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
         
@@ -1065,6 +1136,7 @@ extern "C" {
             NULL,
             CFNotificationSuspensionBehaviorDeliverImmediately
         );
+
         activeAppObserver = [[[NSWorkspace sharedWorkspace] notificationCenter] addObserverForName:NSWorkspaceDidActivateApplicationNotification
                                                                         object:nil
                                                                          queue:[NSOperationQueue mainQueue]
@@ -1089,12 +1161,17 @@ extern "C" {
         }];
 
         wakeObserver = [[[NSWorkspace sharedWorkspace] notificationCenter] addObserverForName:NSWorkspaceDidWakeNotification
-                                                                        object:nil
-                                                                         queue:[NSOperationQueue mainQueue]
-                                                                    usingBlock:^(NSNotification * _Nonnull note) {
+                                                                         object:nil
+                                                                          queue:[NSOperationQueue mainQueue]
+                                                                     usingBlock:^(NSNotification * _Nonnull note) {
             (void)note;
             refreshCurrentInputSource();
             rust_onInputMethodChanged(vLanguage);
+        }];
+
+        secureInputTimer = [NSTimer scheduledTimerWithTimeInterval:0.25 repeats:YES block:^(NSTimer * _Nonnull timer) {
+            (void)timer;
+            checkPasswordFieldStatus(YES);
         }];
 
         return true;
@@ -1127,6 +1204,10 @@ extern "C" {
                 NULL
             );
             VNKeyFree();
+            if (secureInputTimer) {
+                [secureInputTimer invalidate];
+                secureInputTimer = nil;
+            }
             _isInited = false;
         }
     }
