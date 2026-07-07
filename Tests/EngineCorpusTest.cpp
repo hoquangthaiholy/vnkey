@@ -606,6 +606,8 @@ int runMarkEscapeTests() {
     {"forward", "forward", true},
     {"toward", "toward", true},
     {"award", "award", true},
+    {"tesst", "test", true},
+    {"tess", "tess"},
   };
 
   int passed = 0, failed = 0;
@@ -624,6 +626,175 @@ int runMarkEscapeTests() {
     }
   }
   std::cout << "MarkEscape passed=" << passed << " failed=" << failed << "\n";
+  return failed;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Typing-session simulation tests
+//
+// Unlike simulateWord() (one isolated word per engine init), these type a whole
+// passage through ONE engine session, mirroring the real macOS event tap:
+//  - vDoNothing        -> the original key event passes through to the app
+//  - vWillProcess/...  -> event swallowed; backspaces are NOT clamped (an
+//                         overshoot eats earlier committed text and is counted
+//                         as `underflow`, which always fails the test)
+//  - vRestoreAndStartNewSession -> startNewSession() after sending, exactly
+//                         like SendNewCharString() in tauri_event_tap.mm
+//  - KEY_DELETE with vDoNothing -> screen loses one character (passthrough)
+// This catches cross-word state corruption (stale KeyStates/_rawTyping,
+// wrong hBPC) that per-word simulation structurally cannot see.
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct TypingSession {
+  vKeyHookState *state;
+  std::vector<uint32_t> screen;
+  int underflow = 0;
+
+  TypingSession() {
+    state = static_cast<vKeyHookState *>(vKeyInit());
+    startNewSession();
+  }
+
+  void applyResult(uint32_t triggerCp, bool sendTrigger) {
+    for (int i = 0; i < state->backspaceCount; i++) {
+      if (!screen.empty())
+        screen.pop_back();
+      else
+        underflow++;
+    }
+    for (int i = state->newCharCount - 1; i >= 0; --i) {
+      const uint32_t converted = engineCodeToUnicode(state->charData[i]);
+      if (converted)
+        screen.push_back(converted);
+    }
+    if (sendTrigger &&
+        (state->code == vRestore || state->code == vRestoreAndStartNewSession)) {
+      if (triggerCp)
+        screen.push_back(triggerCp);
+    }
+    if (state->code == vRestoreAndStartNewSession)
+      startNewSession();
+  }
+
+  void pressKey(uint32_t cp) {
+    if (cp == '\b') {
+      vKeyHandleEvent(Keyboard, KeyDown, KEY_DELETE, 0, false);
+      if (state->code == vDoNothing) {
+        if (!screen.empty())
+          screen.pop_back();
+        else
+          underflow++;
+      } else {
+        applyResult(0, false);
+      }
+      return;
+    }
+    const auto key = _characterMap.find(cp);
+    assert(key != _characterMap.end());
+    const Uint32 keyData = key->second;
+    vKeyHandleEvent(Keyboard, KeyDown, keyData & CHAR_MASK,
+                    (keyData & CAPS_MASK) ? 1 : 0, false);
+    if (state->code == vDoNothing) {
+      screen.push_back(cp);
+    } else if (state->code == vWillProcess || state->code == vRestore ||
+               state->code == vRestoreAndStartNewSession) {
+      applyResult(cp, true);
+    }
+  }
+
+  std::string text() const {
+    std::string result;
+    for (uint32_t cp : screen)
+      result += encodeUtf8(cp);
+    return result;
+  }
+};
+
+int runTypingSessionTests() {
+  struct Case {
+    const char *name;
+    const char *keys;     // raw keystrokes; '\b' = backspace
+    const char *expected; // full expected screen content at the end
+  };
+  static const Case cases[] = {
+    // Repeated Vietnamese words must never degrade after earlier words,
+    // including after an English-restored word (regression: a word that
+    // errored once became impossible to retype).
+    {"vn-repeat", "veef veef veef", "về về về"},
+    {"vn-after-restore", "tesst veef", "test về"},
+    {"vn-sentence", "xin chaof cacs banj", "xin chào các bạn"},
+    // Double-mark-key escape collapses at commit: "tesst" -> "test",
+    // while "tess" stays literal.
+    {"tesst-commit", "tesst ", "test "},
+    {"tesst-repeat", "tesst tesst ", "test test "},
+    {"tess-literal", "tess ", "tess "},
+    // Vietnamese words whose raw Telex is a PREFIX of a protected English
+    // word must not be forced to raw ASCII while still valid Vietnamese
+    // (regression: "cò" -> "cof" because "cof" prefixes "coffee").
+    {"co-huyen", "cof ", "cò "},
+    {"co-huyen-repeat", "cof cof ", "cò cò "},
+    // Ambiguity contract: bare "test" resolves as Vietnamese "tét";
+    // literal English "test" is typed "tesst".
+    {"test-vn", "test ", "tét "},
+    // Mixed Vietnamese / English / protected words in one flow.
+    {"mixed", "toi dungf password cuar coffee ", "toi dùng password của coffee "},
+    {"mixed2", "hoom nay tesst xong rooif ", "hôm nay test xong rồi "},
+    {"code-then-vn", "npm install xong rooif nhes ", "npm install xong rồi nhé "},
+    // Paths and identifiers must survive untouched (regression: "/usr"
+    // became "/ủ" and swallowed the segment).
+    {"path-absolute", "cd /usr/local/bin ", "cd /usr/local/bin "},
+    {"path-home", "ls ~/src/app ", "ls ~/src/app "},
+    {"ident-snake", "get_user_name ", "get_user_name "},
+    {"ident-camel", "getUserName ", "getUserName "},
+    {"call-paren", "printf(hello) ", "printf(hello) "},
+    // ...but a slash directly after a word is normal Vietnamese prose.
+    {"vn-slash", "anh/chij em ", "anh/chị em "},
+    {"vn-slash2", "vaf/hoawcj laf ", "và/hoặc là "},
+    // Backspace flows across a committed restore and across spaces.
+    {"bs-retype", "veef\b\bveef", "về"},
+    {"bs-over-space", "veef \b\b\bveef ", "về "},
+    {"bs-commit-retype", "tesst \b\b\b\b\btesst ", "test "},
+    {"bs-everything", "veef\b\b", ""},
+  };
+
+  // Run with production-like settings; restore the suite-wide config after.
+  const int savedDict = vUseEnglishDictionary;
+  const int savedRestore = vRestoreIfWrongSpelling;
+  const int savedOrtho = vUseModernOrthography;
+  const int savedPriority[3] = {vFsmPriorityOrder[0], vFsmPriorityOrder[1],
+                                vFsmPriorityOrder[2]};
+  vUseEnglishDictionary = 1;
+  vRestoreIfWrongSpelling = 0;
+  vUseModernOrthography = 0;
+  vFsmPriorityOrder[0] = 0; // Vietnamese first (user-facing default behavior)
+  vFsmPriorityOrder[1] = 2;
+  vFsmPriorityOrder[2] = 1;
+
+  int passed = 0, failed = 0;
+  for (const auto &c : cases) {
+    TypingSession session;
+    for (uint32_t cp : decodeUtf8(c.keys))
+      session.pressKey(cp);
+    const std::string got = session.text();
+    if (got != std::string(c.expected) || session.underflow != 0) {
+      ++failed;
+      std::cout << "  [FAIL] Session '" << c.name << "' keys='" << c.keys
+                << "' expected='" << c.expected << "' got='" << got
+                << "' underflow=" << session.underflow << "\n";
+    } else {
+      ++passed;
+    }
+  }
+
+  vUseEnglishDictionary = savedDict;
+  vRestoreIfWrongSpelling = savedRestore;
+  vUseModernOrthography = savedOrtho;
+  vFsmPriorityOrder[0] = savedPriority[0];
+  vFsmPriorityOrder[1] = savedPriority[1];
+  vFsmPriorityOrder[2] = savedPriority[2];
+
+  std::cout << "TypingSession passed=" << passed << " failed=" << failed
+            << "\n";
   return failed;
 }
 
@@ -819,6 +990,7 @@ int main(int argc, char *argv[]) {
     failures += runProgrammingFSMTests();
     failures += runToneMarkPositionTests();
     failures += runMarkEscapeTests();
+    failures += runTypingSessionTests();
     std::cout << (failures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n");
     return failures > 0 ? 1 : 0;
   }
@@ -832,7 +1004,7 @@ int main(int argc, char *argv[]) {
 
   // ── FSM unit tests ────────────────────────────────────────────────────────
   std::cout << "=== FSM Unit Tests ===\n";
-  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runToneMarkPositionTests() + runMarkEscapeTests();
+  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runToneMarkPositionTests() + runMarkEscapeTests() + runTypingSessionTests();
   std::cout << (fsmFailures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n") << "\n";
 
   // ── Corpus accuracy tests ─────────────────────────────────────────────────

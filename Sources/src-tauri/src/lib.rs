@@ -425,22 +425,42 @@ fn gui_domain_target() -> Option<String> {
     Some(format!("gui/{}", uid))
 }
 
+/// PID of the running launchd agent job, if any.
+fn launchd_job_pid(domain: &str) -> Option<u32> {
+    let output = std::process::Command::new("launchctl")
+        .arg("print")
+        .arg(format!("{}/com.hoquangthaiholy.vnkey", domain))
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).to_string();
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(value) = line.strip_prefix("pid = ") {
+            return value.trim().parse::<u32>().ok();
+        }
+    }
+    None
+}
+
+/// Boot out the launchd agent unless it is the process we are running in:
+/// booting out our own job would terminate the app mid-toggle.
+fn bootout_agent_if_not_self(domain: &str, path: &std::path::Path) {
+    if launchd_job_pid(domain) == Some(std::process::id()) {
+        return;
+    }
+    let _ = std::process::Command::new("launchctl")
+        .arg("bootout")
+        .arg(domain)
+        .arg(path)
+        .output();
+}
+
 fn update_autostart_config(enabled: bool) {
     if let Ok(home) = std::env::var("HOME") {
         let mut path = PathBuf::from(home);
         path.push("Library");
         path.push("LaunchAgents");
         path.push("com.hoquangthaiholy.vnkey.plist");
-
-        // Unload any previously registered agent first so launchd picks up
-        // the change immediately instead of waiting for the next login.
-        if let Some(domain) = gui_domain_target() {
-            let _ = std::process::Command::new("launchctl")
-                .arg("bootout")
-                .arg(&domain)
-                .arg(&path)
-                .output();
-        }
 
         if enabled {
             if let Ok(exe_path) = std::env::current_exe() {
@@ -463,6 +483,21 @@ fn update_autostart_config(enabled: bool) {
                     exe_str
                 );
 
+                // If plist file already exists and has the same content, do nothing to prevent self-bootout deadlock
+                if path.exists() {
+                    if let Ok(existing) = std::fs::read_to_string(&path) {
+                        if existing == plist_content {
+                            return;
+                        }
+                    }
+                }
+
+                // Unload any previously registered agent first so launchd picks up
+                // the change immediately instead of waiting for the next login.
+                if let Some(domain) = gui_domain_target() {
+                    bootout_agent_if_not_self(&domain, &path);
+                }
+
                 if let Some(parent) = path.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
@@ -481,6 +516,12 @@ fn update_autostart_config(enabled: bool) {
             }
         } else {
             if path.exists() {
+                // Unload any previously registered agent. If the agent job IS
+                // this very process, only delete the plist: the job unloads at
+                // next logout and must not be killed from under the user now.
+                if let Some(domain) = gui_domain_target() {
+                    bootout_agent_if_not_self(&domain, &path);
+                }
                 let _ = std::fs::remove_file(path);
             }
         }

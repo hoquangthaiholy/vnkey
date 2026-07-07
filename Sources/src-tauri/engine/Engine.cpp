@@ -1533,6 +1533,67 @@ bool predictIsEnglishOrProgramming(const std::string& word) {
     return score > 0.0;
 }
 
+static std::string collapseDuplicateMarkKeys(const std::string& word) {
+    std::string result;
+    for (size_t i = 0; i < word.length(); i++) {
+        result.push_back(word[i]);
+        if (i + 1 < word.length() && word[i] == word[i+1]) {
+            char c = std::tolower(static_cast<unsigned char>(word[i]));
+            bool isMark = false;
+            if (vInputType == 0) { // Telex
+                isMark = (c == 's' || c == 'f' || c == 'r' || c == 'x' || c == 'j' || c == 'w' || c == 'a' || c == 'o' || c == 'e' || c == 'z');
+            } else { // VNI
+                isMark = (c >= '0' && c <= '9');
+            }
+            if (isMark) {
+                // Skip the duplicate
+                i++;
+            }
+        }
+    }
+    return result;
+}
+
+static bool restoreCollapsedTyping(const int& handleCode, const std::string& collapsed) {
+    if (collapsed.empty() || collapsed.length() >= MAX_BUFF) {
+        return false;
+    }
+    hCode = handleCode;
+    hBPC = _index;
+    hNCC = static_cast<Byte>(collapsed.length());
+
+    std::vector<Uint32> newRawTyping;
+    size_t rawIdx = 0;
+    for (size_t i = 0; i < collapsed.length(); i++) {
+        char c = collapsed[i];
+        Uint32 keyState = c;
+        const auto it = _characterMap.find(c);
+        if (it != _characterMap.end()) {
+            keyState = it->second;
+        }
+        while (rawIdx < _rawTyping.size()) {
+            char rawChar = std::tolower(static_cast<unsigned char>(keyCodeToCharacter(_rawTyping[rawIdx] & CHAR_MASK)));
+            if (rawChar == std::tolower(static_cast<unsigned char>(c))) {
+                keyState = _rawTyping[rawIdx];
+                rawIdx++;
+                break;
+            }
+            rawIdx++;
+        }
+        TypingWord[i] = keyState;
+        KeyStates[i] = keyState;
+        hData[collapsed.length() - 1 - i] = keyState;
+        newRawTyping.push_back(keyState);
+    }
+    // Keep every per-word buffer in lockstep so that a later backspace or a
+    // second restore (e.g. after deleting the committing space) works against
+    // the collapsed word actually left on screen, not the pre-collapse keys.
+    _index = static_cast<Byte>(collapsed.length());
+    _stateIndex = static_cast<Byte>(collapsed.length());
+    _rawTyping = newRawTyping;
+    return true;
+}
+
 bool applyFsmRestorations(const int& handleCode) {
     if (_rawTyping.size() < 2) {
         _isAllCapsLockActive = false;
@@ -1560,7 +1621,18 @@ bool applyFsmRestorations(const int& handleCode) {
         return restoreRawTyping(handleCode, false);
     }
 
-    // 1. Check if the word has any Telex transformations (tone marks or accents)
+    // 1. Construct the raw English word string
+    std::string rawWord;
+    rawWord.reserve(_rawTyping.size());
+    for (size_t i = 0; i < _rawTyping.size(); i++) {
+        Uint16 character = keyCodeToCharacter(_rawTyping[i]);
+        if (character == 0) {
+            return false;
+        }
+        rawWord.push_back(static_cast<char>(character));
+    }
+
+    // 2. Check if the word has any Telex transformations (tone marks or accents)
     bool hasTransform = false;
     for (ii = 0; ii < _index; ii++) {
         if (!IS_CONSONANT(CHR(ii)) &&
@@ -1573,19 +1645,13 @@ bool applyFsmRestorations(const int& handleCode) {
     if (_rawTyping.size() != (size_t)_index) {
         hasTransform = true;
     }
-    if (!hasTransform) {
-        return false;
+    // Also consider it transformed if it contains duplicate mark keys that can be collapsed
+    if (collapseDuplicateMarkKeys(rawWord) != rawWord) {
+        hasTransform = true;
     }
 
-    // 2. Construct the raw English word string
-    std::string rawWord;
-    rawWord.reserve(_rawTyping.size());
-    for (size_t i = 0; i < _rawTyping.size(); i++) {
-        Uint16 character = keyCodeToCharacter(_rawTyping[i]);
-        if (character == 0) {
-            return false;
-        }
-        rawWord.push_back(static_cast<char>(character));
+    if (!hasTransform) {
+        return false;
     }
 
     // 2.5. Check if it is a protected English word first
@@ -1593,8 +1659,11 @@ bool applyFsmRestorations(const int& handleCode) {
         return restoreRawTyping(handleCode, false);
     }
 
-    // 2.6. Check if it is a prefix of a protected English word to defer Vietnamese marks
-    if (vUseEnglishDictionary && hasProtectedEnglishPrefix(rawWord)) {
+    // 2.6. Check if it is a prefix of a protected English word to defer Vietnamese marks.
+    // Only when the buffer is no longer valid Vietnamese (tempDisableKey): many common
+    // Vietnamese words are raw-prefixes of protected words (e.g. "cò" -> raw "cof" is a
+    // prefix of "coffee") and must never be forced back to raw ASCII while valid.
+    if (vUseEnglishDictionary && tempDisableKey && hasProtectedEnglishPrefix(rawWord)) {
         return restoreRawTyping(handleCode, false);
     }
 
@@ -1628,6 +1697,10 @@ bool applyFsmRestorations(const int& handleCode) {
                     // Valid English word -> EN FSM wins! Restore raw typing.
                     return restoreRawTyping(handleCode, false);
                 }
+                std::string collapsed = collapseDuplicateMarkKeys(rawWord);
+                if (collapsed != rawWord && vnkey::isValidEnglishWord(collapsed)) {
+                    return restoreCollapsedTyping(handleCode, collapsed);
+                }
             }
         } else if (fsmId == 2) {
             // Programming FSM
@@ -1645,6 +1718,10 @@ bool applyFsmRestorations(const int& handleCode) {
                     }
                     // Valid Programming keyword -> PROG FSM wins! Restore raw typing.
                     return restoreRawTyping(handleCode, false);
+                }
+                std::string collapsed = collapseDuplicateMarkKeys(rawWord);
+                if (collapsed != rawWord && vnkey::isValidProgrammingKeyword(collapsed)) {
+                    return restoreCollapsedTyping(handleCode, collapsed);
                 }
             }
         }
@@ -1755,6 +1832,13 @@ void vKeyHandleEvent(const vKeyEvent& event,
     
     if (wordBreak) {
         if (data == KEY_MINUS && capsStatus == 1) {
+            _liveProgrammingContext = true;
+        } else if ((data == KEY_SLASH || data == KEY_BACK_SLASH) && capsStatus != 1 &&
+                   (_index == 0 || _spaceCount > 0)) {
+            // A slash starting a new word opens a path segment ("/usr", "~/bin",
+            // "C:\..."): treat the following segments as programming context so
+            // "usr" doesn't become "ủ". A slash typed right after a word
+            // ("anh/chị", "và/hoặc") does NOT trigger this (_index > 0 there).
             _liveProgrammingContext = true;
         } else if (data == KEY_SPACE || data == KEY_ENTER || data == KEY_RETURN || data == KEY_TAB || data == KEY_ESC) {
             _liveProgrammingContext = false;

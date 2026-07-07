@@ -372,7 +372,8 @@ extern "C" {
         set_is_internal_copy(true);
         [pb declareTypes:@[NSPasteboardTypeString] owner:nil];
         [pb setString:text forType:NSPasteboardTypeString];
-        
+        NSInteger ourChangeCount = [pb changeCount];
+
         CGEventRef cmdVDown = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)9, true);
         CGEventSetFlags(cmdVDown, kCGEventFlagMaskCommand);
         CGEventRef cmdVUp = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)9, false);
@@ -383,9 +384,15 @@ extern "C" {
         CFRelease(cmdVDown);
         CFRelease(cmdVUp);
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
-            set_is_internal_copy(true);
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(250 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
             NSPasteboard *pb_restore = [NSPasteboard generalPasteboard];
+            // The pasteboard changed since we set our text (user copied
+            // something new): restoring oldText would clobber their copy.
+            if ([pb_restore changeCount] != ourChangeCount) {
+                set_is_internal_copy(false);
+                return;
+            }
+            set_is_internal_copy(true);
             [pb_restore declareTypes:@[NSPasteboardTypeString] owner:nil];
             if (oldText != nil) {
                 [pb_restore setString:oldText forType:NSPasteboardTypeString];
@@ -407,8 +414,17 @@ extern "C" {
         }
         if (_usePasteInsteadOfEvent) {
             NSString *str = [NSString stringWithCharacters:characters length:length];
-            PasteText(str);
-            return true;
+            BOOL hasNonAscii = NO;
+            for (NSUInteger i = 0; i < str.length; i++) {
+                if ([str characterAtIndex:i] >= 128) {
+                    hasNonAscii = YES;
+                    break;
+                }
+            }
+            if (hasNonAscii) {
+                PasteText(str);
+                return true;
+            }
         }
         CGEventKeyboardSetUnicodeString(unicodeEventDown, length, characters);
         CGEventKeyboardSetUnicodeString(unicodeEventUp, length, characters);
