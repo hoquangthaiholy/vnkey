@@ -6,7 +6,7 @@ mod db;
 mod cloud_sync;
 mod google_sync;
 
-use std::fs::{create_dir_all, File};
+use std::fs::{self, create_dir_all, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -17,9 +17,101 @@ use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{Emitter, Manager};
 use std::sync::Mutex;
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+const VNKEY_BUNDLE_ID: &str = "com.hoquangthaiholy.vnkey";
 
 pub fn get_app_handle() -> Option<tauri::AppHandle> {
     APP_HANDLE.get().cloned()
+}
+
+fn is_vnkey_bundle_id(bundle_id: &str) -> bool {
+    bundle_id == VNKEY_BUNDLE_ID
+}
+
+fn app_data_dir(handle: &tauri::AppHandle) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        let mut path = handle.path().home_dir().ok()?;
+        path.push("Library");
+        path.push("Application Support");
+        path.push("VNKey");
+        create_dir_all(&path).ok()?;
+        Some(path)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let mut path = handle.path().app_data_dir().ok()?;
+        path.pop();
+        path.push("VNKey");
+        create_dir_all(&path).ok()?;
+        Some(path)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn copy_dir_if_missing(from: &PathBuf, to: &PathBuf) {
+    if to.exists() || !from.exists() {
+        return;
+    }
+    let _ = create_dir_all(to);
+    if let Ok(entries) = fs::read_dir(from) {
+        for entry in entries.flatten() {
+            let source = entry.path();
+            let target = to.join(entry.file_name());
+            if source.is_dir() {
+                copy_dir_if_missing(&source, &target);
+            } else if !target.exists() {
+                let _ = fs::copy(source, target);
+            }
+        }
+    }
+}
+
+fn migrate_legacy_app_data(handle: &tauri::AppHandle, data_dir: &PathBuf) {
+    #[cfg(target_os = "macos")]
+    {
+        let Ok(mut app_support) = handle.path().home_dir() else {
+            return;
+        };
+        app_support.push("Library");
+        app_support.push("Application Support");
+
+        let legacy_dirs = [app_support.join("com.hoquangthaiholy.vnkey")];
+
+        for legacy_dir in legacy_dirs {
+            if !legacy_dir.exists() || legacy_dir == *data_dir {
+                continue;
+            }
+
+            let new_db = data_dir.join("data.db");
+            if !new_db.exists() {
+                for legacy_db_name in ["data.db", "vnkey.db"] {
+                    let legacy_db = legacy_dir.join(legacy_db_name);
+                    if legacy_db.exists() {
+                        let _ = fs::copy(&legacy_db, &new_db);
+                        break;
+                    }
+                }
+            }
+
+            for file_name in ["settings.json", "app_settings.json", "clipboard.json"] {
+                let source = legacy_dir.join(file_name);
+                let target = data_dir.join(file_name);
+                if !target.exists() && source.exists() {
+                    let _ = fs::copy(source, target);
+                }
+            }
+
+            copy_dir_if_missing(
+                &legacy_dir.join("clipboard_images"),
+                &data_dir.join("clipboard_images"),
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (handle, data_dir);
+    }
 }
 static TRAY_ICON: OnceLock<TrayIcon<tauri::Wry>> = OnceLock::new();
 static GRAY_ICON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
@@ -197,23 +289,16 @@ struct PriorityDictionary {
 static CLIPBOARD_HISTORY: OnceLock<Mutex<Vec<ClipboardItem>>> = OnceLock::new();
 
 fn get_clipboard_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    if let Ok(mut path) = handle.path().app_config_dir() {
-        let _ = create_dir_all(&path);
-        path.push("clipboard.json");
-        Some(path)
-    } else {
-        None
-    }
+    let mut path = app_data_dir(handle)?;
+    path.push("clipboard.json");
+    Some(path)
 }
 
 fn get_clipboard_images_dir(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    if let Ok(mut path) = handle.path().app_config_dir() {
-        path.push("clipboard_images");
-        let _ = create_dir_all(&path);
-        Some(path)
-    } else {
-        None
-    }
+    let mut path = app_data_dir(handle)?;
+    path.push("clipboard_images");
+    let _ = create_dir_all(&path);
+    Some(path)
 }
 
 fn load_clipboard_from_disk(handle: &tauri::AppHandle) {
@@ -605,13 +690,9 @@ fn get_settings() -> Settings {
 }
 
 pub fn get_settings_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    if let Ok(mut path) = handle.path().app_config_dir() {
-        let _ = create_dir_all(&path);
-        path.push("settings.json");
-        Some(path)
-    } else {
-        None
-    }
+    let mut path = app_data_dir(handle)?;
+    path.push("settings.json");
+    Some(path)
 }
 
 fn load_settings_from_disk(handle: &tauri::AppHandle) {
@@ -650,6 +731,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
                         engine::vUpperCaseFirstChar = settings.upper_case_first_char;
                         engine::vQuickStartConsonant = settings.quick_start_consonant;
+                        engine::vQuickEndConsonant = settings.quick_end_consonant;
                         engine::vRememberCode = settings.remember_code;
                         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
                         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
@@ -778,6 +860,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
         engine::vUpperCaseFirstChar = settings.upper_case_first_char;
         engine::vQuickStartConsonant = settings.quick_start_consonant;
+        engine::vQuickEndConsonant = settings.quick_end_consonant;
         engine::vRememberCode = settings.remember_code;
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
@@ -879,6 +962,7 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vUseSmartSwitchKey = settings.use_smart_switch_key;
         engine::vUpperCaseFirstChar = settings.upper_case_first_char;
         engine::vQuickStartConsonant = settings.quick_start_consonant;
+        engine::vQuickEndConsonant = settings.quick_end_consonant;
         engine::vRememberCode = settings.remember_code;
         engine::vSendKeyStepByStep = settings.send_key_step_by_step;
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
@@ -932,8 +1016,7 @@ fn reset_settings(handle: tauri::AppHandle) {
 }
 
 fn get_macro_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    let mut path = handle.path().app_config_dir().ok()?;
-    create_dir_all(&path).ok()?;
+    let mut path = app_data_dir(handle)?;
     path.push("macros.dat");
     Some(path)
 }
@@ -1624,7 +1707,6 @@ pub extern "C" fn rust_onAccessibilityRevoked() {
                         }
                         if let Some(main_win) = handle_clone_3.get_webview_window("main") {
                             let _ = main_win.show();
-                            let _ = main_win.set_focus();
                         }
                         update_dock_icon(&handle_clone_3);
                         let _ = handle_clone_3.emit("accessibility-granted", ());
@@ -1809,13 +1891,9 @@ pub struct AppConfig {
 }
 
 pub fn get_app_settings_path(handle: &tauri::AppHandle) -> Option<PathBuf> {
-    if let Ok(mut path) = handle.path().app_config_dir() {
-        let _ = create_dir_all(&path);
-        path.push("app_settings.json");
-        Some(path)
-    } else {
-        None
-    }
+    let mut path = app_data_dir(handle)?;
+    path.push("app_settings.json");
+    Some(path)
 }
 
 #[tauri::command]
@@ -2312,15 +2390,7 @@ pub fn run() {
             tauri::WindowEvent::Destroyed => {
                 update_dock_icon(window.app_handle());
             }
-            tauri::WindowEvent::Focused(true) => {
-                let label = window.label();
-                if label == "main" {
-                    let handle = window.app_handle();
-                    load_settings_from_disk(handle);
-                    let settings = get_settings();
-                    let _ = handle.emit("settings-changed", settings);
-                }
-            }
+            tauri::WindowEvent::Focused(true) => {}
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
@@ -2368,8 +2438,9 @@ pub fn run() {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle.clone());
             
-            if let Ok(app_config_dir) = handle.path().app_config_dir() {
-                let _ = db::init_db(&app_config_dir);
+            if let Some(data_dir) = app_data_dir(&handle) {
+                migrate_legacy_app_data(&handle, &data_dir);
+                let _ = db::init_db(&data_dir);
             }
 
             load_clipboard_from_disk(&handle);
@@ -2393,7 +2464,9 @@ pub fn run() {
                             };
                             if should_update {
                                 last_app = Some(current_app.clone());
-                                apply_app_config_by_bundle_id(&handle_poll, &current_app);
+                                if !is_vnkey_bundle_id(&current_app) {
+                                    apply_app_config_by_bundle_id(&handle_poll, &current_app);
+                                }
                             }
                         }
                     }
@@ -2474,10 +2547,9 @@ pub fn run() {
                                 {
                                     let _ = onboarding_win.close();
                                 }
-                                // Always show and focus the main window (control panel) on first run after accessibility is granted
+                                // Show the control panel without stealing focus from the current app.
                                 if let Some(main_win) = handle_clone_2.get_webview_window("main") {
                                     let _ = main_win.show();
-                                    let _ = main_win.set_focus();
                                 }
                                 update_dock_icon(&handle_clone_2);
 
@@ -2594,5 +2666,3 @@ pub fn run() {
 pub extern "C" fn set_is_internal_copy(val: bool) {
     IS_INTERNAL_COPY.store(val, std::sync::atomic::Ordering::Relaxed);
 }
-
-

@@ -11,9 +11,8 @@ VNKey là ứng dụng gõ tiếng Việt hiện đại được phát triển t
 * **Hỗ trợ kiểu gõ phổ biến:** Hỗ trợ kiểu gõ Telex và VNI.
 * **Bảng mã phong phú:** Unicode dựng sẵn, Unicode tổ hợp, TCVN3 (ABC), VNI Windows, Vietnamese Locale CP 1258...
 * **Kiểm tra chính tả tiếng Việt:** Phát hiện lỗi gõ sai quy tắc âm tiết để tự khôi phục phím hoặc dừng gõ dấu sai.
-* **Từ điển tiếng Anh cá nhân:** Tự động nhận diện và bỏ qua kiểm tra chính tả tiếng Việt khi gõ từ tiếng Anh thông dụng, hỗ trợ danh sách từ tùy chỉnh.
-* **Tối ưu hóa lập trình:** Bỏ qua kiểm tra chính tả cho từ khóa cú pháp và các cấu trúc biến (`camelCase`, `snake_case`, `ALL_CAPS`).
-* **Thiết lập ưu tiên ngôn ngữ (FSM Priority):** Kéo thả để ưu tiên thứ tự xử lý phím giữa chế độ Tiếng Việt, Tiếng Anh và Lập trình.
+* **Từ điển ưu tiên:** Nhận diện từ tiếng Anh, từ lập trình và các từ dễ bị gõ nhầm dấu để giữ nguyên hoặc khôi phục thông minh.
+* **Tối ưu hóa lập trình:** Tự bảo vệ từ khóa cú pháp, tên file, đường dẫn và các cấu trúc biến (`camelCase`, `snake_case`, `ALL_CAPS`).
 * **Gõ tắt thông minh (Macro):** Quản lý từ viết tắt dễ dàng, không giới hạn độ dài ký tự thay thế, hỗ trợ tự động viết hoa (Auto Caps) và gõ tắt trong chế độ tiếng Anh.
 * **Quản lý khay nhớ tạm (Clipboard Manager):** Lưu lịch sử sao chép (văn bản, hình ảnh, liên kết) và tìm kiếm/truy xuất nhanh bằng phím tắt, bảo mật an toàn cục bộ.
 * **Công cụ chuyển mã:** Chuyển đổi nhanh qua lại giữa các bảng mã cũ sang Unicode, loại bỏ dấu tiếng Việt hoặc đổi chữ hoa/thường trực tiếp qua Clipboard.
@@ -56,12 +55,10 @@ brew upgrade --cask vnkey
 * **Kiểm tra chính tả tiếng Việt**: 
   * *Chi tiết:* Bộ lọc kiểm tra xem từ đang gõ có tuân thủ đúng quy tắc ngữ âm tiếng Việt hay không. Nếu phát hiện từ sai (ví dụ ghép âm sai quy tắc), bộ gõ sẽ tự động dừng xử lý dấu hoặc khôi phục phím gốc để từ không bị biến dạng.
   * *Sử dụng:* Luôn bật để duy trì tốc độ và độ chính xác khi gõ văn bản tiếng Việt.
-* **Từ điển tiếng Anh cá nhân**:
-  * *Chi tiết:* Bỏ qua cơ chế kiểm tra chính tả tiếng Việt đối với các từ tiếng Anh thông dụng (như `more`, `date`, `file`), tránh việc bộ gõ tự ý thêm dấu nhầm khi bạn đang viết nội dung song ngữ ở chế độ tiếng Việt. Bạn có thể tự thêm các từ tiếng Anh riêng của mình vào từ điển tùy chỉnh.
-* **Bỏ qua từ khóa lập trình**:
-  * *Chi tiết:* Nhận diện thông minh các từ khóa cú pháp phổ biến (`if`, `for`, `while`, `public`, `return`) hoặc cấu trúc viết tên biến của lập trình viên (`camelCase`, `snake_case`, `ALL_CAPS`). VNKey sẽ tự động bỏ qua kiểm tra chính tả tiếng Việt cho những từ này, giúp lập trình viên viết code mượt mà không cần đổi sang chế độ gõ tiếng Anh.
-* **Thiết lập ưu tiên ngôn ngữ (FSM Priority Order)**:
-  * *Chi tiết:* VNKey chạy song song ba bộ máy kiểm tra (Tiếng Việt, Tiếng Anh, Lập trình). Thiết lập này cho phép người dùng kéo thả để quyết định bộ máy nào được ưu tiên kiểm tra trước khi nhận phím đầu vào. Nếu bạn viết code nhiều, hãy kéo "Lập trình" lên đầu để có trải nghiệm tốt nhất.
+* **Từ điển ưu tiên**:
+  * *Chi tiết:* Bỏ qua hoặc khôi phục thông minh các từ tiếng Anh, từ lập trình, tên file và đường dẫn dễ bị chuyển nhầm sang tiếng Việt. Bạn có thể thêm các từ riêng vào danh sách ưu tiên trong bảng điều khiển.
+* **Tự khôi phục khi sai chính tả**:
+  * *Chi tiết:* Khi từ sau khi bỏ dấu không hợp lệ theo quy tắc tiếng Việt nhưng khớp với từ ưu tiên hoặc ngữ cảnh lập trình, VNKey tự trả về phím gốc để không làm biến dạng nội dung đang gõ.
 
 ### 2. Gõ tắt (Macro)
 
@@ -101,23 +98,6 @@ brew upgrade --cask vnkey
 Hướng dẫn chuẩn bị môi trường lập trình, chạy ứng dụng ở chế độ phát triển (Development) và các lệnh đóng gói/build chi tiết cho macOS, Windows, Linux đã được chuyển sang tài liệu riêng. 
 
 👉 Xem chi tiết tại: **[Hướng dẫn dành cho Nhà phát triển (Sources/README.md)](Sources/README.md)**.
-
----
-
-## Ủng hộ dự án (Donation)
-
-VNKey là dự án mã nguồn mở hoàn toàn miễn phí và phi lợi nhuận. Sự đồng hành và đóng góp từ cộng đồng là nguồn động viên to lớn để nhà phát triển tiếp tục cải tiến, duy trì và nâng cấp bộ gõ ngày một tốt hơn.
-
-Nếu bạn yêu thích VNKey và muốn gửi tặng một tách cà phê, bạn có thể ủng hộ qua các hình thức sau:
-
-* **Ví MoMo:** Quét mã QR MoMo dưới đây:
-
-  <img src="Web/assets/img/momo_donation.jpg" alt="MoMo Donation" width="256" style="max-width: 256px;" />
-* **Paypal:** [https://paypal.me/hqthai](https://paypal.me/hqthai)
-
-Chân thành cảm ơn sự ủng hộ và tin dùng của các bạn!
-
----
 
 ## Tác giả & Đóng góp
 

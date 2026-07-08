@@ -53,7 +53,7 @@
         "priceCurrency": "USD"
       },
       "description": "VNKey là bộ gõ tiếng Việt thông minh dành cho lập trình viên, gọn nhẹ, đa nền tảng phát triển bằng Tauri 2, Rust và Svelte 5. Sửa triệt để lỗi gạch chân macOS.",
-      "softwareVersion": "1.0.2",
+      "softwareVersion": "1.1.0",
       "license": "https://github.com/hoquangthaiholy/vnkey/blob/main/LICENSE",
       "downloadUrl": "https://github.com/hoquangthaiholy/vnkey/releases/latest",
       "author": {
@@ -83,7 +83,6 @@
                 <li><a href="#features"><span lang="vi">Tính năng</span><span lang="en">Features</span></a></li>
                 <li><a href="#simulator"><span lang="vi">Trải nghiệm</span><span lang="en">Try VNKey</span></a></li>
                 <li><a href="#cloud"><span lang="vi">Đồng bộ Cloud</span><span lang="en">Cloud Sync</span></a></li>
-                <li><a href="#donation"><span lang="vi">Ủng hộ</span><span lang="en">Donate</span></a></li>
                 <li><a href="https://github.com/hoquangthaiholy/vnkey" target="_blank" id="nav-github-link"><span
                             lang="vi">Mã nguồn</span><span lang="en">Source Code</span></a></li>
                 <li class="lang-switcher">
@@ -100,26 +99,24 @@
         <div class="parallax-hero-bg"></div>
         <div class="hero-fade-overlay"></div>
         <div class="container hero-content">
-            <span class="badge" lang="vi">Phiên bản mới nhất v1.0.2 - Mã nguồn mở</span>
-            <span class="badge" lang="en">Latest version v1.0.2 - Open Source</span>
+            <span class="badge" lang="vi">Phiên bản mới nhất v1.1.0 - Mã nguồn mở</span>
+            <span class="badge" lang="en">Latest version v1.1.0 - Open Source</span>
 
             <h1 class="hero-title" lang="vi">Bộ gõ thông minh<br><span>dành cho lập trình viên</span></h1>
-            <h1 class="hero-title" lang="en" Vietnamese Input,<br><span>Smart Typing for
+            <h1 class="hero-title" lang="en">Vietnamese Input,<br><span>Smart Typing for
                     Programmers</span></h1>
 
             <p class="hero-description" lang="vi">
                 Được phát triển trên công nghệ hiện đại <strong>Tauri 2</strong>, <strong>Rust</strong> và
                 <strong>Svelte 5</strong> đa nền tảng.
-                VNKey loại bỏ hoàn toàn việc chuyển đổi Anh-Việt thủ công ) nhờ các thuật toán nhận diện
-                cú pháp,
-                từ khóa code, xử lý phím thông minh và triệt tiêu hoàn toàn lỗi gạch chân khó chịu trên macOS.
+                VNKey giảm tối đa việc chuyển đổi Anh-Việt thủ công nhờ từ điển ưu tiên,
+                nhận diện ngữ cảnh lập trình, xử lý phím thông minh và triệt tiêu lỗi gạch chân khó chịu trên macOS.
             </p>
             <p class="hero-description" lang="en">
                 Built on a modern technology stack of <strong>Tauri 2</strong>, <strong>Rust</strong>, and
                 <strong>Svelte 5</strong>.
-                VNKey completely eliminates manual English-Vietnamese switching ) with smart syntax and
-                code keyword detection,
-                advanced keystroke processing, and zero macOS underline bugs.
+                VNKey minimizes manual English-Vietnamese switching with a priority dictionary,
+                programming-context detection, advanced keystroke processing, and zero macOS underline bugs.
             </p>
 
             <div class="hero-actions">
@@ -242,12 +239,12 @@
                             <polyline points="8 6 2 12 8 18"></polyline>
                         </svg>
                     </div>
-                    <h3 lang="vi">Tối ưu hóa Lập trình</h3>
-                    <h3 lang="en">Optimized for Coding</h3>
-                    <p lang="vi">Bỏ qua kiểm tra chính tả cho từ khóa cú pháp (if, for, while) và các cấu trúc đặt tên
-                        biến camelCase, snake_case, ALL_CAPS.</p>
-                    <p lang="en">Automatically bypasses spellcheck for syntax keywords (if, for, while) and variable
-                        styles like camelCase, snake_case, or ALL_CAPS.</p>
+                    <h3 lang="vi">Từ điển ưu tiên</h3>
+                    <h3 lang="en">Priority Dictionary</h3>
+                    <p lang="vi">Giữ nguyên hoặc khôi phục thông minh từ tiếng Anh, từ lập trình, tên file và đường dẫn
+                        dễ bị chuyển nhầm dấu.</p>
+                    <p lang="en">Keeps or restores English words, coding terms, filenames, and paths that are easy to
+                        mistype with Vietnamese marks.</p>
                 </div>
                 <!-- Feature 4 -->
                 <div class="feature-card glass-panel">
@@ -402,24 +399,24 @@
                     <h3 lang="vi">Tối ưu hóa cho lập trình viên</h3>
                     <h3 lang="en">Optimized for Developers</h3>
                     <p lang="vi">
-                        Tự động nhận diện các cú pháp lập trình như `camelCase`, `snake_case`, `ALL_CAPS` hoặc các từ
-                        khóa code để bỏ qua kiểm tra chính tả. Bạn có thể viết mã nguồn và chat tiếng Việt song song mà
-                        không cần chuyển đổi bộ gõ liên tục.
+                        Tự động nhận diện từ ưu tiên, cú pháp lập trình như `camelCase`, `snake_case`, `ALL_CAPS`, tên
+                        file và đường dẫn để khôi phục phím gốc khi cần. Bạn có thể viết mã nguồn và chat tiếng Việt
+                        song song mà không cần chuyển đổi bộ gõ liên tục.
                     </p>
                     <p lang="en">
-                        Automatically detects programming syntaxes such as `camelCase`, `snake_case`, `ALL_CAPS` or code
-                        keywords to bypass spelling verification. You can write code and chat in Vietnamese
-                        simultaneously without constant switcher toggling.
+                        Automatically detects priority words, programming syntaxes such as `camelCase`, `snake_case`,
+                        `ALL_CAPS`, filenames, and paths to restore raw keys when needed. You can write code and chat in
+                        Vietnamese simultaneously without constant switcher toggling.
                     </p>
                     <div class="deep-dive-tech-tags" lang="vi">
-                        <span class="tech-tag">Chế độ Lập trình</span>
+                        <span class="tech-tag">Từ điển ưu tiên</span>
                         <span class="tech-tag">Nhận diện CamelCase</span>
-                        <span class="tech-tag">Bỏ qua cú pháp thông minh</span>
+                        <span class="tech-tag">Khôi phục thông minh</span>
                     </div>
                     <div class="deep-dive-tech-tags" lang="en">
-                        <span class="tech-tag">Programming Mode</span>
+                        <span class="tech-tag">Priority Dictionary</span>
                         <span class="tech-tag">CamelCase Detection</span>
-                        <span class="tech-tag">Syntax Smart Bypass</span>
+                        <span class="tech-tag">Smart Restore</span>
                     </div>
                 </div>
                 <div class="deep-dive-visual">
@@ -533,11 +530,11 @@
             <h2 class="section-title" lang="vi">Đồng bộ dữ liệu đám mây</h2>
             <h2 class="section-title" lang="en">Cloud Data Synchronization</h2>
             <p class="hero-description" style="font-size: 1.05rem; margin-bottom: 2rem;" lang="vi">
-                Đồng bộ cấu hình cài đặt, từ điển cá nhân, thư viện macro viết tắt và bảng ghi nhớ clipboard giữa các
+                Đồng bộ cấu hình cài đặt, từ điển ưu tiên, thư viện macro viết tắt và bảng ghi nhớ clipboard giữa các
                 máy tính thông qua Cloudflare R2 của riêng bạn.
             </p>
             <p class="hero-description" style="font-size: 1.05rem; margin-bottom: 2rem;" lang="en">
-                Sync configuration settings, personal dictionaries, abbreviation macros, and clipboard history across
+                Sync configuration settings, priority dictionaries, abbreviation macros, and clipboard history across
                 multiple computers using your own Cloudflare R2 bucket.
             </p>
             <div style="display: flex; justify-content: center; gap: 1rem;">
@@ -555,42 +552,29 @@
             <div class="section-header">
                 <h2 class="section-title" lang="vi">Hỏi đáp & Hướng dẫn tính năng</h2>
                 <h2 class="section-title" lang="en">Q&A & Features Guide</h2>
-                <p class="section-desc" lang="vi">Giải đáp chi tiết về thứ tự ưu tiên ngôn ngữ, các cơ chế thông minh hỗ
-                    trợ lập trình viên trên VNKey.</p>
-                <p class="section-desc" lang="en">Detailed guide about language priority order and smart typing
-                    mechanics for developers in VNKey.</p>
+                <p class="section-desc" lang="vi">Giải đáp chi tiết về từ điển ưu tiên, khôi phục từ và các cơ chế thông
+                    minh hỗ trợ lập trình viên trên VNKey.</p>
+                <p class="section-desc" lang="en">Detailed guide about priority dictionary, word recovery, and smart
+                    typing mechanics for developers in VNKey.</p>
             </div>
 
             <div class="qa-list">
                 <!-- Q1 -->
                 <details class="qa-item">
                     <summary>
-                        <span lang="vi">Thứ tự ưu tiên ngôn ngữ hoạt động thế nào?</span>
-                        <span lang="en">How does the language priority order work?</span>
+                        <span lang="vi">Từ điển ưu tiên hoạt động thế nào?</span>
+                        <span lang="en">How does the priority dictionary work?</span>
                     </summary>
                     <div class="qa-content">
-                        <p lang="vi">Mặc định thứ tự ưu tiên mới là
-                            <code>Lập trình (PROG) &gt; Tiếng Việt (VN) &gt; Tiếng Anh (EN)</code>. Khi bạn gõ xong một
-                            từ, bộ gõ sẽ chạy qua lần lượt các bộ kiểm tra từ cao xuống thấp. Khi một bộ kiểm tra xác
-                            định từ là hợp lệ cho ngôn ngữ đó, bộ gõ sẽ áp dụng quy tắc tương ứng và dừng lại:
-                        </p>
-                        <p lang="vi">• <strong>PROG</strong>: Giữ nguyên từ nếu khớp với từ khóa lập trình (như
-                            <code>if</code>, <code>return</code>, <code>class</code>, ...) hoặc hằng số viết hoa,
-                            camelCase.<br>• <strong>VN</strong>: Giữ nguyên chuyển đổi tiếng Việt nếu từ đó đúng chính
-                            tả tiếng Việt.<br>• <strong>EN</strong>: Khôi phục lại từ tiếng Anh thô nếu từ đó hợp lệ
-                            theo cấu trúc âm tiết tiếng Anh.
-                        </p>
+                        <p lang="vi">Từ điển ưu tiên là danh sách các từ cần được bảo vệ khi bạn đang bật tiếng Việt:
+                            từ tiếng Anh thông dụng, từ lập trình, tên công cụ, tên file hoặc các từ riêng do bạn thêm.
+                            Khi một từ có nguy cơ bị thêm dấu sai, VNKey kiểm tra danh sách này và ngữ cảnh gõ để giữ
+                            nguyên hoặc khôi phục lại phím gốc.</p>
 
-                        <p lang="en">The new default priority order is
-                            <code>Programming (PROG) &gt; Vietnamese (VN) &gt; English (EN)</code>. When you finish
-                            typing a word, the engine processes each spell checker in sequence. Once a checker validates
-                            the word for its language, the engine applies the corresponding rule and stops:
-                        </p>
-                        <p lang="en">• <strong>PROG</strong>: Preserves the word if it matches programming keywords
-                            (like <code>if</code>, <code>return</code>, <code>class</code>, ...) or camelCase/uppercase
-                            identifiers.<br>• <strong>VN</strong>: Keeps the Vietnamese transformation if the word is
-                            valid Vietnamese spelling.<br>• <strong>EN</strong>: Restores the raw English word if it is
-                            structurally valid in English.</p>
+                        <p lang="en">The priority dictionary is a protected word list used while Vietnamese mode is on:
+                            common English words, coding terms, tool names, filenames, or custom words you add. When a
+                            word may receive unwanted marks, VNKey checks this list and the typing context to preserve
+                            or restore the raw keystrokes.</p>
                     </div>
                 </details>
 
@@ -678,11 +662,11 @@
                     <div class="qa-content">
                         <p lang="vi">VNKey hỗ trợ đồng bộ hóa cấu hình thông qua kho lưu trữ Cloudflare R2 cá nhân. Bạn
                             chỉ cần nhập các thông tin cấu hình R2 (Bucket name, Access Key, Secret Key, Endpoint) vào
-                            mục "Đám mây". Tất cả các thiết lập cài đặt, từ điển viết tắt macro, từ điển cá nhân và Bảng
+                            mục "Đám mây". Tất cả các thiết lập cài đặt, từ điển viết tắt macro, từ điển ưu tiên và Bảng
                             ghi nhớ sẽ được đồng bộ hóa tự động và an toàn.</p>
                         <p lang="en">VNKey supports syncing settings via your personal Cloudflare R2 bucket. Simply
                             enter your R2 configuration (Bucket name, Access Key, Secret Key, Endpoint) in the "Cloud"
-                            settings. All parameters, abbreviation macros, personal dictionaries, and the Clipboard
+                            settings. All parameters, abbreviation macros, priority dictionaries, and the Clipboard
                             Board will be synced automatically and securely.</p>
                     </div>
                 </details>
@@ -761,54 +745,6 @@
                             Chrome/Slack swaps it to Vietnamese (V).</p>
                     </div>
                 </details>
-            </div>
-        </div>
-    </section>
-
-    <!-- Donation Section -->
-    <section id="donation" class="donation-section">
-        <div class="container">
-            <div class="section-header">
-                <h2 class="section-title" lang="vi">Ủng hộ dự án</h2>
-                <h2 class="section-title" lang="en">Support the Project</h2>
-                <p class="section-desc" lang="vi">VNKey là hoàn toàn miễn phí và mã nguồn mở. Mọi sự ủng hộ của bạn sẽ
-                    giúp duy trì và phát triển dự án tốt hơn.</p>
-                <p class="section-desc" lang="en">VNKey is completely free and open-source. Your support helps maintain
-                    and develop the project further.</p>
-            </div>
-            <div class="donation-grid">
-                <!-- MoMo Card -->
-                <div class="donation-card glass-panel">
-                    <div>
-                        <h3 lang="vi">Ví MoMo</h3>
-                        <h3 lang="en">MoMo Wallet</h3>
-                        <p lang="vi">Quét mã QR bằng ứng dụng MoMo để ủng hộ trực tiếp.</p>
-                        <p lang="en">Scan the QR code with the MoMo app to donate directly.</p>
-                    </div>
-                    <img src="assets/img/momo_donation.jpg" alt="MoMo QR Code" class="momo-qr">
-                    <span class="badge" style="margin-bottom: 0;">Hồ Quang Thái</span>
-                </div>
-                <!-- PayPal Card -->
-                <div class="donation-card glass-panel">
-                    <div>
-                        <h3 lang="vi">PayPal</h3>
-                        <h3 lang="en">PayPal</h3>
-                        <p lang="vi">Ủng hộ qua tài khoản PayPal quốc tế nhanh chóng.</p>
-                        <p lang="en">Donate quickly using your international PayPal account.</p>
-                    </div>
-                    <div style="margin: 2rem 0;">
-                        <svg class="feature-icon" style="margin: 0 auto; width: 60px; height: 60px; font-size: 2rem;"
-                            viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M20.007 8.424c.007-.076.012-.152.012-.228 0-3.328-2.607-6.033-5.83-6.033h-7.14c-.696 0-1.296.48-1.428 1.156l-3.238 16.482c-.083.428.25.823.685.823h4.636l-.004.024 1.139-5.79.034-.207a1.442 1.442 0 0 1 1.417-1.158h1.22c3.738 0 6.643-2.186 7.497-5.099zm-4.397.026c-.463 1.579-1.996 2.766-3.834 2.766h-1.638l1.09-5.55h1.638c1.838 0 3.371 1.187 3.834 2.766.113.385.122.77.108 1.155-.027.327-.087.643-.198.863z" />
-                        </svg>
-                    </div>
-                    <a href="https://paypal.me/hqthai" target="_blank" class="btn btn-primary"
-                        style="width: 100%; justify-content: center;">
-                        <span lang="vi">Đóng góp qua PayPal</span>
-                        <span lang="en">Donate with PayPal</span>
-                    </a>
-                </div>
             </div>
         </div>
     </section>

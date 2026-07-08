@@ -698,8 +698,8 @@
       check_spelling: 1,
       use_modern_orthography: settings.use_modern_orthography,
       quick_telex: settings.quick_telex,
-      use_english_dictionary: 1,
-      check_programming_keywords: 1,
+      use_priority_dictionary: settings.use_priority_dictionary,
+      restore_if_wrong_spelling: settings.restore_if_wrong_spelling,
       use_macro: settings.use_macro,
       use_macro_in_english_mode: settings.use_macro_in_english_mode,
       auto_caps_macro: settings.auto_caps_macro,
@@ -2299,6 +2299,8 @@
                     isResetting = true;
                     try {
                       await invoke("reset_settings");
+                      await loadSettings();
+                      await loadPriorityDictionary();
                       alert("Đã đặt lại thiết lập về mặc định.");
                       showResetModal = false;
                     } catch (e) {
@@ -2828,12 +2830,12 @@
   .apps-layout {
     display: flex;
     height: calc(100vh - 180px);
-    margin-top: 15px;
-    gap: 20px;
+    margin-top: 12px;
+    gap: 14px;
   }
   
   .apps-sidebar {
-    width: 250px;
+    width: 236px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -2841,7 +2843,7 @@
     flex-direction: column;
     padding: 12px;
     box-sizing: border-box;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: none;
   }
   
   .apps-sidebar-header {
@@ -2940,12 +2942,12 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 20px;
+    padding: 16px;
     box-sizing: border-box;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: none;
   }
   
   .apps-content::-webkit-scrollbar {
@@ -3077,7 +3079,7 @@
 
   /* Left Sidebar */
   .sidebar {
-    width: 220px;
+    width: 204px;
     background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -3089,16 +3091,16 @@
   }
 
   .sidebar-header {
-    padding: 14px 24px 20px 24px;
+    padding: 12px 18px 16px 18px;
     display: flex;
     align-items: center;
     gap: 12px;
   }
 
   .sidebar-header .logo {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
     object-fit: contain;
   }
 
@@ -3127,7 +3129,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 10px 16px;
+    padding: 8px 12px;
     flex-grow: 1;
   }
 
@@ -3136,10 +3138,10 @@
     border: none;
     outline: none;
     color: var(--text-secondary);
-    padding: 10px 14px;
+    padding: 8px 12px;
     font-size: 13.5px;
     font-weight: 500;
-    border-radius: 8px;
+    border-radius: 7px;
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
@@ -3180,7 +3182,7 @@
   }
 
   .sidebar-footer {
-    padding: 20px 24px;
+    padding: 14px 18px;
     border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -3251,7 +3253,7 @@
   .content-top-drag-bar {
     position: absolute;
     top: 0;
-    left: 220px;
+    left: 204px;
     right: 0;
     height: var(--header-fade-h, 56px);
     z-index: 10;
@@ -3270,7 +3272,7 @@
   /* Content area scrollable */
   .content-area {
     flex-grow: 1;
-    padding: 56px 40px 32px 40px;
+    padding: 50px 32px 28px 32px;
     overflow-y: auto;
     box-sizing: border-box;
     height: 100%;
@@ -3313,10 +3315,10 @@
        window top and let a peek of the panel behind show above it —
        cancel that padding out so the header locks flush at the very
        top, right above the fade overlay. */
-    top: -56px;
+    top: -50px;
     z-index: 15;
-    margin: 0 0 20px 0;
-    padding: 20px 0 28px 0;
+    margin: 0 0 14px 0;
+    padding: 16px 0 22px 0;
     background: linear-gradient(
       to bottom,
       var(--bg-app) 0%,
@@ -3329,7 +3331,7 @@
     margin: 0;
     font-size: 19px;
     font-weight: 700;
-    letter-spacing: -0.2px;
+    letter-spacing: 0;
   }
 
   .panel-subtitle {
@@ -3341,14 +3343,14 @@
   .card {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 18px 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: none;
   }
 
   .card h3 {
     margin-top: 0;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     font-size: 12.5px;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -3360,7 +3362,7 @@
   .grid-2col {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 14px;
   }
 
   .swap-button-container-vertical {
@@ -3390,11 +3392,11 @@
     grid-template-columns: 1fr;
     column-gap: 30px;
     row-gap: 14px;
-    padding: 16px;
-    margin-top: 14px;
+    padding: 12px;
+    margin-top: 12px;
     border: 1px solid var(--border-color);
     background: rgba(128, 128, 128, 0.04);
-    border-radius: 10px;
+    border-radius: 8px;
   }
 
   .toggles-grid-compact {
@@ -3441,7 +3443,7 @@
 
   .form-input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 7px 10px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
     background: var(--bg-input);
@@ -3590,8 +3592,8 @@
   select {
     width: 100%;
     box-sizing: border-box;
-    padding: 10px 36px 10px 14px;
-    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    border-radius: 7px;
     background-color: var(--bg-input);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
@@ -3691,7 +3693,7 @@
     font-family: monospace;
     font-weight: bold;
     font-size: 13px !important;
-    padding: 11px 16px !important;
+    padding: 9px 14px !important;
   }
 
   .recording-btn {
@@ -3699,7 +3701,7 @@
     font-size: 12.5px !important;
     background-color: #ff3b30 !important;
     color: white;
-    padding: 11px 16px !important;
+    padding: 9px 14px !important;
   }
 
   /* Buttons */
@@ -3710,7 +3712,7 @@
     gap: 6px;
     border: none;
     outline: none;
-    padding: 7px 16px;
+    padding: 7px 13px;
     border-radius: 7px;
     font-size: 13px;
     font-weight: 600;
@@ -3895,7 +3897,7 @@
   .section-divider {
     height: 1px;
     background: var(--border-color);
-    margin: 18px 0 16px;
+    margin: 14px 0 12px;
     opacity: 0.5;
   }
 
@@ -3912,20 +3914,20 @@
   .dict-editor-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 15px;
-    padding: 16px;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.02));
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(128, 128, 128, 0.04);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    box-shadow: none;
   }
 
   @media (prefers-color-scheme: light) {
     .dict-editor-container {
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(240, 240, 245, 0.5));
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(0, 0, 0, 0.025);
+      box-shadow: none;
+      border: 1px solid var(--border-color);
     }
   }
 
@@ -3987,28 +3989,28 @@
   }
 
   .dict-grid-container {
-    max-height: 240px;
+    max-height: 220px;
     overflow-y: auto;
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
-    margin-top: 10px;
+    border-radius: 8px;
+    box-shadow: none;
+    margin-top: 8px;
   }
 
   @media (prefers-color-scheme: light) {
     .dict-grid-container {
       background: rgba(250, 250, 253, 0.8);
       border: 1px solid rgba(0, 0, 0, 0.05);
-      box-shadow: inset 0 2px 6px rgba(0,0,0,0.03);
+      box-shadow: none;
     }
   }
 
   .dict-words-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    padding: 12px;
+    gap: 6px;
+    padding: 10px;
   }
 
   @media (max-width: 600px) {
@@ -4024,16 +4026,15 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 5px 8px;
     font-size: 13px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 
   .dict-word-badge:hover {
-    transform: translateY(-1px);
     border-color: var(--color-accent);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    background: var(--bg-card-hover);
   }
 
   .dict-word-badge .word-text {

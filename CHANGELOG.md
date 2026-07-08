@@ -1,5 +1,23 @@
 # Nhật ký thay đổi (CHANGELOG)
 
+## [1.1.0] - 2026-07-08
+### Thêm mới
+- **Thư mục dữ liệu ứng dụng mới**: Chuẩn hóa dữ liệu cục bộ về `~/Library/Application Support/VNKey` trên macOS và dùng cơ sở dữ liệu `data.db`.
+- **Migration dữ liệu tự động**: Tự chuyển dữ liệu từ thư mục cũ `~/Library/Application Support/com.hoquangthaiholy.vnkey`, bao gồm cơ sở dữ liệu, thiết lập, cấu hình theo ứng dụng, clipboard và ảnh clipboard.
+- **Từ điển ưu tiên**: Thay thế các mục từ điển cũ bằng một danh sách ưu tiên thống nhất, dùng chung cho từ tiếng Anh, từ lập trình và các từ dễ bị gõ nhầm dấu.
+
+### Cải tiến & Sửa lỗi
+- **Sửa đặt dấu hiện đại/cũ**: Tùy chọn gõ dấu kiểu mới nay áp dụng đúng quy ước kiểu cũ `xóa/hòa/khỏe` và kiểu mới `xoá/hoà/khoẻ`.
+- **Cải thiện gõ nhanh**: Sửa các tùy chọn gõ nhanh phụ âm đầu, phụ âm cuối và gõ phụ âm bằng phím đúp.
+- **Cải thiện khôi phục từ**: Tăng độ ổn định khi khôi phục từ tiếng Anh, từ lập trình, đường dẫn, tên file và các từ có phím dấu lặp.
+- **Sửa lỗi gõ đúp dấu bị lặp ký tự**: Khắc phục lỗi hủy dấu Telex/VNI gửi trùng phím dấu thứ hai, ví dụ `taxx` nay cho đúng `tax` thay vì `taxx` hoặc làm lệch trạng thái khôi phục từ.
+- **Ổn định trạng thái raw-key khi hủy dấu**: Giữ đúng lịch sử phím gốc sau khi gõ đúp dấu để các từ như `password`, `coffee`, `issue`, `tesst` tiếp tục được khôi phục thông minh ở cuối từ.
+- **Sửa vòng lặp focus/top-app trên macOS**: VNKey không còn tự áp cấu hình theo ứng dụng khi chính VNKey là frontmost app, tránh tình trạng bảng điều khiển giành focus khỏi vùng nhập liệu của ứng dụng khác.
+- **Giảm đứng UI khi mở bảng điều khiển**: Bỏ reload settings nặng mỗi lần cửa sổ chính nhận focus và không cưỡng ép focus panel trong luồng cấp lại Accessibility, giúp giảm hiện tượng bảng điều khiển đứng hình ngắn lúc khởi động/lấy lại quyền.
+- **Tối ưu độ mượt khi gõ**: Giảm nhánh xử lý thừa trong engine và bổ sung kiểm thử hồi quy cho các ca Telex/VNI quan trọng.
+- **Dọn giao diện bảng điều khiển**: Làm gọn bố cục, đổi tên các mục cài đặt theo cơ chế mới và loại bỏ các chức năng/copy không còn dùng.
+- **Loại bỏ donation**: Xóa phần ủng hộ khỏi README, website và tài nguyên liên quan.
+
 ## [1.0.2] - 2026-07-05
 ### Thêm mới
 - **Cơ chế hủy dấu Telex/VNI thông minh**: Cho phép gõ đúp phím dấu để hủy dấu tiếng Việt và giữ lại ký tự gốc (ví dụ: gõ `as` + `s` -> `ass`, `oo` -> `oo` thay vì `ô`...). Giúp cải thiện trải nghiệm gõ các từ tiếng Anh chứa ký tự lặp hoặc chữ có chứa phím trùng dấu (như `password`, `coffee`, `issue`).

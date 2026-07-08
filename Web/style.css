@@ -1048,57 +1048,6 @@ footer {
     box-shadow: 0 2px 8px rgba(10, 70, 153, 0.15);
 }
 
-/* Donation Section */
-.donation-section {
-    padding: 6rem 0;
-    border-top: 1px solid var(--border-glass);
-    background: var(--bg-secondary);
-}
-
-.donation-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2.5rem;
-    max-width: 800px;
-    margin: 3rem auto 0 auto;
-}
-
-.donation-card {
-    padding: 2.5rem 2rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 340px;
-}
-
-.donation-card h3 {
-    margin-bottom: 0.75rem;
-    font-size: 1.25rem;
-}
-
-.donation-card p {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
-}
-
-.momo-qr {
-    width: 150px;
-    height: 150px;
-    object-fit: contain;
-    border-radius: 12px;
-    border: 1px solid var(--border-glass);
-    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
-    margin: 0.5rem 0 1.5rem 0;
-    transition: var(--transition-smooth);
-}
-
-.momo-qr:hover {
-    transform: scale(1.05);
-}
-
 /* Q&A Section */
 .qa-section {
     padding: 6rem 0;

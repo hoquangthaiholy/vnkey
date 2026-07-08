@@ -230,9 +230,8 @@ std::string simulateWord(const std::string &raw, bool restore,
         output.push_back(converted);
     }
     if (state->code == vRestore || state->code == vRestoreAndStartNewSession) {
-      if (cp == ' ' || ispunct(static_cast<unsigned char>(cp)) || cp == '\n' || cp == '\r' || cp == '\t') {
+      if (cp)
         output.push_back(cp);
-      }
     }
   }
   if (!output.empty() && output.back() == ' ')
@@ -467,6 +466,61 @@ std::string simulateTelexRaw(const std::string &keys) {
   return simulateWord(keys, /*restore=*/false, /*useDictionary=*/false);
 }
 
+std::string simulateTelexRawWithModern(const std::string &keys, int modern) {
+  const int previous = vUseModernOrthography;
+  vUseModernOrthography = modern;
+  const std::string result = simulateTelexRaw(keys);
+  vUseModernOrthography = previous;
+  return result;
+}
+
+int runModernOrthographyTests() {
+  struct Case {
+    const char *keys;
+    const char *modern;
+    const char *old;
+  };
+
+  static const Case cases[] = {
+      {"xoas", "xo\u00E1", "x\u00F3a"},
+      {"hoaf", "ho\u00E0", "h\u00F2a"},
+      {"khoer", "kho\u1EBB", "kh\u1ECFe"},
+      {"huyr", "hu\u1EF7", "h\u1EE7y"},
+      {"thuyr", "thu\u1EF7", "th\u1EE7y"},
+      {"quyf", "qu\u1EF3", "qu\u1EF3"},
+      {"tuans", "tu\u00E1n", "tu\u00E1n"},
+      {"suownf", "s\u01B0\u1EDDn", "s\u01B0\u1EDDn"},
+      {"hieejn", "hi\u1EC7n", "hi\u1EC7n"},
+  };
+
+  int passed = 0;
+  int failed = 0;
+  const int n = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
+  for (int idx = 0; idx < n; ++idx) {
+    const auto &c = cases[idx];
+    const std::string modern = simulateTelexRawWithModern(c.keys, 1);
+    const std::string old = simulateTelexRawWithModern(c.keys, 0);
+    bool ok = true;
+    if (modern != c.modern) {
+      ++failed;
+      ok = false;
+      std::cout << "  [FAIL] ModernOrthography modern '" << c.keys
+                << "' expected '" << c.modern << "' got '" << modern << "'\n";
+    }
+    if (old != c.old) {
+      ++failed;
+      ok = false;
+      std::cout << "  [FAIL] ModernOrthography old '" << c.keys
+                << "' expected '" << c.old << "' got '" << old << "'\n";
+    }
+    if (ok) {
+      ++passed;
+    }
+  }
+  std::cout << "ModernOrthography passed=" << passed << " failed=" << failed << "\n";
+  return failed;
+}
+
 // Run tone-mark position validation tests.
 // Returns number of failures.
 int runToneMarkPositionTests() {
@@ -589,6 +643,8 @@ int runMarkEscapeTests() {
   };
   static const Case cases[] = {
     {"ass", "as"},
+    {"taxx", "tax"},
+    {"maxx", "max"},
     {"loss", "los"},
     {"off", "of"},
     {"password", "pasword"},
@@ -668,7 +724,7 @@ struct TypingSession {
     }
     if (sendTrigger &&
         (state->code == vRestore || state->code == vRestoreAndStartNewSession)) {
-      if (triggerCp && (triggerCp == ' ' || ispunct(static_cast<unsigned char>(triggerCp)) || triggerCp == '\n' || triggerCp == '\r' || triggerCp == '\t'))
+      if (triggerCp)
         screen.push_back(triggerCp);
     }
     if (state->code == vRestoreAndStartNewSession)
@@ -728,6 +784,8 @@ int runTypingSessionTests() {
     {"tesst-commit", "tesst ", "test "},
     {"tesst-repeat", "tesst tesst ", "test test "},
     {"tess-literal", "tess ", "tess "},
+    {"double-nga-tax", "taxx ", "tax "},
+    {"double-nga-repeat", "taxx taxx ", "tax tax "},
     // Vietnamese words whose raw Telex is a PREFIX of a protected English
     // word must not be forced to raw ASCII while still valid Vietnamese
     // (regression: "cò" -> "cof" because "cof" prefixes "coffee").
@@ -809,6 +867,74 @@ int runTypingSessionTests() {
   return failed;
 }
 
+int runQuickTypingFeatureTests() {
+  struct Case {
+    const char *name;
+    const char *keys;
+    const char *expected;
+    int quickTelex;
+    int quickStart;
+    int quickEnd;
+  };
+
+  static const Case cases[] = {
+      {"quick-start-ph", "fong ", "phong ", 0, 1, 0},
+      {"quick-start-gi", "jap ", "giap ", 0, 1, 0},
+      {"quick-start-qu", "wang ", "quang ", 0, 1, 0},
+      {"quick-end-ng", "bag ", "bang ", 0, 0, 1},
+      {"quick-end-nh", "bah ", "banh ", 0, 0, 1},
+      {"quick-end-ch", "bak ", "bach ", 0, 0, 1},
+      {"quick-both", "fag ", "phang ", 0, 1, 1},
+      {"quick-telex-ch", "ccao ", "chao ", 1, 0, 0},
+      {"quick-telex-gi", "gga ", "gia ", 1, 0, 0},
+      {"quick-telex-ng", "nang ", "nang ", 1, 0, 0},
+      {"quick-telex-ng-double", "nn ", "ng ", 1, 0, 0},
+      {"quick-telex-th", "ttoi ", "thoi ", 1, 0, 0},
+      {"quick-telex-ph", "ppi ", "phi ", 1, 0, 0},
+      {"quick-telex-qu", "qqang ", "quang ", 1, 0, 0},
+  };
+
+  const int savedQuickTelex = vQuickTelex;
+  const int savedQuickStart = vQuickStartConsonant;
+  const int savedQuickEnd = vQuickEndConsonant;
+  const int savedDict = vUsePriorityDictionary;
+  const int savedRestore = vRestoreIfWrongSpelling;
+  const int savedOrtho = vUseModernOrthography;
+  vUsePriorityDictionary = 0;
+  vRestoreIfWrongSpelling = 0;
+  vUseModernOrthography = 1;
+
+  int passed = 0;
+  int failed = 0;
+  for (const auto &c : cases) {
+    vQuickTelex = c.quickTelex;
+    vQuickStartConsonant = c.quickStart;
+    vQuickEndConsonant = c.quickEnd;
+    TypingSession session;
+    for (uint32_t cp : decodeUtf8(c.keys))
+      session.pressKey(cp);
+    const std::string got = session.text();
+    if (got != std::string(c.expected) || session.underflow != 0) {
+      ++failed;
+      std::cout << "  [FAIL] QuickTyping '" << c.name << "' keys='" << c.keys
+                << "' expected='" << c.expected << "' got='" << got
+                << "' underflow=" << session.underflow << "\n";
+    } else {
+      ++passed;
+    }
+  }
+
+  vQuickTelex = savedQuickTelex;
+  vQuickStartConsonant = savedQuickStart;
+  vQuickEndConsonant = savedQuickEnd;
+  vUsePriorityDictionary = savedDict;
+  vRestoreIfWrongSpelling = savedRestore;
+  vUseModernOrthography = savedOrtho;
+
+  std::cout << "QuickTyping passed=" << passed << " failed=" << failed << "\n";
+  return failed;
+}
+
 } // namespace
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -875,8 +1001,10 @@ int main(int argc, char *argv[]) {
     int failures = 0;
     failures += runEnglishFSMTests();
     failures += runProgrammingFSMTests();
+    failures += runModernOrthographyTests();
     failures += runToneMarkPositionTests();
     failures += runMarkEscapeTests();
+    failures += runQuickTypingFeatureTests();
     failures += runTypingSessionTests();
     std::cout << (failures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n");
     return failures > 0 ? 1 : 0;
@@ -891,7 +1019,7 @@ int main(int argc, char *argv[]) {
 
   // ── FSM unit tests ────────────────────────────────────────────────────────
   std::cout << "=== FSM Unit Tests ===\n";
-  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runToneMarkPositionTests() + runMarkEscapeTests() + runTypingSessionTests();
+  const int fsmFailures = runEnglishFSMTests() + runProgrammingFSMTests() + runModernOrthographyTests() + runToneMarkPositionTests() + runMarkEscapeTests() + runQuickTypingFeatureTests() + runTypingSessionTests();
   std::cout << (fsmFailures == 0 ? "ALL FSM TESTS PASSED\n" : "SOME FSM TESTS FAILED\n") << "\n";
 
   // ── Corpus accuracy tests ─────────────────────────────────────────────────

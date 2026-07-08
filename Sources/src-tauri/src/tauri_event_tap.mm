@@ -301,6 +301,7 @@ extern "C" {
     }
 
     BOOL shouldUseRecommendWorkaround(NSString* topApp) {
+        (void)topApp;
         return false;
     }
 
@@ -1820,7 +1821,7 @@ extern "C" {
     static int g_singleInstanceLockFd = -1;
 
     bool macos_acquire_single_instance_lock() {
-        NSString* supportDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/com.hoquangthaiholy.vnkey"];
+        NSString* supportDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/VNKey"];
         [[NSFileManager defaultManager] createDirectoryAtPath:supportDir withIntermediateDirectories:YES attributes:nil error:nil];
         NSString* lockPath = [supportDir stringByAppendingPathComponent:@"vnkey.lock"];
 

@@ -129,7 +129,7 @@ const DEFAULT_PRIORITY_WORDS: &[&str] = &[
 
 pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
     std::fs::create_dir_all(app_config_dir).unwrap_or_default();
-    let db_path = app_config_dir.join("vnkey.db");
+    let db_path = app_config_dir.join("data.db");
     let mut conn = Connection::open(db_path)?;
 
     // Create tables
@@ -361,5 +361,4 @@ pub fn db_clear_clipboard() {
         let _ = conn.execute("DELETE FROM clipboard_history", []);
     }
 }
-
 
