@@ -60,6 +60,7 @@
     use_hud: number;
     smart_punct_check: number;
     use_perceptron_context: number;
+    restore_if_wrong_spelling: number;
   }
 
   let settings = $state<Settings>({
@@ -69,9 +70,10 @@
     code_table: 0,
     switch_key_status: 0x20000C31, // Cmd + Shift + Space
     check_spelling: 1,
-    use_modern_orthography: 0,
+    use_modern_orthography: 1,
     quick_telex: 0,
     use_priority_dictionary: 1,
+    restore_if_wrong_spelling: 1,
     fix_spotlight: 1,
     use_macro: 1,
     use_macro_in_english_mode: 0,
@@ -365,18 +367,6 @@
   let newContent = $state("");
   let macroError = $state("");
 
-  // Vietnamese Dictionary state
-  let customVietnameseWords = $state<string[]>([]);
-  let viDictSearch = $state("");
-  let newViWord = $state("");
-  let viDictError = $state("");
-  let savingViDict = $state(false);
-  let saveViDictSuccess = $state(false);
-  let filteredVietnameseWords = $derived(
-    customVietnameseWords
-      .filter((word) => word.includes(viDictSearch.trim().toLowerCase()))
-      .map(word => ({ word }))
-  );
 
   // Priority Dictionary state
   let customPriorityWords = $state<string[]>([]);
@@ -454,10 +444,10 @@
   let cloudSyncError = $state(false);
   let syncMethod = $state("r2");
   let gdriveConnected = $state(false);
+  let r2Connected = $derived(!!(cloudAccountId && cloudAccessKey && cloudSecretKey && cloudBucketName));
 
   // Sync Options
   let syncSettings = $state(true);
-  let syncVietnameseDict = $state(true);
   let syncPriorityDict = $state(true);
   let syncMacros = $state(true);
   let syncClipboard = $state(false);
@@ -585,50 +575,7 @@
     }
   }
 
-  async function loadCustomVietnameseWords() {
-    try {
-      const dictionary = await invoke<{ custom_words: string[] }>("get_vietnamese_dictionary");
-      customVietnameseWords = dictionary.custom_words;
-    } catch (e) {
-      console.error("Failed to load custom Vietnamese words:", e);
-    }
-  }
 
-  async function saveCustomVietnameseWords() {
-    savingViDict = true;
-    saveViDictSuccess = false;
-    try {
-      await invoke("save_custom_vietnamese_words", { words: customVietnameseWords.join("\n") });
-      saveViDictSuccess = true;
-      setTimeout(() => {
-        saveViDictSuccess = false;
-      }, 3000);
-    } catch (e) {
-      console.error("Failed to save custom Vietnamese words:", e);
-    } finally {
-      savingViDict = false;
-    }
-  }
-
-  async function addVietnameseWord() {
-    viDictError = "";
-    const word = newViWord.trim().toLowerCase();
-    if (word.length === 0) {
-      return;
-    }
-    if (customVietnameseWords.includes(word)) {
-      viDictError = "Từ này đã có trong từ điển.";
-      return;
-    }
-    customVietnameseWords = [...customVietnameseWords, word].sort();
-    newViWord = "";
-    await saveCustomVietnameseWords();
-  }
-
-  async function deleteVietnameseWord(word: string) {
-    customVietnameseWords = customVietnameseWords.filter((item) => item !== word);
-    await saveCustomVietnameseWords();
-  }
 
   async function loadPriorityDictionary() {
     try {
@@ -1140,7 +1087,6 @@
       if (granted) {
         loadSettings();
         loadMacros();
-        loadCustomVietnameseWords();
         loadPriorityDictionary();
         loadAppConfigs();
       } else {
@@ -1149,7 +1095,6 @@
           if (ok) {
             loadSettings();
             loadMacros();
-            loadCustomVietnameseWords();
             loadPriorityDictionary();
             loadAppConfigs();
             if (pollingInterval) {
@@ -1243,7 +1188,6 @@
       let gToken = await invoke<string>("get_kv", { key: "gdriveAccessToken" }) || "";
       gdriveConnected = gToken !== "";
       syncSettings = (await invoke<string>("get_kv", { key: "syncSettings" })) !== "0";
-      syncVietnameseDict = (await invoke<string>("get_kv", { key: "syncVietnameseDict" })) !== "0";
       syncPriorityDict = (await invoke<string>("get_kv", { key: "syncPriorityDict" })) !== "0";
       syncMacros = (await invoke<string>("get_kv", { key: "syncMacros" })) !== "0";
       syncClipboard = (await invoke<string>("get_kv", { key: "syncClipboard" })) === "1";
@@ -1261,7 +1205,6 @@
       await invoke("set_kv", { key: "cloudBucketName", value: cloudBucketName });
       await invoke("set_kv", { key: "syncMethod", value: syncMethod });
       await invoke("set_kv", { key: "syncSettings", value: syncSettings ? "1" : "0" });
-      await invoke("set_kv", { key: "syncVietnameseDict", value: syncVietnameseDict ? "1" : "0" });
       await invoke("set_kv", { key: "syncPriorityDict", value: syncPriorityDict ? "1" : "0" });
       await invoke("set_kv", { key: "syncMacros", value: syncMacros ? "1" : "0" });
       await invoke("set_kv", { key: "syncClipboard", value: syncClipboard ? "1" : "0" });
@@ -1316,6 +1259,37 @@
       });
       cloudSyncMessage = "Tải dữ liệu từ đám mây thành công!";
       loadMacros();
+    } catch (e: any) {
+      cloudSyncError = true;
+      cloudSyncMessage = "Lỗi: " + e;
+    } finally {
+      isCloudSyncing = false;
+    }
+  }
+
+  async function disconnectR2() {
+    cloudAccountId = "";
+    cloudAccessKey = "";
+    cloudSecretKey = "";
+    cloudBucketName = "";
+    await invoke("set_kv", { key: "cloudAccountId", value: "" });
+    await invoke("set_kv", { key: "cloudAccessKey", value: "" });
+    await invoke("set_kv", { key: "cloudSecretKey", value: "" });
+    await invoke("set_kv", { key: "cloudBucketName", value: "" });
+    cloudSyncMessage = "Đã ngắt kết nối Cloudflare R2.";
+    cloudSyncError = false;
+  }
+
+  async function deleteCloudSyncData() {
+    if (!confirm("Bạn có chắc chắn muốn xoá sạch toàn bộ dữ liệu đồng bộ đã sao lưu trên Cloud không? Hành động này không thể hoàn tác.")) {
+      return;
+    }
+    isCloudSyncing = true;
+    cloudSyncMessage = "Đang xoá dữ liệu đồng bộ trên Cloud...";
+    cloudSyncError = false;
+    try {
+      await invoke("delete_cloud_sync_data");
+      cloudSyncMessage = "Đã xoá sạch dữ liệu đồng bộ trên Cloud!";
     } catch (e: any) {
       cloudSyncError = true;
       cloudSyncMessage = "Lỗi: " + e;
@@ -1658,45 +1632,12 @@
               {#if settings.check_spelling === 1}
                 <div class="spell-sub-section" transition:slide={{ duration: 200 }}>
                   <label class="toggle-container sub-toggle">
-                    <span class="toggle-text">Sử dụng thêm bảng từ điển tiếng Việt cá nhân</span>
+                    <span class="toggle-text">Phục hồi từ khi gõ sai chính tả tiếng Việt <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Phục hồi từ khi gõ sai:</strong><br/>Khôi phục từ gốc đã gõ trước đó khi bộ kiểm tra chính tả xác định từ gõ sai quy tắc tiếng Việt."}>?</span></span>
                     <div class="switch">
-                      <input type="checkbox" checked={showViDictTable} onchange={(e) => showViDictTable = (e.target as HTMLInputElement).checked} />
+                      <input type="checkbox" checked={settings.restore_if_wrong_spelling === 1} onchange={(e) => handleCheckboxChange('restore_if_wrong_spelling', (e.target as HTMLInputElement).checked)} />
                       <span class="slider"></span>
                     </div>
                   </label>
-
-                  {#if showViDictTable}
-                    <div class="dict-editor-container mt-10" transition:slide={{ duration: 250 }}>
-                      <p class="dict-hint">Nhập các từ tiếng Việt viết tắt, đặc biệt hoặc từ ưu tiên muốn giữ nguyên dấu.</p>
-                      <div class="dict-toolbar">
-                        <input type="search" placeholder="Tìm trong từ điển..." bind:value={viDictSearch} aria-label="Tìm trong từ điển tiếng Việt" />
-                        <div class="dict-add-row">
-                          <input type="text" placeholder="Thêm từ mới (vd: nghành)" bind:value={newViWord} onkeydown={(event) => event.key === "Enter" && addVietnameseWord()} aria-label="Từ tiếng Việt mới" />
-                          <button class="btn btn-primary" onclick={addVietnameseWord} disabled={savingViDict}>Thêm</button>
-                        </div>
-                      </div>
-                      {#if viDictError}<p class="form-error">{viDictError}</p>{/if}
-                      
-                      <div class="dict-grid-container" aria-label="Danh sách từ tiếng Việt">
-                        {#if filteredVietnameseWords.length === 0}
-                          <div class="dict-empty">Không tìm thấy từ phù hợp.</div>
-                        {:else}
-                          <div class="dict-words-grid">
-                            {#each filteredVietnameseWords as entry (entry.word)}
-                              <div class="dict-word-badge">
-                                <span class="font-mono word-text">{entry.word}</span>
-                                <button class="btn-delete-x" onclick={() => deleteVietnameseWord(entry.word)} aria-label="Xóa">×</button>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </div>
-                      <div class="dict-footer">
-                        <span class="dict-count-muted">{customVietnameseWords.length} từ</span>
-                        {#if saveViDictSuccess}<span class="save-status success">Đã đồng bộ từ điển.</span>{/if}
-                      </div>
-                    </div>
-                  {/if}
                 </div>
               {/if}
             </div>
@@ -1707,7 +1648,7 @@
             <div class="spell-section">
               <label class="toggle-container">
                 <span class="toggle-text font-bold" style="font-size:14.5px;">
-                  Từ điển ưu tiên <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Từ điển ưu tiên:</strong><br/>Các từ nằm trong từ điển này sẽ được tự động giữ nguyên (khôi phục từ gốc) thay vì tự động chuyển đổi sang tiếng Việt có dấu."}>?</span>
+                  Kiểm tra từ điển ưu tiên <span class="help-tooltip" role="img" aria-label="Thông tin" use:tooltip={"<strong>Kiểm tra từ điển ưu tiên:</strong><br/>Các từ nằm trong từ điển này sẽ được tự động giữ nguyên (khôi phục từ gốc) thay vì tự động chuyển đổi sang tiếng Việt có dấu."}>?</span>
                 </span>
                 <div class="switch">
                   <input type="checkbox" checked={settings.use_priority_dictionary === 1} onchange={(e) => handleCheckboxChange('use_priority_dictionary', (e.target as HTMLInputElement).checked)} />
@@ -1716,7 +1657,7 @@
               </label>
 
               {#if settings.use_priority_dictionary === 1}
-                <div class="spell-sub-section" transition:slide={{ duration: 200 }}>
+                <div transition:slide={{ duration: 200 }}>
                   <div class="dict-editor-container mt-10">
                     <p class="dict-hint">Nhập các từ ưu tiên muốn giữ nguyên (không tự động bỏ dấu/thêm dấu tiếng Việt).</p>
                     <div class="dict-toolbar">
@@ -2053,14 +1994,7 @@
                 </div>
               </label>
               <label class="toggle-container">
-                <span class="toggle-text">Từ điển tiếng Việt cá nhân</span>
-                <div class="switch">
-                  <input type="checkbox" bind:checked={syncVietnameseDict} onchange={saveCloudSettings} />
-                  <span class="slider"></span>
-                </div>
-              </label>
-              <label class="toggle-container">
-                <span class="toggle-text">Từ điển ưu tiên cá nhân</span>
+                <span class="toggle-text">Từ điển ưu tiên</span>
                 <div class="switch">
                   <input type="checkbox" bind:checked={syncPriorityDict} onchange={saveCloudSettings} />
                   <span class="slider"></span>
@@ -2081,7 +2015,7 @@
                 </div>
               </label>
               <label class="toggle-container">
-                <span class="toggle-text">Thiết lập ứng dụng cá nhân</span>
+                <span class="toggle-text">Thiết lập ứng dụng</span>
                 <div class="switch">
                   <input type="checkbox" bind:checked={syncAppConfigs} onchange={saveCloudSettings} />
                   <span class="slider"></span>
@@ -2109,12 +2043,15 @@
                     <div style="color: var(--accent-color); font-weight: 500;">✓ Đã kết nối Google Drive</div>
                     <button class="btn btn-secondary" onclick={disconnectGdrive}>Đăng xuất</button>
                   </div>
-                  <div class="flex-actions mt-15" style="display: flex; gap: 10px;">
+                  <div class="flex-actions mt-15" style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick={syncToGdrive} disabled={isCloudSyncing}>
                       {isCloudSyncing ? "Đang xử lý..." : "Tải lên Drive"}
                     </button>
                     <button class="btn btn-secondary" onclick={syncFromGdrive} disabled={isCloudSyncing}>
                       {isCloudSyncing ? "Đang xử lý..." : "Tải về Máy"}
+                    </button>
+                    <button class="btn btn-secondary" style="border-color: #ef4444; color: #ef4444;" onclick={deleteCloudSyncData} disabled={isCloudSyncing}>
+                      Xoá dữ liệu đồng bộ
                     </button>
                   </div>
                 {:else}
@@ -2125,33 +2062,51 @@
               </div>
             {:else}
               <div class="r2-section" style="padding-top: 10px; border-top: 1px solid var(--border-color);">
-                <div style="margin-bottom: 12px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--text-secondary);">Cấu hình lưu trữ R2</span>
-                  <a href="https://hoquangthaiholy.github.io/vnkey/r2_guide.html" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500;" onclick={(e) => { e.preventDefault(); invoke("plugin:opener|open_url", { url: "https://hoquangthaiholy.github.io/vnkey/r2_guide.html" }); }}>
-                    Hướng dẫn cấu hình ↗
-                  </a>
-                </div>
-                <div class="form-group mb-15">
-                  <label for="cloud-account-id">Account ID</label>
-                  <input type="text" id="cloud-account-id" bind:value={cloudAccountId} onchange={saveCloudSettings} placeholder="Cloudflare Account ID" class="form-input" />
-                </div>
-                <div class="form-group mb-15">
-                  <label for="cloud-access-key">Access Key ID</label>
-                  <input type="text" id="cloud-access-key" bind:value={cloudAccessKey} onchange={saveCloudSettings} placeholder="R2 Access Key" class="form-input" />
-                </div>
-                <div class="form-group mb-15">
-                  <label for="cloud-secret-key">Secret Access Key</label>
-                  <input type="password" id="cloud-secret-key" bind:value={cloudSecretKey} onchange={saveCloudSettings} placeholder="R2 Secret Key" class="form-input" />
-                </div>
-                <div class="form-group mb-15">
-                  <label for="cloud-bucket-name">Bucket Name</label>
-                  <input type="text" id="cloud-bucket-name" bind:value={cloudBucketName} onchange={saveCloudSettings} placeholder="vnkey-sync" class="form-input" />
-                </div>
-                <div class="flex-actions mt-15" style="display: flex; gap: 10px;">
-                  <button class="btn btn-primary" onclick={syncToCloud} disabled={isCloudSyncing}>
-                    {isCloudSyncing ? "Đang xử lý..." : "Lưu Cấu hình & Bật Đồng bộ"}
-                  </button>
-                </div>
+                {#if r2Connected}
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="color: var(--accent-color); font-weight: 500;">✓ Đã kết nối Cloudflare R2</div>
+                    <button class="btn btn-secondary" onclick={disconnectR2}>Đăng xuất</button>
+                  </div>
+                  <div class="flex-actions mt-15" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick={syncToCloud} disabled={isCloudSyncing}>
+                      {isCloudSyncing ? "Đang xử lý..." : "Tải lên Cloud"}
+                    </button>
+                    <button class="btn btn-secondary" onclick={syncFromCloud} disabled={isCloudSyncing}>
+                      {isCloudSyncing ? "Đang xử lý..." : "Tải về Máy"}
+                    </button>
+                    <button class="btn btn-secondary" style="border-color: #ef4444; color: #ef4444;" onclick={deleteCloudSyncData} disabled={isCloudSyncing}>
+                      Xoá dữ liệu đồng bộ
+                    </button>
+                  </div>
+                {:else}
+                  <div style="margin-bottom: 12px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">Cấu hình lưu trữ R2</span>
+                    <a href="https://hoquangthaiholy.github.io/vnkey/r2_guide.html" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500;" onclick={(e) => { e.preventDefault(); invoke("plugin:opener|open_url", { url: "https://hoquangthaiholy.github.io/vnkey/r2_guide.html" }); }}>
+                      Hướng dẫn cấu hình ↗
+                    </a>
+                  </div>
+                  <div class="form-group mb-15">
+                    <label for="cloud-account-id">Account ID</label>
+                    <input type="text" id="cloud-account-id" bind:value={cloudAccountId} onchange={saveCloudSettings} placeholder="Cloudflare Account ID" class="form-input" />
+                  </div>
+                  <div class="form-group mb-15">
+                    <label for="cloud-access-key">Access Key ID</label>
+                    <input type="text" id="cloud-access-key" bind:value={cloudAccessKey} onchange={saveCloudSettings} placeholder="R2 Access Key" class="form-input" />
+                  </div>
+                  <div class="form-group mb-15">
+                    <label for="cloud-secret-key">Secret Access Key</label>
+                    <input type="password" id="cloud-secret-key" bind:value={cloudSecretKey} onchange={saveCloudSettings} placeholder="R2 Secret Key" class="form-input" />
+                  </div>
+                  <div class="form-group mb-15">
+                    <label for="cloud-bucket-name">Bucket Name</label>
+                    <input type="text" id="cloud-bucket-name" bind:value={cloudBucketName} onchange={saveCloudSettings} placeholder="vnkey-sync" class="form-input" />
+                  </div>
+                  <div class="flex-actions mt-15" style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick={syncToCloud} disabled={isCloudSyncing}>
+                      {isCloudSyncing ? "Đang xử lý..." : "Kết nối & Đồng bộ"}
+                    </button>
+                  </div>
+                {/if}
               </div>
             {/if}
 
@@ -2331,13 +2286,8 @@
               <h3>Xác nhận đặt lại thiết lập</h3>
               <p>Bạn có chắc chắn muốn đặt lại toàn bộ thiết lập về giá trị mặc định? Hành động này sẽ:</p>
               <ul>
-                <li>Đặt lại tất cả thiết lập gõ phím, bảng mã, chính tả</li>
-                <li>Đặt lại thiết lập hệ thống, hiển thị, tương thích</li>
-                <li>Đặt lại thiết lập công cụ chuyển mã</li>
-                <li>Đặt lại thiết lập Bảng ghi nhớ</li>
-                <li>Đặt lại phím tắt chuyển đổi, công cụ chuyển mã, Bảng ghi nhớ</li>
-                <li>Khôi phục tất cả các từ điển cá nhân (tiếng Việt, tiếng Anh, từ khóa lập trình)</li>
-                <li>Đặt lại thứ tự ưu tiên ngôn ngữ về mặc định</li>
+                <li>Đặt lại tất cả thiết lập, phím tắt về mặc định</li>
+                <li>Khôi phục từ điển ưu tiên</li>
               </ul>
               <div class="modal-actions">
                 <button class="btn btn-secondary" disabled={isResetting} onclick={() => showResetModal = false}>Hủy</button>

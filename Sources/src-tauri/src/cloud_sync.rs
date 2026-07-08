@@ -246,3 +246,29 @@ pub async fn download_sync_data(creds: &CloudCredentials, sync_password: &str) -
     Ok(())
 }
 
+pub async fn delete_sync_data(creds: &CloudCredentials) -> Result<(), Box<dyn Error>> {
+    let region = Region::Custom {
+        region: "auto".to_string(),
+        endpoint: format!("https://{}.r2.cloudflarestorage.com", creds.account_id),
+    };
+    
+    let credentials = Credentials::new(
+        Some(&creds.access_key),
+        Some(&creds.secret_key),
+        None,
+        None,
+        None,
+    )?;
+    
+    let bucket = Bucket::new(&creds.bucket_name, region, credentials)?;
+    let bucket = bucket.with_path_style();
+
+    let _ = bucket.delete_object("vnkey_sync_settings.enc").await;
+    let _ = bucket.delete_object("vnkey_sync_priority_dict.enc").await;
+    let _ = bucket.delete_object("vnkey_sync_macros.enc").await;
+    let _ = bucket.delete_object("vnkey_sync_clipboard.enc").await;
+    let _ = bucket.delete_object("vnkey_sync_app_configs.enc").await;
+
+    Ok(())
+}
+

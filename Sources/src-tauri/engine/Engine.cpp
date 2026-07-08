@@ -729,6 +729,16 @@ void handleModernMark() {
             hBPC = _index - VWSM;
         }
     }
+
+    // Override: vowel with hat/breve/mark always gets the tone (scan from right to left)
+    for (int idx = VEI; idx >= VSI; idx--) {
+        if ((TypingWord[idx] & TONE_MASK) || (TypingWord[idx] & TONEW_MASK)) {
+            VWSM = idx;
+            hBPC = _index - VWSM;
+            break;
+        }
+    }
+    hNCC = hBPC;
 }
 
 void handleOldMark() {
@@ -753,7 +763,15 @@ void handleOldMark() {
             break;
         }
     }
-    
+
+    // Override: vowel with hat/breve/mark always gets the tone (scan from right to left)
+    for (int idx = VEI; idx >= VSI; idx--) {
+        if ((TypingWord[idx] & TONE_MASK) || (TypingWord[idx] & TONEW_MASK)) {
+            VWSM = idx;
+            hBPC = _index - VWSM;
+            break;
+        }
+    }
     hNCC = hBPC;
 }
 
@@ -810,6 +828,45 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
         hBPC = _index - VSI;
     }
     hNCC = hBPC;
+}
+
+void rebalanceTone() {
+    if (hCode == vRestore || hCode == vReplaceMaro) return;
+    findAndCalculateVowel();
+    if (vowelCount <= 1) return;
+    
+    Uint32 existingMark = 0;
+    int oldMarkPos = -1;
+    for (int idx = VSI; idx <= VEI; idx++) {
+        if (TypingWord[idx] & MARK_MASK) {
+            existingMark = TypingWord[idx] & MARK_MASK;
+            oldMarkPos = idx;
+            break;
+        }
+    }
+    
+    if (existingMark == 0) return;
+    
+    VWSM = 0;
+    if (vUseModernOrthography == 0) {
+        handleOldMark();
+    } else {
+        handleModernMark();
+    }
+    
+    if (VWSM != oldMarkPos) {
+        TypingWord[oldMarkPos] &= ~MARK_MASK;
+        TypingWord[VWSM] |= existingMark;
+        
+        hCode = vWillProcess;
+        hBPC = _index - VSI;
+        
+        int kk = _index - 1 - VSI;
+        for (int idx = VSI; idx < _index; idx++) {
+            hData[kk--] = GET(TypingWord[idx]);
+        }
+        hNCC = hBPC;
+    }
 }
 
 void insertD(const Uint16& data, const bool& isCaps) {
@@ -1047,15 +1104,23 @@ void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32
 }
 
 void upperCaseFirstCharacter() {
-    if (!(TypingWord[0] & CAPS_MASK)) {
-        hCode = vWillProcess;
-        hBPC = 0;
-        hNCC = 1;
-        TypingWord[0] |= CAPS_MASK;
-        hData[0] = GET(TypingWord[0]);
-        _upperCaseStatus = 0;
-        if (vUseMacro)
-            hMacroKey[0] |= CAPS_MASK;
+    Uint16 key = TypingWord[0] & CHAR_MASK;
+    if (key == KEY_A || key == KEY_B || key == KEY_C || key == KEY_D || key == KEY_E ||
+        key == KEY_F || key == KEY_G || key == KEY_H || key == KEY_I || key == KEY_J ||
+        key == KEY_K || key == KEY_L || key == KEY_M || key == KEY_N || key == KEY_O ||
+        key == KEY_P || key == KEY_Q || key == KEY_R || key == KEY_S || key == KEY_T ||
+        key == KEY_U || key == KEY_V || key == KEY_W || key == KEY_X || key == KEY_Y ||
+        key == KEY_Z) {
+        if (!(TypingWord[0] & CAPS_MASK)) {
+            hCode = vWillProcess;
+            hBPC = 0;
+            hNCC = 1;
+            TypingWord[0] |= CAPS_MASK;
+            hData[0] = GET(TypingWord[0]);
+            _upperCaseStatus = 0;
+            if (vUseMacro)
+                hMacroKey[0] |= CAPS_MASK;
+        }
     }
 }
 
@@ -1230,13 +1295,57 @@ void vnkey_set_priority_dictionary(const char* content) {
     }
 }
 
+char getAsciiFromKeyCode(Uint16 keycode) {
+    switch (keycode) {
+        case KEY_A: return 'a';
+        case KEY_B: return 'b';
+        case KEY_C: return 'c';
+        case KEY_D: return 'd';
+        case KEY_E: return 'e';
+        case KEY_F: return 'f';
+        case KEY_G: return 'g';
+        case KEY_H: return 'h';
+        case KEY_I: return 'i';
+        case KEY_J: return 'j';
+        case KEY_K: return 'k';
+        case KEY_L: return 'l';
+        case KEY_M: return 'm';
+        case KEY_N: return 'n';
+        case KEY_O: return 'o';
+        case KEY_P: return 'p';
+        case KEY_Q: return 'q';
+        case KEY_R: return 'r';
+        case KEY_S: return 's';
+        case KEY_T: return 't';
+        case KEY_U: return 'u';
+        case KEY_V: return 'v';
+        case KEY_W: return 'w';
+        case KEY_X: return 'x';
+        case KEY_Y: return 'y';
+        case KEY_Z: return 'z';
+        case KEY_1: return '1';
+        case KEY_2: return '2';
+        case KEY_3: return '3';
+        case KEY_4: return '4';
+        case KEY_5: return '5';
+        case KEY_6: return '6';
+        case KEY_7: return '7';
+        case KEY_8: return '8';
+        case KEY_9: return '9';
+        case KEY_0: return '0';
+        case KEY_DOT: return '.';
+        case KEY_MINUS: return '-';
+        default: return 0;
+    }
+}
+
 std::string getRawWord() {
     std::string rawWord;
     for (int idx = 0; idx < _stateIndex; idx++) {
         Uint16 key = KeyStates[idx] & CHAR_MASK;
-        Uint16 character = getCharacterCode(key) & CHAR_MASK;
-        if (character >= 32 && character < 127) {
-            rawWord.push_back(std::tolower(static_cast<char>(character)));
+        char c = getAsciiFromKeyCode(key);
+        if (c != 0) {
+            rawWord.push_back(c);
         }
     }
     return rawWord;
@@ -1390,13 +1499,13 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
-        } else if (vRestoreIfWrongSpelling && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
+        } else if (isWordBreak(event, state, data)) { //restore key if wrong spelling or priority word with break-key
             if (!tempDisableKey && vCheckSpelling) {
                 checkSpelling(true); //force check spelling
             }
-            if (checkPriorityWordRestoration(vRestoreAndStartNewSession)) {
+            if (vUsePriorityDictionary && checkPriorityWordRestoration(vRestoreAndStartNewSession)) {
                 // restored priority word
-            } else if (tempDisableKey && !checkRestoreIfWrongSpelling(vRestoreAndStartNewSession)) {
+            } else if (vRestoreIfWrongSpelling && tempDisableKey && !checkRestoreIfWrongSpelling(vRestoreAndStartNewSession)) {
                 hCode = vDoNothing;
             }
         }
@@ -1452,10 +1561,10 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && checkQuickConsonant()) {
             _spaceCount++;
+        } else if (vUsePriorityDictionary && checkPriorityWordRestoration(vRestore)) {
+            _spaceCount++;
         } else if (vRestoreIfWrongSpelling && !_hasHandledMacro) { //restore key if wrong spelling
-            if (checkPriorityWordRestoration(vRestore)) {
-                // restored priority word
-            } else if (tempDisableKey && !checkRestoreIfWrongSpelling(vRestore)) {
+            if (tempDisableKey && !checkRestoreIfWrongSpelling(vRestore)) {
                 hCode = vDoNothing;
             } else if (!tempDisableKey) {
                 hCode = vDoNothing;
@@ -1613,6 +1722,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
             hExt = 3;
             _specialChar.push_back(data | (_isCaps ? CAPS_MASK : 0));
         }
+        rebalanceTone();
     }
     
     //Debug

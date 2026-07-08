@@ -379,8 +379,16 @@ extern "C" {
         
         if (vUseSmartSwitchKey) {
             NSString* frontAppLower = [_frontMostApp lowercaseString];
-            BOOL isTerminal = [frontAppLower containsString:@"terminal"] || [frontAppLower containsString:@"iterm"];
-            if (isTerminal && _languageTemp == -1) {
+            BOOL isTerminal = [frontAppLower containsString:@"terminal"] || 
+                              [frontAppLower containsString:@"iterm"] ||
+                              [frontAppLower containsString:@"warp"] ||
+                              [frontAppLower containsString:@"alacritty"] ||
+                              [frontAppLower containsString:@"kitty"] ||
+                              [frontAppLower containsString:@"wezterm"] ||
+                              [frontAppLower containsString:@"console"] ||
+                              [frontAppLower containsString:@"command prompt"] ||
+                              [frontAppLower containsString:@"powershell"];
+            if (isTerminal) {
                 _languageTemp = 0 | (vCodeTable << 1); // 0 = English
                 setAppInputMethodStatus(string(_frontMostApp.UTF8String), _languageTemp);
                 saveSmartSwitchKeyData();

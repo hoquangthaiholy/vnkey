@@ -12,19 +12,19 @@ use std::sync::Mutex;
 
 lazy_static::lazy_static! {
     static ref DB_CONN: Mutex<Option<Connection>> = Mutex::new(None);
+    static ref DB_KEY: [u8; 32] = {
+        let mut key = [0u8; 32];
+        let password = b"vnkey_local_storage_secret";
+        let salt = b"vnkey_salt_123456";
+        pbkdf2_hmac::<Sha256>(password, salt, 2_000, &mut key);
+        key
+    };
 }
-
-
-
 
 // Generate a local encryption key (obfuscation key) for local DB encryption
 // This ensures data is not "raw" on disk.
 fn get_local_db_key() -> [u8; 32] {
-    let mut key = [0u8; 32];
-    let password = b"vnkey_local_storage_secret";
-    let salt = b"vnkey_salt_123456";
-    pbkdf2_hmac::<Sha256>(password, salt, 100_000, &mut key);
-    key
+    *DB_KEY
 }
 
 pub fn encrypt_text(plain_text: &str, key: &[u8; 32]) -> String {
@@ -75,6 +75,10 @@ const DEFAULT_PRIORITY_WORDS: &[&str] = &[
     "static_cast", "struct", "switch", "template", "this", "thread_local", "throw", "true",
     "try", "typedef", "typeid", "typename", "union", "unsigned", "using", "virtual", "void",
     "volatile", "wchar_t", "while",
+    // C#
+    "decimal", "delegate", "fixed", "implicit", "internal", "object", "out", "override", "params",
+    "ref", "sbyte", "sealed", "stackalloc", "uint", "ulong", "unchecked", "unsafe", "ushort",
+    "ascending", "descending", "equals", "nameof", "orderby", "partial", "remove", "select",
     // PHP
     "abstract", "array", "as", "callable", "clone", "declare", "die", "echo", "empty", "enddeclare",
     "endfor", "endforeach", "endif", "endswitch", "endwhile", "eval", "exit", "extends", "final",
@@ -90,12 +94,20 @@ const DEFAULT_PRIORITY_WORDS: &[&str] = &[
     // Javascript & TypeScript
     "let", "const", "var", "async", "await", "typeof", "debugger", "any", "constructor", "get",
     "module", "number", "readonly", "set", "string", "symbol", "type", "from", "of",
-    // Shell bash
+    // Ruby
+    "elsif", "ensure", "nil", "redo", "rescue", "retry", "self", "then", "undef", "unless", "until",
+    // Shell bash & Commands (Terminal, CMD, PowerShell)
     "alias", "bg", "bind", "builtin", "caller", "cd", "command", "coproc", "dirs", "disown",
     "enable", "exec", "fc", "fg", "getopts", "hash", "help", "history", "jobs", "local",
     "logout", "mapfile", "popd", "printf", "pushd", "pwd", "read", "readarray", "shift",
     "shopt", "source", "suspend", "test", "times", "trap", "typeset", "ulimit", "umask",
-    "unalias", "unset", "wait",
+    "unalias", "unset", "wait", "ls", "mkdir", "rmdir", "rm", "cp", "mv", "touch", "cat",
+    "grep", "find", "chmod", "chown", "sudo", "apt", "brew", "yum", "dnf", "npm", "node",
+    "pip", "git", "docker", "composer", "cargo", "rustc", "clang", "gcc", "make", "cmake",
+    "dir", "copy", "move", "del", "ren", "cls", "ipconfig", "ping", "netstat", "tasklist",
+    "taskkill", "systeminfo", "gpupdate", "shutdown", "get-process", "get-service", "get-command",
+    "get-member", "get-help", "set-executionpolicy", "write-host", "write-output", "select-object",
+    "where-object", "foreach-object", "invoke-webrequest", "invoke-expression",
     // SQL
     "select", "insert", "update", "delete", "create", "drop", "alter", "table", "index",
     "where", "join", "inner", "outer", "left", "right", "group", "having", "order", "limit",
@@ -156,13 +168,11 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
     // Pre-populate default priority words if empty
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM priority_words", [], |row| row.get(0))?;
     if count == 0 {
-        let key = get_local_db_key();
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare("INSERT OR IGNORE INTO priority_words (word) VALUES (?1)")?;
             for &word in DEFAULT_PRIORITY_WORDS {
-                let enc_word = encrypt_text(&word.to_string(), &key);
-                let _ = stmt.execute(params![enc_word]);
+                let _ = stmt.execute(params![word]);
             }
         }
         tx.commit()?;
@@ -176,13 +186,11 @@ pub fn init_db(app_config_dir: &Path) -> SqlResult<()> {
 pub fn db_insert_priority_words(words: &[String]) {
     let mut conn_guard = DB_CONN.lock().unwrap();
     if let Some(conn) = conn_guard.as_mut() {
-        let key = get_local_db_key();
         let tx = conn.transaction().unwrap();
         {
             let mut stmt = tx.prepare("INSERT OR IGNORE INTO priority_words (word) VALUES (?1)").unwrap();
             for word in words {
-                let enc_word = encrypt_text(word, &key);
-                let _ = stmt.execute(params![enc_word]);
+                let _ = stmt.execute(params![word]);
             }
         }
         tx.commit().unwrap();
@@ -191,17 +199,16 @@ pub fn db_insert_priority_words(words: &[String]) {
 
 pub fn db_get_priority_words() -> Vec<String> {
     let mut words = Vec::new();
-    let key = get_local_db_key();
     if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
         if let Ok(mut stmt) = conn.prepare("SELECT word FROM priority_words") {
             let iter = stmt.query_map([], |row| {
-                let enc_word: String = row.get(0)?;
-                Ok(enc_word)
+                let word: String = row.get(0)?;
+                Ok(word)
             });
             if let Ok(iter) = iter {
                 for w_res in iter {
                     if let Ok(w) = w_res {
-                        words.push(decrypt_text(&w, &key));
+                        words.push(w);
                     }
                 }
             }
@@ -215,6 +222,23 @@ pub fn db_get_priority_words() -> Vec<String> {
 pub fn db_clear_priority_words() {
     if let Some(conn) = DB_CONN.lock().unwrap().as_ref() {
         let _ = conn.execute("DELETE FROM priority_words", []);
+    }
+}
+
+pub fn db_reset_priority_words() {
+    let mut conn_guard = DB_CONN.lock().unwrap();
+    if let Some(conn) = conn_guard.as_mut() {
+        let _ = conn.execute("DELETE FROM priority_words", []);
+        if let Ok(tx) = conn.transaction() {
+            {
+                if let Ok(mut stmt) = tx.prepare("INSERT OR IGNORE INTO priority_words (word) VALUES (?1)") {
+                    for &word in DEFAULT_PRIORITY_WORDS {
+                        let _ = stmt.execute(params![word]);
+                    }
+                }
+            }
+            let _ = tx.commit();
+        }
     }
 }
 

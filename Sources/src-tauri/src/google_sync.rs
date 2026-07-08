@@ -325,3 +325,22 @@ pub async fn download_sync_data_gdrive(sync_password: &str) -> Result<(), String
     Ok(())
 }
 
+pub async fn delete_sync_data_gdrive() -> Result<(), String> {
+    let access_token = get_valid_access_token().await?;
+    let client = Client::new();
+    
+    // Find the folder and delete it
+    let query = format!("name='VNKey' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", urlencoding::encode(&query));
+    let res = client.get(&url).bearer_auth(&access_token).send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        let list: DriveFileList = res.json().await.map_err(|e| e.to_string())?;
+        for file in list.files {
+            let delete_url = format!("https://www.googleapis.com/drive/v3/files/{}", file.id);
+            let _ = client.delete(&delete_url).bearer_auth(&access_token).send().await;
+        }
+    }
+    Ok(())
+}
+

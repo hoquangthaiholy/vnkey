@@ -65,7 +65,7 @@ fn default_settings() -> Settings {
         code_table: 0,
         switch_key_status: default_switch_key(),
         check_spelling: 1,
-        use_modern_orthography: 0,
+        use_modern_orthography: 1,
         quick_telex: 0,
         fix_spotlight: 1,
         use_macro: 1,
@@ -105,6 +105,7 @@ fn default_settings() -> Settings {
         smart_punct_check: 1,
         use_perceptron_context: 1,
         use_priority_dictionary: 1,
+        restore_if_wrong_spelling: 1,
     }
 }
 
@@ -165,6 +166,8 @@ pub struct Settings {
     pub use_perceptron_context: i32,
     #[serde(default = "default_one")]
     pub use_priority_dictionary: i32,
+    #[serde(default = "default_one")]
+    pub restore_if_wrong_spelling: i32,
 }
 
 fn default_one() -> i32 { 1 }
@@ -596,6 +599,7 @@ fn get_settings() -> Settings {
             smart_punct_check: engine::vSmartPunctCheck,
             use_perceptron_context: engine::vUsePerceptronContext,
             use_priority_dictionary: engine::vUsePriorityDictionary,
+            restore_if_wrong_spelling: engine::vRestoreIfWrongSpelling,
         }
     }
 }
@@ -651,6 +655,7 @@ fn load_settings_from_disk(handle: &tauri::AppHandle) {
                         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
                         engine::vPerformLayoutCompat = settings.perform_layout_compat;
                         engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+                        engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
                         engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
                         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
                         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
@@ -778,6 +783,7 @@ fn update_settings(mut settings: Settings, handle: tauri::AppHandle) {
         engine::vFixChromiumBrowser = settings.fix_chromium_browser;
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
         engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+        engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
         engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
@@ -879,6 +885,7 @@ fn reset_settings(handle: tauri::AppHandle) {
         engine::vPerformLayoutCompat = settings.perform_layout_compat;
         engine::vSmartPunctCheck = settings.smart_punct_check;
         engine::vUsePriorityDictionary = settings.use_priority_dictionary;
+        engine::vRestoreIfWrongSpelling = settings.restore_if_wrong_spelling;
         engine::vAllowConsonantZFWJ = settings.allow_consonant_zfwj;
         engine::set_convert_tool_dont_alert(settings.convert_tool_dont_alert);
         engine::set_convert_tool_to_all_caps(settings.convert_tool_to_all_caps);
@@ -916,8 +923,9 @@ fn reset_settings(handle: tauri::AppHandle) {
     update_autostart_config(settings.autostart == 1);
     OPEN_PANEL_ON_START.store(settings.open_panel_on_start == 1, std::sync::atomic::Ordering::Relaxed);
     save_settings_to_disk(&handle, &settings);
-    db::db_clear_priority_words();
-    engine::set_priority_dictionary("");
+    db::db_reset_priority_words();
+    let words = db::db_get_priority_words();
+    engine::set_priority_dictionary(&words.join("\n"));
     let _ = handle.emit("settings-changed", settings.clone());
     let _ = handle.emit("priority-dict-reset", true);
     update_tray_icon(&handle);
@@ -1795,6 +1803,8 @@ pub struct AppConfig {
     pub quick_end_consonant: i32,
     #[serde(default = "default_one")]
     pub use_priority_dictionary: i32,
+    #[serde(default = "default_one")]
+    pub restore_if_wrong_spelling: i32,
     pub name: Option<String>,
 }
 
@@ -1983,6 +1993,7 @@ fn apply_app_config_by_bundle_id(handle: &tauri::AppHandle, bundle_id: &str) {
             engine::vQuickStartConsonant = config.quick_start_consonant;
             engine::vQuickEndConsonant = config.quick_end_consonant;
             engine::vUsePriorityDictionary = config.use_priority_dictionary;
+            engine::vRestoreIfWrongSpelling = config.restore_if_wrong_spelling;
             engine::startNewSession();
             engine::code_table_changed();
         }
@@ -2060,6 +2071,29 @@ async fn sync_from_cloud(
         bucket_name,
     };
     cloud_sync::download_sync_data(&creds, &get_system_sync_password()).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_cloud_sync_data() -> Result<(), String> {
+    let sync_method = db::db_get_kv("syncMethod").unwrap_or_else(|| "gdrive".to_string());
+    if sync_method == "r2" {
+        let account_id = db::db_get_kv("cloudAccountId").unwrap_or_default();
+        let access_key = db::db_get_kv("cloudAccessKey").unwrap_or_default();
+        let secret_key = db::db_get_kv("cloudSecretKey").unwrap_or_default();
+        let bucket_name = db::db_get_kv("cloudBucketName").unwrap_or_default();
+        if account_id.is_empty() || access_key.is_empty() || secret_key.is_empty() || bucket_name.is_empty() {
+            return Err("Cấu hình R2 chưa được thiết lập".to_string());
+        }
+        let creds = cloud_sync::CloudCredentials {
+            account_id,
+            access_key,
+            secret_key,
+            bucket_name,
+        };
+        cloud_sync::delete_sync_data(&creds).await.map_err(|e| e.to_string())
+    } else {
+        google_sync::delete_sync_data_gdrive().await.map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
@@ -2327,7 +2361,8 @@ pub fn run() {
             sync_to_gdrive,
             sync_from_gdrive,
             get_priority_dictionary,
-            save_priority_words
+            save_priority_words,
+            delete_cloud_sync_data
         ])
         .setup(|app| {
             let handle = app.handle().clone();

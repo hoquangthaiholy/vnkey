@@ -37,6 +37,7 @@ extern "C" {
     pub static mut vUsePerceptronContext: c_int;
 
     pub static mut vUsePriorityDictionary: c_int;
+    pub static mut vRestoreIfWrongSpelling: c_int;
 
     pub fn vKeyInit() -> *mut c_void;
     pub fn startNewSession();
