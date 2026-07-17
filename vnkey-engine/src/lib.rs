@@ -22,6 +22,22 @@ pub enum EngineResult {
     Reset,
 }
 
+pub fn minimal_suffix_edit(old: &str, new: &str) -> (usize, String) {
+    let common_prefix_len = old
+        .chars()
+        .zip(new.chars())
+        .take_while(|(old_char, new_char)| old_char == new_char)
+        .count();
+    let backspaces = old.chars().count() - common_prefix_len;
+    let text = new.chars().skip(common_prefix_len).collect();
+    (backspaces, text)
+}
+
+fn replace_result(old: &str, new: String) -> EngineResult {
+    let (backspaces, text) = minimal_suffix_edit(old, &new);
+    EngineResult::Replace { backspaces, text }
+}
+
 #[derive(Debug, Clone)]
 pub struct EngineConfig {
     pub method: InputMethod,
@@ -130,7 +146,7 @@ impl Engine {
             return EngineResult::Reset;
         }
 
-        let old_buffer_len = self.buffer.chars().count();
+        let old_buffer = self.buffer.clone();
         self.raw_buffer.push(c);
 
         let process_result = match self.config.method {
@@ -172,19 +188,13 @@ impl Engine {
                         return EngineResult::Reset;
                     }
                     self.buffer = self.raw_buffer.clone();
-                    let res = EngineResult::Replace {
-                        backspaces: old_buffer_len,
-                        text: self.buffer.clone(),
-                    };
+                    let res = replace_result(&old_buffer, self.buffer.clone());
                     self.reset();
                     return res;
                 }
             }
             
-            EngineResult::Replace {
-                backspaces: old_buffer_len,
-                text: new_word,
-            }
+            replace_result(&old_buffer, new_word)
         } else {
             // No transformation. If it's a valid character, append to buffer
             self.buffer.push(c);
@@ -217,20 +227,14 @@ impl Engine {
                         return EngineResult::Reset;
                     }
                     self.buffer = self.raw_buffer.clone();
-                    let res = EngineResult::Replace {
-                        backspaces: old_buffer_len,
-                        text: self.buffer.clone(),
-                    };
+                    let res = replace_result(&old_buffer, self.buffer.clone());
                     self.reset();
                     return res;
                 }
             }
             
             if did_reconstruct {
-                EngineResult::Replace {
-                    backspaces: old_buffer_len,
-                    text: self.buffer.clone(),
-                }
+                replace_result(&old_buffer, self.buffer.clone())
             } else {
                 EngineResult::Keep
             }
