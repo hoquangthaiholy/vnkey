@@ -1,4 +1,4 @@
-use vnkey_engine::{Engine, EngineConfig, EngineResult, InputMethod};
+use vnkey_engine::{minimal_suffix_edit, Engine, EngineConfig, EngineResult, InputMethod};
 use vnkey_engine::tone::ToneStyle;
 
 fn create_engine(method: InputMethod, tone_style: ToneStyle) -> Engine {
@@ -10,7 +10,7 @@ fn create_engine(method: InputMethod, tone_style: ToneStyle) -> Engine {
 }
 
 fn type_word(engine: &mut Engine, word: &str) -> String {
-    let mut last_text = String::new();
+    let mut last_text = engine.get_buffer().to_string();
     for c in word.chars() {
         match engine.process_key(c) {
             EngineResult::Keep => {
@@ -34,6 +34,40 @@ fn type_word(engine: &mut Engine, word: &str) -> String {
         }
     }
     last_text
+}
+
+#[test]
+fn test_minimal_suffix_edit() {
+    let cases = [
+        ("duong", "đường", 5, "đường"),
+        ("dươ", "dườ", 1, "ờ"),
+        ("tiếng", "tiếng", 0, ""),
+        ("ab", "abc", 0, "c"),
+        ("abc", "a", 2, ""),
+    ];
+
+    for (old, new, expected_backspaces, expected_text) in cases {
+        assert_eq!(
+            minimal_suffix_edit(old, new),
+            (expected_backspaces, expected_text.to_string()),
+            "old={old:?}, new={new:?}"
+        );
+    }
+}
+
+#[test]
+fn test_engine_emits_minimal_suffix_replacement() {
+    let mut engine = create_engine(InputMethod::Telex, ToneStyle::Modern);
+    assert_eq!(engine.process_key('h'), EngineResult::Keep);
+    assert_eq!(engine.process_key('o'), EngineResult::Keep);
+    assert_eq!(engine.process_key('a'), EngineResult::Keep);
+    assert_eq!(
+        engine.process_key('f'),
+        EngineResult::Replace {
+            backspaces: 1,
+            text: "à".to_string(),
+        }
+    );
 }
 
 #[test]
@@ -842,7 +876,4 @@ fn test_benchmark_performance_realistic() {
         println!("CPU Utilization under Human speed: {:.5}%", cpu_utilization);
     }
 }
-
-
-
 
