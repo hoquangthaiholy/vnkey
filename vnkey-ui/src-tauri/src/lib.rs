@@ -1,21 +1,24 @@
+use lazy_static::lazy_static;
+#[cfg(target_os = "macos")]
+use rdev::Key;
+#[cfg(not(target_os = "macos"))]
+use rdev::{grab, simulate, Event, EventType, Key};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::thread;
-use lazy_static::lazy_static;
-#[cfg(not(target_os = "macos"))]
-use rdev::{Event, EventType, Key, simulate, grab};
-#[cfg(target_os = "macos")]
-use rdev::Key;
-use tauri::{Manager, Emitter};
-use tauri::tray::TrayIconBuilder;
 use tauri::menu::{Menu, MenuItem};
-use vnkey_engine::{Engine, EngineConfig, InputMethod};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager};
 use vnkey_engine::tone::ToneStyle;
+use vnkey_engine::{Engine, EngineConfig, InputMethod};
+
+#[cfg(target_os = "macos")]
+mod macos_replacement;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    pub method: String,        // "Off", "Telex", "Vni"
-    pub tone_style: String,    // "Modern", "Classic"
+    pub method: String,     // "Off", "Telex", "Vni"
+    pub tone_style: String, // "Modern", "Classic"
     pub spelling_check: bool,
 }
 
@@ -31,17 +34,21 @@ lazy_static! {
         spelling_check: true,
     })));
     static ref SHIFT_PRESSED: Arc<RwLock<bool>> = Arc::new(RwLock::new(false));
-    static ref TRAY_TOGGLE_ITEM: Arc<RwLock<Option<MenuItem<tauri::Wry>>>> = Arc::new(RwLock::new(None));
-    static ref NORMAL_ICON: Arc<RwLock<Option<tauri::image::Image<'static>>>> = Arc::new(RwLock::new(None));
-    static ref DIMMED_ICON: Arc<RwLock<Option<tauri::image::Image<'static>>>> = Arc::new(RwLock::new(None));
+    static ref TRAY_TOGGLE_ITEM: Arc<RwLock<Option<MenuItem<tauri::Wry>>>> =
+        Arc::new(RwLock::new(None));
+    static ref NORMAL_ICON: Arc<RwLock<Option<tauri::image::Image<'static>>>> =
+        Arc::new(RwLock::new(None));
+    static ref DIMMED_ICON: Arc<RwLock<Option<tauri::image::Image<'static>>>> =
+        Arc::new(RwLock::new(None));
 }
 
 // CMD_SENDER and KeyboardCmd are removed since execution is synchronous
 
-static ACTIVE_LAYOUT_IS_ENGLISH: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-static ACTIVE_MODE_IS_VIETNAMESE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static ACTIVE_LAYOUT_IS_ENGLISH: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(true);
+static ACTIVE_MODE_IS_VIETNAMESE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 static INITIAL_RUN_DONE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-static IS_SPOTLIGHT_OR_ELECTRON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[tauri::command]
 fn has_accessibility() -> bool {
@@ -138,16 +145,76 @@ fn key_to_char(key: Key, shift: bool) -> Option<char> {
         Key::KeyX => 'x',
         Key::KeyY => 'y',
         Key::KeyZ => 'z',
-        Key::Num1 => { if shift { return None; } else { '1' } },
-        Key::Num2 => { if shift { return None; } else { '2' } },
-        Key::Num3 => { if shift { return None; } else { '3' } },
-        Key::Num4 => { if shift { return None; } else { '4' } },
-        Key::Num5 => { if shift { return None; } else { '5' } },
-        Key::Num6 => { if shift { return None; } else { '6' } },
-        Key::Num7 => { if shift { return None; } else { '7' } },
-        Key::Num8 => { if shift { return None; } else { '8' } },
-        Key::Num9 => { if shift { return None; } else { '9' } },
-        Key::Num0 => { if shift { return None; } else { '0' } },
+        Key::Num1 => {
+            if shift {
+                return None;
+            } else {
+                '1'
+            }
+        }
+        Key::Num2 => {
+            if shift {
+                return None;
+            } else {
+                '2'
+            }
+        }
+        Key::Num3 => {
+            if shift {
+                return None;
+            } else {
+                '3'
+            }
+        }
+        Key::Num4 => {
+            if shift {
+                return None;
+            } else {
+                '4'
+            }
+        }
+        Key::Num5 => {
+            if shift {
+                return None;
+            } else {
+                '5'
+            }
+        }
+        Key::Num6 => {
+            if shift {
+                return None;
+            } else {
+                '6'
+            }
+        }
+        Key::Num7 => {
+            if shift {
+                return None;
+            } else {
+                '7'
+            }
+        }
+        Key::Num8 => {
+            if shift {
+                return None;
+            } else {
+                '8'
+            }
+        }
+        Key::Num9 => {
+            if shift {
+                return None;
+            } else {
+                '9'
+            }
+        }
+        Key::Num0 => {
+            if shift {
+                return None;
+            } else {
+                '0'
+            }
+        }
         _ => return None,
     };
     if shift {
@@ -190,7 +257,11 @@ fn hook_callback(event: Event) -> Option<Event> {
                 return Some(event);
             }
 
-            if key == Key::Space || key == Key::Return || key == Key::Escape || key == Key::Backspace {
+            if key == Key::Space
+                || key == Key::Return
+                || key == Key::Escape
+                || key == Key::Backspace
+            {
                 let mut eng = ENGINE.write().unwrap();
                 eng.reset();
                 return Some(event);
@@ -248,11 +319,16 @@ fn hook_callback(event: Event) -> Option<Event> {
 
 #[cfg(target_os = "macos")]
 mod macos_tap {
-    use std::ffi::c_void;
-    use crate::{ENGINE, SHIFT_PRESSED, key_to_char, ACTIVE_LAYOUT_IS_ENGLISH};
-    use vnkey_engine::EngineResult;
+    use crate::macos_replacement::{
+        replace_with_fallback, should_reset_for_keycode, ReplacementBackend,
+        ReplacementCapabilityCache, ReplacementPolicy,
+    };
+    use crate::{key_to_char, ACTIVE_LAYOUT_IS_ENGLISH, ENGINE, SHIFT_PRESSED};
     use objc2_app_kit::NSWorkspace;
-    use std::path::Path;
+    use std::cell::RefCell;
+    use std::ffi::c_void;
+    use std::time::{Duration, Instant};
+    use vnkey_engine::EngineResult;
 
     type CGEventTapProxy = *mut c_void;
     type CGEventRef = *mut c_void;
@@ -273,11 +349,20 @@ mod macos_tap {
             place: u32,
             options: u32,
             eventsOfInterest: u64,
-            callback: unsafe extern "C" fn(CGEventTapProxy, u32, CGEventRef, *mut c_void) -> CGEventRef,
+            callback: unsafe extern "C" fn(
+                CGEventTapProxy,
+                u32,
+                CGEventRef,
+                *mut c_void,
+            ) -> CGEventRef,
             refcon: *mut c_void,
         ) -> CGEventRef;
         fn CGEventTapEnable(tap: CGEventRef, enable: bool);
-        fn CFMachPortCreateRunLoopSource(allocator: *mut c_void, port: CGEventRef, order: isize) -> *mut c_void;
+        fn CFMachPortCreateRunLoopSource(
+            allocator: *mut c_void,
+            port: CGEventRef,
+            order: isize,
+        ) -> *mut c_void;
         fn CFRunLoopGetCurrent() -> *mut c_void;
         fn CFRunLoopAddSource(rl: *mut c_void, source: *mut c_void, mode: *const c_void);
         fn CFRunLoopRun();
@@ -315,8 +400,13 @@ mod macos_tap {
             encoding: u32,
             isExternalRepresentation: bool,
         ) -> *mut c_void;
+        fn CFStringGetCString(
+            theString: *const c_void,
+            buffer: *mut u8,
+            bufferSize: isize,
+            encoding: u32,
+        ) -> bool;
     }
-
 
     const KCGSessionEventTap: u32 = 1;
     const KCGHeadInsertEventTap: u32 = 0;
@@ -342,6 +432,13 @@ mod macos_tap {
     static mut EVENT_SOURCE: *mut c_void = std::ptr::null_mut();
     static mut ACTIVE_TAP: CGEventTapRef = std::ptr::null_mut();
 
+    thread_local! {
+        static REPLACEMENT_CACHE: RefCell<ReplacementCapabilityCache> =
+            RefCell::new(ReplacementCapabilityCache::new(16));
+        static LAST_SLOW_WARNING: RefCell<Option<Instant>> = const { RefCell::new(None) };
+        static ACTIVE_BUNDLE_ID: RefCell<String> = const { RefCell::new(String::new()) };
+    }
+
     fn send_backspaces(proxy: CGEventTapProxy, count: usize) {
         unsafe {
             let source = EVENT_SOURCE;
@@ -365,51 +462,51 @@ mod macos_tap {
     fn char_to_keycode(c: char) -> u16 {
         let lower = c.to_lowercase().next().unwrap_or(c);
         match lower {
-            'a' | 'á' | 'à' | 'ả' | 'ã' | 'ạ' |
-            'â' | 'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' |
-            'ă' | 'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' => 0, // Key A
-            
+            'a' | 'á' | 'à' | 'ả' | 'ã' | 'ạ' | 'â' | 'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' | 'ă' | 'ắ'
+            | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' => 0, // Key A
+
             'b' => 11, // Key B
             'c' => 8,  // Key C
-            
+
             'd' | 'đ' => 2, // Key D
-            
-            'e' | 'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ' |
-            'ê' | 'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' => 14, // Key E
-            
-            'f' => 3,  // Key F
-            'g' => 5,  // Key G
-            'h' => 4,  // Key H
-            
+
+            'e' | 'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ' | 'ê' | 'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' => {
+                14
+            } // Key E
+
+            'f' => 3, // Key F
+            'g' => 5, // Key G
+            'h' => 4, // Key H
+
             'i' | 'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị' => 34, // Key I
-            
+
             'j' => 38, // Key J
             'k' => 40, // Key K
             'l' => 37, // Key L
             'm' => 46, // Key M
             'n' => 45, // Key N
-            
-            'o' | 'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ' |
-            'ô' | 'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' |
-            'ơ' | 'ớ' | 'ờ' | 'ở' | 'ỡ' | 'ợ' => 31, // Key O
-            
+
+            'o' | 'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ' | 'ô' | 'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' | 'ơ' | 'ớ'
+            | 'ờ' | 'ở' | 'ỡ' | 'ợ' => 31, // Key O
+
             'p' => 35, // Key P
             'q' => 12, // Key Q
             'r' => 15, // Key R
             's' => 1,  // Key S
             't' => 17, // Key T
-            
-            'u' | 'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ' |
-            'ư' | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' => 32, // Key U
-            
+
+            'u' | 'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ' | 'ư' | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' => {
+                32
+            } // Key U
+
             'v' => 9,  // Key V
             'w' => 13, // Key W
             'x' => 7,  // Key X
-            
+
             'y' | 'ý' | 'ỳ' | 'ỷ' | 'ỹ' | 'ỵ' => 16, // Key Y
-            
-            'z' => 6,  // Key Z
-            
+
+            'z' => 6, // Key Z
+
             _ => 0, // Default to A
         }
     }
@@ -421,7 +518,7 @@ mod macos_tap {
                 let s_str = c.to_string();
                 let utf16: Vec<u16> = s_str.encode_utf16().collect();
                 let keycode = char_to_keycode(c);
-                
+
                 let down = CGEventCreateKeyboardEvent(source, keycode, true);
                 let up = CGEventCreateKeyboardEvent(source, keycode, false);
                 if !down.is_null() {
@@ -452,60 +549,37 @@ mod macos_tap {
         }
     }
 
-    fn is_spotlight_or_electron_app() -> bool {
-        super::IS_SPOTLIGHT_OR_ELECTRON.load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    pub fn update_active_app_state() {
+    fn active_bundle_id() -> String {
         let workspace = NSWorkspace::sharedWorkspace();
         let Some(app) = workspace.frontmostApplication() else {
-            return;
+            return String::new();
         };
-
-        let current_bundle_id = app.bundleIdentifier().map(|id| id.to_string());
-        let mut is_electron = false;
-
-        // 1. Check bundle identifier
-        if let Some(ref bundle_id_str) = current_bundle_id {
-            if bundle_id_str == "com.apple.Spotlight" {
-                is_electron = true;
-            } else {
-                let known_electron_ids = [
-                    "com.microsoft.VSCode",
-                    "com.tinyspeck.slackmacgap",
-                    "com.hnc.Discord",
-                    "com.aversoft.Discord",
-                    "md.obsidian",
-                    "com.figma.Desktop",
-                    "com.electron.native-host",
-                ];
-                if known_electron_ids.iter().any(|id| bundle_id_str.contains(id)) {
-                    is_electron = true;
-                }
-            }
-        }
-
-        // 2. Check bundle URL for Electron framework or app.asar
-        if !is_electron {
-            if let Some(bundle_url) = app.bundleURL() {
-                if let Some(path_ns) = bundle_url.path() {
-                    let path_str = path_ns.to_string();
-                    let path = Path::new(&path_str);
-                    let electron_framework = path.join("Contents/Frameworks/Electron Framework.framework");
-                    let app_asar = path.join("Contents/Resources/app.asar");
-                    if electron_framework.exists() || app_asar.exists() {
-                        is_electron = true;
-                    }
-                }
-            }
-        }
-
-        super::IS_SPOTLIGHT_OR_ELECTRON.store(is_electron, std::sync::atomic::Ordering::Relaxed);
+        app.bundleIdentifier()
+            .map(|id| id.to_string())
+            .unwrap_or_default()
     }
 
+    unsafe fn cf_string_to_string(value: *const c_void) -> Option<String> {
+        if value.is_null() {
+            return None;
+        }
+        let mut buffer = [0u8; 256];
+        if !CFStringGetCString(
+            value,
+            buffer.as_mut_ptr(),
+            buffer.len() as isize,
+            0x08000100,
+        ) {
+            return None;
+        }
+        let nul = buffer
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(buffer.len());
+        std::str::from_utf8(&buffer[..nul]).ok().map(str::to_owned)
+    }
 
-
-    unsafe fn send_via_accessibility(backspaces: usize, text: &str) -> bool {
+    unsafe fn send_via_accessibility(backspaces: usize, text: &str, bundle_id: &str) -> bool {
         let system_wide = AXUIElementCreateSystemWide();
         if system_wide.is_null() {
             return false;
@@ -521,9 +595,33 @@ mod macos_tap {
             return false;
         }
 
+        let role_attr = create_cf_string("AXRole");
+        let mut role_value: *mut c_void = std::ptr::null_mut();
+        let role_err = AXUIElementCopyAttributeValue(focused_element, role_attr, &mut role_value);
+        CFRelease(role_attr);
+        let role = if role_err == 0 {
+            cf_string_to_string(role_value)
+        } else {
+            None
+        };
+        if !role_value.is_null() {
+            CFRelease(role_value);
+        }
+
+        let should_try = REPLACEMENT_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            cache.invalidate_for_app(bundle_id);
+            ReplacementPolicy::should_try_accessibility(&cache, bundle_id, role.as_deref(), false)
+        });
+        if !should_try {
+            CFRelease(focused_element);
+            return false;
+        }
+
         let range_attr = create_cf_string("AXSelectedTextRange");
         let mut selected_range_val: *mut c_void = std::ptr::null_mut();
-        let err = AXUIElementCopyAttributeValue(focused_element, range_attr, &mut selected_range_val);
+        let err =
+            AXUIElementCopyAttributeValue(focused_element, range_attr, &mut selected_range_val);
 
         if err != 0 || selected_range_val.is_null() {
             CFRelease(range_attr);
@@ -531,7 +629,10 @@ mod macos_tap {
             return false;
         }
 
-        let mut range = CFRange { location: 0, length: 0 };
+        let mut range = CFRange {
+            location: 0,
+            length: 0,
+        };
         let decoded = AXValueGetValue(selected_range_val, 4, &mut range as *mut _ as *mut c_void); // kAXValueTypeCFRange is 4
         CFRelease(selected_range_val);
 
@@ -542,11 +643,12 @@ mod macos_tap {
         }
 
         // Calculate new range to select and replace
-        let new_location = if range.location >= backspaces as isize {
-            range.location - backspaces as isize
-        } else {
-            0
-        };
+        if range.location < backspaces as isize {
+            CFRelease(range_attr);
+            CFRelease(focused_element);
+            return false;
+        }
+        let new_location = range.location - backspaces as isize;
         let new_length = range.location - new_location + range.length;
 
         let new_range = CFRange {
@@ -577,8 +679,78 @@ mod macos_tap {
         CFRelease(text_attr);
         CFRelease(text_val);
 
+        if err != 0 {
+            let original_range_val = AXValueCreate(4, &range as *const _ as *const c_void);
+            if !original_range_val.is_null() {
+                let range_attr = create_cf_string("AXSelectedTextRange");
+                AXUIElementSetAttributeValue(focused_element, range_attr, original_range_val);
+                CFRelease(range_attr);
+                CFRelease(original_range_val);
+            }
+        }
+
         CFRelease(focused_element);
-        err == 0
+        let success = err == 0;
+        if !success {
+            if let Some(role) = role.as_deref() {
+                REPLACEMENT_CACHE.with(|cache| {
+                    cache.borrow_mut().mark_unsupported(bundle_id, role);
+                });
+            }
+        }
+        success
+    }
+
+    struct MacReplacementBackend {
+        proxy: CGEventTapProxy,
+        bundle_id: String,
+        accessibility_elapsed: Duration,
+        fallback_elapsed: Duration,
+    }
+
+    impl ReplacementBackend for MacReplacementBackend {
+        fn try_accessibility(&mut self, backspaces: usize, text: &str) -> bool {
+            let started = Instant::now();
+            let success = unsafe { send_via_accessibility(backspaces, text, &self.bundle_id) };
+            self.accessibility_elapsed = started.elapsed();
+            success
+        }
+
+        fn send_cgevent(&mut self, backspaces: usize, text: &str) {
+            let started = Instant::now();
+            send_backspaces(self.proxy, backspaces);
+            send_unicode_string(self.proxy, text);
+            self.fallback_elapsed = started.elapsed();
+        }
+    }
+
+    fn warn_if_slow(
+        bundle_id: &str,
+        engine_elapsed: Duration,
+        accessibility_elapsed: Duration,
+        fallback_elapsed: Duration,
+        total_elapsed: Duration,
+    ) {
+        #[cfg(debug_assertions)]
+        if total_elapsed >= Duration::from_millis(5) {
+            LAST_SLOW_WARNING.with(|last_warning| {
+                let mut last_warning = last_warning.borrow_mut();
+                let now = Instant::now();
+                if last_warning
+                    .is_some_and(|last| now.duration_since(last) < Duration::from_secs(5))
+                {
+                    return;
+                }
+                *last_warning = Some(now);
+                eprintln!(
+                    "VNKey slow callback app={bundle_id} engine_us={} ax_us={} fallback_us={} total_us={}",
+                    engine_elapsed.as_micros(),
+                    accessibility_elapsed.as_micros(),
+                    fallback_elapsed.as_micros(),
+                    total_elapsed.as_micros(),
+                );
+            });
+        }
     }
 
     unsafe extern "C" fn tap_callback(
@@ -587,7 +759,10 @@ mod macos_tap {
         event: CGEventRef,
         _refcon: *mut c_void,
     ) -> CGEventRef {
-        if event_type == KCGEventTapDisabledByTimeout || event_type == KCGEventTapDisabledByUserInput {
+        let callback_started = Instant::now();
+        if event_type == KCGEventTapDisabledByTimeout
+            || event_type == KCGEventTapDisabledByUserInput
+        {
             unsafe {
                 if !ACTIVE_TAP.is_null() {
                     CGEventTapEnable(ACTIVE_TAP, true);
@@ -612,6 +787,20 @@ mod macos_tap {
             if !ACTIVE_LAYOUT_IS_ENGLISH.load(std::sync::atomic::Ordering::Relaxed) {
                 return event;
             }
+            let bundle_id = active_bundle_id();
+            let app_changed = ACTIVE_BUNDLE_ID.with(|active_bundle| {
+                let mut active_bundle = active_bundle.borrow_mut();
+                if *active_bundle == bundle_id {
+                    false
+                } else {
+                    *active_bundle = bundle_id.clone();
+                    true
+                }
+            });
+            if app_changed {
+                let mut eng = ENGINE.write().unwrap();
+                eng.reset();
+            }
             let flags = CGEventGetFlags(event);
             if (flags & (FLAG_CONTROL | FLAG_ALTERNATE | FLAG_COMMAND)) != 0 {
                 let mut eng = ENGINE.write().unwrap();
@@ -619,8 +808,9 @@ mod macos_tap {
                 return event;
             }
 
-            let keycode = CGEventGetIntegerValueField(event, KCGEventFieldKeyboardEventKeycode) as u16;
-            if keycode == 53 || keycode == 36 || keycode == 48 || keycode == 51 {
+            let keycode =
+                CGEventGetIntegerValueField(event, KCGEventFieldKeyboardEventKeycode) as u16;
+            if should_reset_for_keycode(keycode) {
                 let mut eng = ENGINE.write().unwrap();
                 eng.reset();
                 return event;
@@ -672,24 +862,30 @@ mod macos_tap {
 
             let shift_held = *SHIFT_PRESSED.read().unwrap();
             if let Some(c) = key_to_char(rdev_key, shift_held) {
+                let engine_started = Instant::now();
                 let result = {
                     let mut eng = ENGINE.write().unwrap();
                     eng.process_key(c)
                 };
+                let engine_elapsed = engine_started.elapsed();
 
                 match result {
                     EngineResult::Keep => event,
                     EngineResult::Replace { backspaces, text } => {
-                        let mut success = false;
-                        if is_spotlight_or_electron_app() {
-                            unsafe {
-                                success = send_via_accessibility(backspaces, &text);
-                            }
-                        }
-                        if !success {
-                            send_backspaces(proxy, backspaces);
-                            send_unicode_string(proxy, &text);
-                        }
+                        let mut backend = MacReplacementBackend {
+                            proxy,
+                            bundle_id,
+                            accessibility_elapsed: Duration::ZERO,
+                            fallback_elapsed: Duration::ZERO,
+                        };
+                        replace_with_fallback(&mut backend, true, backspaces, &text);
+                        warn_if_slow(
+                            &backend.bundle_id,
+                            engine_elapsed,
+                            backend.accessibility_elapsed,
+                            backend.fallback_elapsed,
+                            callback_started.elapsed(),
+                        );
                         std::ptr::null_mut()
                     }
                     EngineResult::Reset => event,
@@ -711,7 +907,7 @@ mod macos_tap {
 
     pub fn start_macos_native_hook() {
         println!("Starting native macOS CGEventTap hook...");
-        
+
         // No background thread needed for synchronous event execution
 
         unsafe {
@@ -756,7 +952,10 @@ mod macos_tap {
 extern "C" {
     static kTISPropertyInputSourceID: *const std::ffi::c_void;
     fn TISCopyCurrentKeyboardInputSource() -> *mut std::ffi::c_void;
-    fn TISGetInputSourceProperty(source: *mut std::ffi::c_void, property_key: *const std::ffi::c_void) -> *const std::ffi::c_void;
+    fn TISGetInputSourceProperty(
+        source: *mut std::ffi::c_void,
+        property_key: *const std::ffi::c_void,
+    ) -> *const std::ffi::c_void;
 }
 
 #[cfg(target_os = "macos")]
@@ -782,9 +981,12 @@ extern "C" {
 #[cfg(target_os = "macos")]
 fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
     use objc2::msg_send;
-    use objc2_foundation::{NSPoint, NSSize, NSRect};
+    use objc2_foundation::{NSPoint, NSRect, NSSize};
 
-    let size_18 = NSSize { width: 18.0, height: 18.0 };
+    let size_18 = NSSize {
+        width: 18.0,
+        height: 18.0,
+    };
 
     unsafe {
         // 1. Create NSImage of size 18x18
@@ -797,7 +999,10 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         // 2. Draw rounded rect (16x16 box inside 18x18 canvas, centered: x=1, y=1)
         let rect = NSRect {
             origin: NSPoint { x: 1.0, y: 1.0 },
-            size: NSSize { width: 16.0, height: 16.0 },
+            size: NSSize {
+                width: 16.0,
+                height: 16.0,
+            },
         };
         let nsbezierpath_class = objc2::class!(NSBezierPath);
         let path: *mut objc2::runtime::AnyObject = msg_send![
@@ -826,7 +1031,8 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         // 4. Create font and paragraph style
         let nsfont_class = objc2::class!(NSFont);
         // systemFontOfSize: 13.0 with weight 0.23 (Medium) to match other system menu bar icons
-        let font: *mut objc2::runtime::AnyObject = msg_send![nsfont_class, systemFontOfSize: 13.0f64, weight: 0.23f64];
+        let font: *mut objc2::runtime::AnyObject =
+            msg_send![nsfont_class, systemFontOfSize: 13.0f64, weight: 0.23f64];
 
         let nsmutableparagraphstyle_class = objc2::class!(NSMutableParagraphStyle);
         let style: *mut objc2::runtime::AnyObject = msg_send![nsmutableparagraphstyle_class, alloc];
@@ -856,8 +1062,14 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         // Center vertically inside the 16x16 box
         let text_y = rect.origin.y + (rect.size.height - text_size.height) * 0.5;
         let text_rect = NSRect {
-            origin: NSPoint { x: rect.origin.x, y: text_y },
-            size: NSSize { width: rect.size.width, height: text_size.height },
+            origin: NSPoint {
+                x: rect.origin.x,
+                y: text_y,
+            },
+            size: NSSize {
+                width: rect.size.width,
+                height: text_size.height,
+            },
         };
 
         // Draw string (draws white text on black background)
@@ -870,7 +1082,7 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         let rep: *mut objc2::runtime::AnyObject = msg_send![nsbitmapimagerep_class, alloc];
         let color_space_name: *mut objc2::runtime::AnyObject = msg_send![nsstring_class, alloc];
         let color_space_name: *mut objc2::runtime::AnyObject = msg_send![color_space_name, initWithUTF8String: b"NSDeviceRGBColorSpace\0".as_ptr() as *const i8];
-        
+
         let rep: *mut objc2::runtime::AnyObject = msg_send![
             rep,
             initWithBitmapDataPlanes: std::ptr::null_mut::<*mut u8>(),
@@ -884,12 +1096,13 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
             bytesPerRow: 144isize,
             bitsPerPixel: 32isize
         ];
-        
+
         let _: () = msg_send![rep, setSize: size_18];
 
         let nsgraphicscontext_class = objc2::class!(NSGraphicsContext);
         let _: () = msg_send![nsgraphicscontext_class, saveGraphicsState];
-        let bitmap_context: *mut objc2::runtime::AnyObject = msg_send![nsgraphicscontext_class, graphicsContextWithBitmapImageRep: rep];
+        let bitmap_context: *mut objc2::runtime::AnyObject =
+            msg_send![nsgraphicscontext_class, graphicsContextWithBitmapImageRep: rep];
         let _: () = msg_send![nsgraphicscontext_class, setCurrentContext: bitmap_context];
 
         // Draw NSImage into NSBitmapImageRep (NSCompositingOperationSourceOver = 2)
@@ -912,15 +1125,15 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         // 8. Extract and copy raw data, converting white text to transparent cutout
         let data_ptr: *mut u8 = msg_send![rep, bitmapData];
         let mut bytes = vec![0u8; 36 * 36 * 4];
-        
+
         for i in (0..bytes.len()).step_by(4) {
-            let r = *data_ptr.add(i) as f32;     // R channel (since text is white, R=255, box has R=0)
+            let r = *data_ptr.add(i) as f32; // R channel (since text is white, R=255, box has R=0)
             let a = *data_ptr.add(i + 3) as f32; // A channel (box has A=255, background A=0)
-            
+
             // Calculate final alpha (box_alpha * (1.0 - text_intensity))
             let final_a = (a * (255.0 - r) / 255.0).round() as u8;
-            
-            bytes[i] = 0;     // R = 0
+
+            bytes[i] = 0; // R = 0
             bytes[i + 1] = 0; // G = 0
             bytes[i + 2] = 0; // B = 0
             bytes[i + 3] = final_a; // A = final_a
@@ -942,19 +1155,19 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
     let width = 36;
     let height = 36;
     let mut rgba = vec![0u8; (width * height * 4) as usize];
-    
+
     // Helper function for rectangle
     fn rect_coverage(px: f32, py: f32, x1: f32, x2: f32, y1: f32, y2: f32) -> f32 {
         let cx = (x1 + x2) * 0.5;
         let cy = (y1 + y2) * 0.5;
         let rx = (x2 - x1) * 0.5;
         let ry = (y2 - y1) * 0.5;
-        
+
         let cov_x = (0.5 + rx - (px - cx).abs()).clamp(0.0, 1.0);
         let cov_y = (0.5 + ry - (py - cy).abs()).clamp(0.0, 1.0);
         cov_x * cov_y
     }
-    
+
     // Helper function for line segment
     fn line_coverage(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32, w: f32) -> f32 {
         let dx = bx - ax;
@@ -965,7 +1178,7 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
             let r = w * 0.5;
             return (r + 0.5 - dist).clamp(0.0, 1.0);
         }
-        
+
         let t = (((px - ax) * dx + (py - ay) * dy) / len_sq).clamp(0.0, 1.0);
         let cx = ax + t * dx;
         let cy = ay + t * dy;
@@ -973,20 +1186,20 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         let r = w * 0.5;
         (r + 0.5 - dist).clamp(0.0, 1.0)
     }
-    
+
     for y in 0..height {
         for x in 0..width {
             let px = x as f32 + 0.5;
             let py = y as f32 + 0.5;
-            
+
             let mut box_coverage = 0.0f32;
-            
+
             if px >= 4.0 && px <= 32.0 && py >= 4.0 && py <= 32.0 {
                 let is_left = px < 12.0;
                 let is_right = px > 24.0;
                 let is_top = py < 12.0;
                 let is_bottom = py > 24.0;
-                
+
                 if (is_left || is_right) && (is_top || is_bottom) {
                     let cx = if is_left { 12.0 } else { 24.0 };
                     let cy = if is_top { 12.0 } else { 24.0 };
@@ -1005,7 +1218,7 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
                     box_coverage = 1.0;
                 }
             }
-            
+
             let w = 3.5;
             let char_coverage = if is_eng {
                 let cov_stem = rect_coverage(px, py, 11.0, 11.0 + w, 9.0, 27.0);
@@ -1018,9 +1231,9 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
                 let cov_right = line_coverage(px, py, 23.25, 9.0, 18.0, 26.5, w);
                 cov_left.max(cov_right)
             };
-            
+
             let final_coverage = box_coverage * (1.0 - char_coverage);
-            
+
             let idx = ((y * width + x) * 4) as usize;
             rgba[idx] = 0;
             rgba[idx + 1] = 0;
@@ -1028,7 +1241,7 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
             rgba[idx + 3] = (final_coverage * 255.0).round() as u8;
         }
     }
-    
+
     tauri::image::Image::new_owned(rgba, width, height)
 }
 
@@ -1039,19 +1252,27 @@ fn is_english_ime() -> bool {
         if source.is_null() {
             return true;
         }
-        
+
         let source_id_ref = TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
         if source_id_ref.is_null() {
             CFRelease(source);
             return true;
         }
-        
+
         let mut buf = [0u8; 256];
         let mut is_eng = true;
-        if CFStringGetCString(source_id_ref, buf.as_mut_ptr(), buf.len() as isize, 0x08000100) {
+        if CFStringGetCString(
+            source_id_ref,
+            buf.as_mut_ptr(),
+            buf.len() as isize,
+            0x08000100,
+        ) {
             let id_str = std::ffi::CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
             let lower_id = id_str.to_lowercase();
-            if lower_id.contains("vietnamese") || lower_id.contains("telex") || lower_id.contains("vni") {
+            if lower_id.contains("vietnamese")
+                || lower_id.contains("telex")
+                || lower_id.contains("vni")
+            {
                 is_eng = false;
             }
         }
@@ -1065,7 +1286,7 @@ pub fn run() {
     // Spawn background key grab loop
     thread::spawn(|| {
         println!("Initializing VNKey hook thread...");
-        
+
         // On macOS, wait until accessibility permission is granted before starting the hook
         #[cfg(target_os = "macos")]
         {
@@ -1094,7 +1315,7 @@ pub fn run() {
             let toggle = MenuItem::with_id(app, "toggle", "Bật/Tắt Gõ Tiếng Việt", true, None::<&str>).unwrap();
             let show = MenuItem::with_id(app, "show", "Bảng điều khiển", true, None::<&str>).unwrap();
             let exit = MenuItem::with_id(app, "exit", "Thoát VNKey", true, None::<&str>).unwrap();
-            
+
             // Store toggle menu item in lazy static for background thread access
             {
                 let mut guard = TRAY_TOGGLE_ITEM.write().unwrap();
@@ -1118,10 +1339,6 @@ pub fn run() {
                 loop {
                     let app_handle_clone = app_handle.clone();
                     let _ = app_handle.run_on_main_thread(move || {
-                        #[cfg(target_os = "macos")]
-                        {
-                            macos_tap::update_active_app_state();
-                        }
                         let is_eng_ime = {
                             #[cfg(target_os = "macos")]
                             { is_english_ime() }
@@ -1192,7 +1409,7 @@ pub fn run() {
                             {
                                 if let Some(tray) = app_handle_clone.tray_by_id("main_tray") {
                                     let _ = tray.set_title(None::<&str>);
-                                    
+
                                     if is_active_vietnamese {
                                         if let Some(ref icon) = *NORMAL_ICON.read().unwrap() {
                                             let _ = tray.set_icon(Some(icon.clone()));
@@ -1211,7 +1428,7 @@ pub fn run() {
                     thread::sleep(std::time::Duration::from_millis(200));
                 }
             });
-            
+
             let tray_menu = Menu::with_items(app, &[&toggle, &show, &exit]).unwrap();
 
             let _tray = TrayIconBuilder::with_id("main_tray")
@@ -1246,7 +1463,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_settings, 
+            get_settings,
             update_settings,
             has_accessibility,
             request_accessibility
