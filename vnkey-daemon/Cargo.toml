@@ -1,0 +1,14 @@
+[package]
+name = "vnkey-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vnkey-engine = { path = "../vnkey-engine" }
+rdev = { version = "0.5.3", features = ["unstable_grab"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = "0.3.2"
+objc2-foundation = "0.3.2"
+

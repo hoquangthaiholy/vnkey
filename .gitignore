@@ -1,0 +1,22 @@
+# Rust
+/target/
+/.rustup-home/
+**/*.rs.bk
+
+# Node / Tauri Frontend
+**/node_modules/
+**/dist/
+**/src-tauri/target/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
