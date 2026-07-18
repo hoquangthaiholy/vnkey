@@ -85,21 +85,59 @@ impl Engine {
     }
 }
 
-fn has_tone_or_modifier(syl: &spelling::Syllable) -> bool {
-    if syl.tone != spelling::Tone::None {
+fn is_completed_syllable_sequence(text: &str) -> bool {
+    if text.is_empty() {
         return true;
     }
-    if syl.initial.contains('đ') || syl.initial.contains('Đ') {
+    if let Some(_) = spelling::Syllable::parse(text) {
         return true;
     }
-    for v in &syl.vowels {
-        if "âăêôơưÂĂÊÔƠƯ".contains(*v) {
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let start = len.saturating_sub(7);
+    for i in (start..len).rev() {
+        let left: String = chars[0..i].iter().collect();
+        let right: String = chars[i..].iter().collect();
+        if is_completed_syllable_sequence(&left) && spelling::Syllable::parse(&right).is_some() {
             return true;
         }
     }
     false
 }
 
+fn is_syllable_prefix(text: &str) -> bool {
+    if text.is_empty() {
+        return true;
+    }
+    if let Some(_) = spelling::Syllable::parse(text) {
+        return true;
+    }
+    let lower = text.to_lowercase();
+    if spelling::INITIAL_CONSONANTS.iter().any(|&ic| ic.starts_with(&lower)) {
+        return true;
+    }
+    false
+}
+
+fn check_spelling_validity(buffer: &str) -> bool {
+    if buffer.is_empty() {
+        return true;
+    }
+    if let Some(_) = spelling::Syllable::parse(buffer) {
+        return true;
+    }
+    let chars: Vec<char> = buffer.chars().collect();
+    let len = chars.len();
+    let start = len.saturating_sub(7);
+    for i in (start..len).rev() {
+        let left: String = chars[0..i].iter().collect();
+        let right: String = chars[i..].iter().collect();
+        if (left.is_empty() || is_completed_syllable_sequence(&left)) && is_syllable_prefix(&right) {
+            return true;
+        }
+    }
+    false
+}
 fn is_intermediate_syllable(syl: &spelling::Syllable) -> bool {
     if !syl.final_consonant.is_empty() {
         let vg = syl.vowels.join("");
@@ -109,32 +147,33 @@ fn is_intermediate_syllable(syl: &spelling::Syllable) -> bool {
 }
 
 impl Engine {
-    /// Process a new keypress.
     pub fn process_key(&mut self, c: char) -> EngineResult {
         if self.config.method == InputMethod::Off {
             return EngineResult::Keep;
         }
 
-        // Auto-split syllable check for compound words typed without space (e.g. liênquan -> liên + quan)
-        if !self.buffer.is_empty() && c.is_alphabetic() {
-            let lower_c = c.to_ascii_lowercase();
-            let is_control = match self.config.method {
-                InputMethod::Telex => "aseojwdfxrz".contains(lower_c),
-                InputMethod::Vni => "123456789".contains(lower_c),
-                InputMethod::Off => false,
-            };
-            if !is_control {
-                if let Some(syl) = spelling::Syllable::parse(&self.buffer) {
-                    // Only auto-split if the current syllable contains Vietnamese diacritics
-                    if !syl.vowels.is_empty() && has_tone_or_modifier(&syl) {
-                        let next_word = format!("{}{}", self.buffer, c);
-                        if spelling::Syllable::parse(&next_word).is_none() {
-                            let c_str = lower_c.to_string();
-                            let is_valid_start = spelling::INITIAL_CONSONANTS.iter().any(|&ic| ic.starts_with(&c_str));
-                            if is_valid_start {
-                                self.reset();
-                            }
+        // Retroactive intermediate spelling check failure check
+        if !self.buffer.is_empty() && c.is_alphanumeric() {
+            if let Some(syl) = spelling::Syllable::parse(&self.buffer) {
+                if is_intermediate_syllable(&syl) {
+                    let lower_c = c.to_ascii_lowercase();
+                    let is_control = match self.config.method {
+                        InputMethod::Telex => "aseojwdfxrz".contains(lower_c),
+                        InputMethod::Vni => "123456789".contains(lower_c),
+                        InputMethod::Off => false,
+                    };
+                    if !is_control {
+                        if self.buffer == self.raw_buffer {
+                            self.reset();
+                            self.raw_buffer.push(c);
+                            self.buffer.push(c);
+                            return EngineResult::Keep;
                         }
+                        let old_buffer = self.buffer.clone();
+                        self.buffer = self.raw_buffer.clone();
+                        let new_word = format!("{}{}", self.raw_buffer, c);
+                        self.reset();
+                        return replace_result(&old_buffer, new_word);
                     }
                 }
             }
@@ -142,6 +181,19 @@ impl Engine {
 
         // If it's a spacer / word boundary (Space, Enter, punctuation, etc.)
         if !c.is_alphanumeric() {
+            if self.config.spelling_check && !self.buffer.is_empty() {
+                if !is_completed_syllable_sequence(&self.buffer) {
+                    if self.buffer == self.raw_buffer {
+                        self.reset();
+                        return EngineResult::Reset;
+                    }
+                    let old_buffer = self.buffer.clone();
+                    self.buffer = self.raw_buffer.clone();
+                    let res = replace_result(&old_buffer, self.buffer.clone());
+                    self.reset();
+                    return res;
+                }
+            }
             self.reset();
             return EngineResult::Reset;
         }
@@ -176,12 +228,7 @@ impl Engine {
                 self.raw_buffer = new_word.clone();
             }
             if !is_escape && self.config.spelling_check && !self.buffer.is_empty() {
-                let is_valid = if let Some(syl) = spelling::Syllable::parse(&self.buffer) {
-                    !is_intermediate_syllable(&syl)
-                } else {
-                    let lower_buf = self.buffer.to_lowercase();
-                    spelling::INITIAL_CONSONANTS.iter().any(|&ic| ic.starts_with(&lower_buf))
-                };
+                let is_valid = check_spelling_validity(&self.buffer);
                 if !is_valid {
                     if self.buffer == self.raw_buffer {
                         self.reset();
@@ -214,13 +261,7 @@ impl Engine {
             
             // Check if the newly appended state is spelling-wise valid
             if self.config.spelling_check && !self.buffer.is_empty() {
-                let is_valid = if let Some(syl) = spelling::Syllable::parse(&self.buffer) {
-                    !is_intermediate_syllable(&syl)
-                } else {
-                    // Check if self.buffer is a prefix of any valid initial consonant
-                    let lower_buf = self.buffer.to_lowercase();
-                    spelling::INITIAL_CONSONANTS.iter().any(|&ic| ic.starts_with(&lower_buf))
-                };
+                let is_valid = check_spelling_validity(&self.buffer);
                 if !is_valid {
                     if self.buffer == self.raw_buffer {
                         self.reset();

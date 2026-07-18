@@ -62,6 +62,19 @@ impl ReplacementPolicy {
         if force_cgevent {
             return false;
         }
+        // Disable Accessibility text injection for web browsers, as replacing text
+        // via accessibility API conflicts with web page focus/selection.
+        let browsers = [
+            "com.apple.Safari",
+            "com.google.Chrome",
+            "org.mozilla.firefox",
+            "com.microsoft.edgemac",
+            "com.operasoftware.Opera",
+            "company.thebrowser.Browser",
+        ];
+        if browsers.contains(&bundle_id) {
+            return false;
+        }
         let Some(role) = role else {
             return false;
         };

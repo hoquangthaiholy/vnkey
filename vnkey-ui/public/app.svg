@@ -36,10 +36,10 @@
     </linearGradient>
   </defs>
 
-  <!-- Group dịch chuyển 16px (lề 6.25% giống các app khác) và tỉ lệ 0.875 -->
-  <g transform="translate(16, 16) scale(0.875)">
-    <!-- Lớp 1: Nền Squircle bằng rect rx="51.2" có bóng đổ -->
-    <rect width="256" height="256" rx="51.2" fill="url(#glass-bg)" filter="url(#glass-shadow)"/>
+  <!-- Group dịch chuyển 24px (lề 9.375% tối ưu) và tỉ lệ 0.8125 -->
+  <g transform="translate(24, 24) scale(0.8125)">
+    <!-- Lớp 1: Nền Squircle bằng rect rx="58.2" có bóng đổ -->
+    <rect width="256" height="256" rx="58.2" fill="url(#glass-bg)" filter="url(#glass-shadow)"/>
 
     <!-- Lớp 2: Logo V gốc -->
     <g>
@@ -48,9 +48,9 @@
     </g>
 
     <!-- Lớp 3: Phản chiếu mặt kính -->
-    <rect width="256" height="256" rx="51.2" fill="url(#reflection-gradient)"/>
+    <rect width="256" height="256" rx="58.2" fill="url(#reflection-gradient)"/>
 
     <!-- Lớp 4: Đường viền nổi kính phản quang -->
-    <rect width="256" height="256" rx="51.2" stroke="url(#border-gradient)" stroke-width="1.5" fill="none"/>
+    <rect width="256" height="256" rx="58.2" stroke="url(#border-gradient)" stroke-width="1.5" fill="none"/>
   </g>
 </svg>

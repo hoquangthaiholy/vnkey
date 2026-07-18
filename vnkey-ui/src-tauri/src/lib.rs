@@ -1013,12 +1013,19 @@ fn generate_icon_image(is_eng: bool) -> tauri::image::Image<'static> {
         ];
 
         let nscolor_class = objc2::class!(NSColor);
-        let color_black: *mut objc2::runtime::AnyObject = msg_send![nscolor_class, blackColor];
+        let bg_alpha = if is_eng { 0.35f64 } else { 1.0f64 };
+        let color_black: *mut objc2::runtime::AnyObject = msg_send![
+            nscolor_class,
+            colorWithSRGBRed: 0.0f64,
+            green: 0.0f64,
+            blue: 0.0f64,
+            alpha: bg_alpha
+        ];
         let _: () = msg_send![color_black, set];
         let _: () = msg_send![path, fill];
 
-        // 3. Create string "E" or "V"
-        let text_str = if is_eng { "E" } else { "V" };
+        // 3. Create string "V"
+        let text_str = "V";
         let nsstring_class = objc2::class!(NSString);
         let text: *mut objc2::runtime::AnyObject = msg_send![nsstring_class, alloc];
         let text: *mut objc2::runtime::AnyObject = msg_send![
@@ -1260,20 +1267,24 @@ fn is_english_ime() -> bool {
         }
 
         let mut buf = [0u8; 256];
-        let mut is_eng = true;
+        let mut is_eng = false;
         if CFStringGetCString(
             source_id_ref,
             buf.as_mut_ptr(),
             buf.len() as isize,
             0x08000100,
         ) {
-            let id_str = std::ffi::CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
+            let id_str = std::ffi::CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy().into_owned();
             let lower_id = id_str.to_lowercase();
-            if lower_id.contains("vietnamese")
-                || lower_id.contains("telex")
-                || lower_id.contains("vni")
+
+
+            if lower_id.contains("us")
+                || lower_id.contains("abc")
+                || lower_id.contains("english")
+                || lower_id.contains("british")
+                || lower_id.contains("unicodehexinput")
             {
-                is_eng = false;
+                is_eng = true;
             }
         }
         CFRelease(source);

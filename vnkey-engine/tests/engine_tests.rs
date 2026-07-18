@@ -77,7 +77,7 @@ fn test_telex_basic() {
     assert_eq!(type_word(&mut engine, "tieesng"), "tiếng");
     engine.reset();
 
-    assert_eq!(type_word(&mut engine, "vietjet"), "vietjet");
+    assert_eq!(type_word(&mut engine, "vietjet "), "vietjet");
 }
 
 #[test]
@@ -108,6 +108,10 @@ fn test_telex_complex() {
     assert_eq!(type_word(&mut engine, "gox"), "gõ");
     engine.reset();
     assert_eq!(type_word(&mut engine, "gif"), "gì");
+    engine.reset();
+    assert_eq!(type_word(&mut engine, "tienesg"), "tiếng");
+    engine.reset();
+    assert_eq!(type_word(&mut engine, "tienseg"), "tiếng");
     engine.reset();
     assert_eq!(type_word(&mut engine, "chuaw"), "chưa");
     engine.reset();
