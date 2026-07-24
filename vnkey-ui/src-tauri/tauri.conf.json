@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "vnkey-ui",
+  "productName": "VNKey",
   "version": "0.1.0",
   "identifier": "com.vnkey.app",
   "build": {
@@ -12,9 +12,15 @@
   "app": {
     "windows": [
       {
-        "title": "vnkey-ui",
-        "width": 800,
-        "height": 600
+        "title": "",
+        "width": 660,
+        "height": 520,
+        "resizable": true,
+        "theme": null,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "decorations": true,
+        "transparent": true
       }
     ],
     "security": {

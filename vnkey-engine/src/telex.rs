@@ -5,6 +5,7 @@ use crate::tone::ToneStyle;
 /// Returns the new reconstructed word if processed, or None if the key should be treated normally.
 pub fn process_telex(
     buffer: &str,
+    raw_buffer: &str,
     new_char: char,
     tone_style: ToneStyle,
     spelling_check: bool,
@@ -105,6 +106,12 @@ pub fn process_telex(
                                     *v = "ô";
                                     modified = true;
                                     break;
+                                } else if *v == "ô" {
+                                    *v = "o";
+                                    let casing = Casing::detect(buffer);
+                                    let mut restored = syl.to_string(tone_style, casing);
+                                    restored.push(new_char);
+                                    return Some(restored);
                                 }
                             }
                         }
@@ -135,6 +142,12 @@ pub fn process_telex(
                                     *v = "ê";
                                     modified = true;
                                     break;
+                                } else if *v == "ê" {
+                                    *v = "e";
+                                    let casing = Casing::detect(buffer);
+                                    let mut restored = syl.to_string(tone_style, casing);
+                                    restored.push(new_char);
+                                    return Some(restored);
                                 }
                             }
                         }
@@ -169,6 +182,12 @@ pub fn process_telex(
                                     *v = "â";
                                     modified = true;
                                     break;
+                                } else if *v == "â" {
+                                    *v = "a";
+                                    let casing = Casing::detect(buffer);
+                                    let mut restored = syl.to_string(tone_style, casing);
+                                    restored.push(new_char);
+                                    return Some(restored);
                                 }
                             }
                         }
@@ -213,11 +232,16 @@ pub fn process_telex(
                         restored.push(new_char);
                         return Some(restored);
                     } else if syl.vowels == vec!["ư"] {
-                        syl.vowels = vec!["u"];
-                        let casing = Casing::detect(buffer);
-                        let mut restored = syl.to_string(tone_style, casing);
-                        restored.push(new_char);
-                        return Some(restored);
+                        if raw_buffer.to_lowercase() == "ww" {
+                            let first_w = if buffer.chars().next() == Some('Ư') { 'W' } else { 'w' };
+                            return Some(first_w.to_string());
+                        } else {
+                            syl.vowels = vec!["u"];
+                            let casing = Casing::detect(buffer);
+                            let mut restored = syl.to_string(tone_style, casing);
+                            restored.push(new_char);
+                            return Some(restored);
+                        }
                     } else if syl.vowels == vec!["ư", "ơ", "u"] {
                         syl.vowels = vec!["u", "o", "u"];
                         let casing = Casing::detect(buffer);
@@ -262,6 +286,12 @@ pub fn process_telex(
                         modified = true;
                     } else if syl.vowels == vec!["ư", "o", "i"] || syl.vowels == vec!["u", "ơ", "i"] {
                         syl.vowels = vec!["ư", "ơ", "i"];
+                        modified = true;
+                    } else if syl.vowels == vec!["o", "i"] {
+                        syl.vowels = vec!["ơ", "i"];
+                        modified = true;
+                    } else if syl.vowels == vec!["u", "i"] {
+                        syl.vowels = vec!["ư", "i"];
                         modified = true;
                     } else if syl.vowels == vec!["o"] {
                         syl.vowels = vec!["ơ"];

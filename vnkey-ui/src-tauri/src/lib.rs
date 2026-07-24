@@ -15,11 +15,27 @@ use vnkey_engine::{Engine, EngineConfig, InputMethod};
 #[cfg(target_os = "macos")]
 mod macos_replacement;
 
+fn default_charset() -> String { "Unicode".to_string() }
+fn default_shortcut() -> String { "Cmd + Shift + Space".to_string() }
+fn default_false() -> bool { false }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub method: String,     // "Off", "Telex", "Vni"
     pub tone_style: String, // "Modern", "Classic"
     pub spelling_check: bool,
+    #[serde(default = "default_charset")]
+    pub charset: String,
+    #[serde(default = "default_shortcut")]
+    pub shortcut: String,
+    #[serde(default = "default_false")]
+    pub autostart: bool,
+    #[serde(default = "default_false")]
+    pub open_on_startup: bool,
+    #[serde(default = "default_false")]
+    pub per_app_language: bool,
+    #[serde(default)]
+    pub accessibility_apps: Vec<String>,
 }
 
 lazy_static! {
@@ -27,6 +43,12 @@ lazy_static! {
         method: "Telex".to_string(),
         tone_style: "Modern".to_string(),
         spelling_check: true,
+        charset: "Unicode".to_string(),
+        shortcut: "Cmd + Shift + Space".to_string(),
+        autostart: false,
+        open_on_startup: false,
+        per_app_language: false,
+        accessibility_apps: vec![],
     }));
     static ref ENGINE: Arc<RwLock<Engine>> = Arc::new(RwLock::new(Engine::new(EngineConfig {
         method: InputMethod::Telex,
@@ -62,6 +84,125 @@ fn has_accessibility() -> bool {
     #[cfg(not(target_os = "macos"))]
     {
         true
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunningApp {
+    pub bundle_id: String,
+    pub name: String,
+}
+
+#[tauri::command]
+fn get_running_apps() -> Vec<RunningApp> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::msg_send;
+        use objc2_app_kit::NSWorkspace;
+        use objc2_foundation::NSArray;
+
+        let mut apps_list = Vec::new();
+        unsafe {
+            let workspace = NSWorkspace::sharedWorkspace();
+            let running_apps: *mut NSArray<objc2_app_kit::NSRunningApplication> = msg_send![&workspace, runningApplications];
+            let count: usize = msg_send![running_apps, count];
+
+            for i in 0..count {
+                let app: *mut objc2_app_kit::NSRunningApplication = msg_send![running_apps, objectAtIndex: i];
+                // NSApplicationActivationPolicyRegular = 0 (Apps visible in Dock)
+                let policy: isize = msg_send![app, activationPolicy];
+                if policy == 0 {
+                    let bundle_id_ns: *mut objc2_foundation::NSString = msg_send![app, bundleIdentifier];
+                    let name_ns: *mut objc2_foundation::NSString = msg_send![app, localizedName];
+
+                    if !bundle_id_ns.is_null() && !name_ns.is_null() {
+                        let bundle_id = bundle_id_ns.as_ref().map(|s| s.to_string()).unwrap_or_default();
+                        let name = name_ns.as_ref().map(|s| s.to_string()).unwrap_or_default();
+
+                        if !bundle_id.is_empty() && !name.is_empty() {
+                            apps_list.push(RunningApp {
+                                bundle_id,
+                                name,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        apps_list.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        apps_list.dedup_by(|a, b| a.bundle_id == b.bundle_id);
+        apps_list
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Vec::new()
+    }
+}
+
+#[tauri::command]
+fn get_app_icon_base64(bundle_id: String) -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::msg_send;
+        use objc2_app_kit::{NSWorkspace, NSImage, NSBitmapImageRep};
+        use objc2_foundation::{NSRect, NSPoint, NSSize, NSString};
+
+        unsafe {
+            let workspace = NSWorkspace::sharedWorkspace();
+            let bundle_ns = NSString::from_str(&bundle_id);
+            let url: *mut objc2_foundation::NSURL = msg_send![&workspace, URLForApplicationWithBundleIdentifier: &*bundle_ns];
+            if url.is_null() {
+                return None;
+            }
+
+            let path_ns: *mut NSString = msg_send![url, path];
+            let icon: *mut NSImage = msg_send![&workspace, iconForFile: path_ns];
+            if icon.is_null() {
+                return None;
+            }
+
+            // Set small representation size to avoid full-resolution rendering
+            let small_size = NSSize { width: 32.0, height: 32.0 };
+            let _: () = msg_send![icon, setSize: small_size];
+
+            let rect = NSRect { origin: NSPoint { x: 0.0, y: 0.0 }, size: small_size };
+            let cg_img: *mut std::ffi::c_void = msg_send![icon, CGImageForProposedRect: &rect, context: std::ptr::null_mut::<std::ffi::c_void>(), hints: std::ptr::null_mut::<std::ffi::c_void>()];
+            if cg_img.is_null() {
+                return None;
+            }
+
+            let nsbitmap_class = objc2::class!(NSBitmapImageRep);
+            let bitmap_alloc: *mut NSBitmapImageRep = msg_send![nsbitmap_class, alloc];
+            let bitmap_rep: *mut NSBitmapImageRep = msg_send![bitmap_alloc, initWithCGImage: cg_img];
+            if bitmap_rep.is_null() {
+                return None;
+            }
+
+            // Render fast low-resolution PNG data
+            let png_type = 4usize; // NSPNGFileType = 4
+            let nil_dict: *mut objc2_foundation::NSDictionary = msg_send![objc2::class!(NSDictionary), dictionary];
+            let png_data: *mut objc2_foundation::NSData = msg_send![bitmap_rep, representationUsingType: png_type, properties: nil_dict];
+            let _: () = msg_send![bitmap_rep, release];
+
+            if png_data.is_null() {
+                return None;
+            }
+
+            let bytes_ptr: *const u8 = msg_send![png_data, bytes];
+            let len: usize = msg_send![png_data, length];
+            if bytes_ptr.is_null() || len == 0 {
+                return None;
+            }
+
+            let slice = std::slice::from_raw_parts(bytes_ptr, len);
+            use base64::Engine;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(slice);
+            Some(format!("data:image/png;base64,{}", b64))
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
     }
 }
 
@@ -323,7 +464,7 @@ mod macos_tap {
         replace_with_fallback, should_reset_for_keycode, ReplacementBackend,
         ReplacementCapabilityCache, ReplacementPolicy,
     };
-    use crate::{key_to_char, ACTIVE_LAYOUT_IS_ENGLISH, ENGINE, SHIFT_PRESSED};
+    use crate::{key_to_char, ACTIVE_LAYOUT_IS_ENGLISH, ENGINE, SETTINGS, SHIFT_PRESSED, InputMethod, ToneStyle, EngineConfig};
     use objc2_app_kit::NSWorkspace;
     use std::cell::RefCell;
     use std::ffi::c_void;
@@ -802,14 +943,59 @@ mod macos_tap {
                 eng.reset();
             }
             let flags = CGEventGetFlags(event);
+            let keycode = CGEventGetIntegerValueField(event, KCGEventFieldKeyboardEventKeycode) as u16;
+
+            // Check if global shortcut is triggered
+            let current_shortcut = {
+                let s = SETTINGS.read().unwrap();
+                s.shortcut.clone()
+            };
+
+            let is_shortcut_triggered = match current_shortcut.as_str() {
+                "Cmd + Shift + Space" => (flags & FLAG_COMMAND) != 0 && (flags & FLAG_SHIFT) != 0 && keycode == 49,
+                "Ctrl + Shift" => (flags & FLAG_CONTROL) != 0 && (flags & FLAG_SHIFT) != 0,
+                "Option + Space" => (flags & FLAG_ALTERNATE) != 0 && keycode == 49,
+                "Cmd + Space" => (flags & FLAG_COMMAND) != 0 && keycode == 49,
+                _ => false,
+            };
+
+            if is_shortcut_triggered {
+                let mut current = {
+                    let s = SETTINGS.read().unwrap();
+                    s.clone()
+                };
+                current.method = if current.method == "Off" { "Telex".to_string() } else { "Off".to_string() };
+                
+                let method_enum = match current.method.as_str() {
+                    "Telex" => InputMethod::Telex,
+                    "Vni" => InputMethod::Vni,
+                    _ => InputMethod::Off,
+                };
+                let tone_style_enum = match current.tone_style.as_str() {
+                    "Classic" => ToneStyle::Classic,
+                    _ => ToneStyle::Modern,
+                };
+                {
+                    let mut eng = ENGINE.write().unwrap();
+                    eng.update_config(EngineConfig {
+                        method: method_enum,
+                        tone_style: tone_style_enum,
+                        spelling_check: current.spelling_check,
+                    });
+                }
+                {
+                    let mut s = SETTINGS.write().unwrap();
+                    *s = current;
+                }
+                return std::ptr::null_mut(); // Swallow hotkey event
+            }
+
             if (flags & (FLAG_CONTROL | FLAG_ALTERNATE | FLAG_COMMAND)) != 0 {
                 let mut eng = ENGINE.write().unwrap();
                 eng.reset();
                 return event;
             }
 
-            let keycode =
-                CGEventGetIntegerValueField(event, KCGEventFieldKeyboardEventKeycode) as u16;
             if should_reset_for_keycode(keycode) {
                 let mut eng = ENGINE.write().unwrap();
                 eng.reset();
@@ -878,7 +1064,7 @@ mod macos_tap {
                             accessibility_elapsed: Duration::ZERO,
                             fallback_elapsed: Duration::ZERO,
                         };
-                        replace_with_fallback(&mut backend, true, backspaces, &text);
+                        let _used_ax = replace_with_fallback(&mut backend, true, backspaces, &text);
                         warn_if_slow(
                             &backend.bundle_id,
                             engine_elapsed,
@@ -1321,7 +1507,27 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                if let Ok(window) = app.get_webview_window("main").ok_or("No main window") {
+                    if let Ok(ns_ptr) = window.ns_window() {
+                        let ns_win = ns_ptr as *mut objc2::runtime::AnyObject;
+                        unsafe {
+                            use objc2::msg_send;
+                            let _: () = msg_send![ns_win, setMovableByWindowBackground: true];
+                        }
+                    }
+                }
+            }
             // Setup System Tray Icon (Tauri v2 Tray)
             let toggle = MenuItem::with_id(app, "toggle", "Bật/Tắt Gõ Tiếng Việt", true, None::<&str>).unwrap();
             let show = MenuItem::with_id(app, "show", "Bảng điều khiển", true, None::<&str>).unwrap();
@@ -1477,7 +1683,9 @@ pub fn run() {
             get_settings,
             update_settings,
             has_accessibility,
-            request_accessibility
+            request_accessibility,
+            get_running_apps,
+            get_app_icon_base64
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

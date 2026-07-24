@@ -109,10 +109,13 @@ fn is_syllable_prefix(text: &str) -> bool {
     if text.is_empty() {
         return true;
     }
+    let lower = text.to_lowercase();
+    if lower.chars().all(|c| c == 'w') {
+        return true;
+    }
     if let Some(_) = spelling::Syllable::parse(text) {
         return true;
     }
-    let lower = text.to_lowercase();
     if spelling::INITIAL_CONSONANTS.iter().any(|&ic| ic.starts_with(&lower)) {
         return true;
     }
@@ -204,6 +207,7 @@ impl Engine {
         let process_result = match self.config.method {
             InputMethod::Telex => telex::process_telex(
                 &self.buffer,
+                &self.raw_buffer,
                 c,
                 self.config.tone_style,
                 self.config.spelling_check,
