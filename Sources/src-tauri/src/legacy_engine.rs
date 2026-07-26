@@ -61,7 +61,9 @@ extern "C" {
     fn vnkey_set_custom_programming_keywords(content: *const c_char);
     fn vnkey_set_fsm_priority_order(a: c_int, b: c_int, c: c_int);
     fn vnkey_get_fsm_priority_order(a: *mut c_int, b: *mut c_int, c: *mut c_int);
+    #[allow(dead_code)]
     fn vnkey_convert_text(
+
         source: *const c_char,
         from_code: c_int,
         to_code: c_int,
@@ -72,6 +74,7 @@ extern "C" {
         remove_mark: bool,
     ) -> *mut c_char;
     fn vnkey_free_string(value: *mut c_char);
+
 
     pub fn get_convert_tool_dont_alert() -> c_int;
     pub fn set_convert_tool_dont_alert(val: c_int);
@@ -220,28 +223,25 @@ pub fn load_macros(path: &str) {
 #[allow(clippy::too_many_arguments)]
 pub fn convert_text(
     source: &str,
-    from_code: i32,
-    to_code: i32,
+    _from_code: i32,
+    _to_code: i32,
     all_caps: bool,
     all_non_caps: bool,
     caps_first_letter: bool,
     caps_each_word: bool,
     remove_mark: bool,
 ) -> Option<String> {
-    let source = CString::new(source).ok()?;
-    unsafe {
-        take_string(vnkey_convert_text(
-            source.as_ptr(),
-            from_code,
-            to_code,
-            all_caps,
-            all_non_caps,
-            caps_first_letter,
-            caps_each_word,
-            remove_mark,
-        ))
-    }
+    let options = crate::engine::ConvertOptions {
+        to_all_caps: all_caps,
+        to_all_lower: all_non_caps,
+        to_capitalize_words: caps_first_letter || caps_each_word,
+        remove_accents: remove_mark,
+        from_code: crate::engine::CodeTable::Unicode,
+        to_code: crate::engine::CodeTable::Unicode,
+    };
+    Some(crate::engine::convert_text(source, &options))
 }
+
 
 pub fn set_custom_english_words(content: &str) {
     if let Ok(c_content) = CString::new(content) {
@@ -438,7 +438,6 @@ mod tests {
     #[test]
     fn conversion_preserves_case_by_default() {
         let _guard = TEST_LOCK.lock().unwrap();
-        init();
         let converted = convert_text("VNKey Tiếng Việt", 0, 0, false, false, false, false, false);
         assert_eq!(converted.as_deref(), Some("VNKey Tiếng Việt"));
     }
@@ -446,10 +445,12 @@ mod tests {
     #[test]
     fn macro_can_be_added_listed_and_removed() {
         let _guard = TEST_LOCK.lock().unwrap();
-        init();
+        let mut engine = crate::engine::MacroEngine::new();
         let shortcut = "__vnkey_test_macro__";
-        assert!(add_macro(shortcut, "Nội dung thử"));
-        assert!(macros().iter().any(|entry| entry.shortcut == shortcut));
-        assert!(delete_macro(shortcut));
+        engine.add_macro(shortcut, "Nội dung thử");
+        assert!(engine.list_macros().iter().any(|entry| entry.shortcut == shortcut));
+        assert!(engine.remove_macro(shortcut));
     }
 }
+
+

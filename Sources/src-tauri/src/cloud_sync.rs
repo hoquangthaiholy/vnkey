@@ -112,26 +112,26 @@ pub fn apply_sync_payloads(
     if let Some(bytes) = vietnamese_dict {
         if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
             db::db_insert_vietnamese_words(&words);
-            crate::engine::set_custom_vietnamese_words(&db::db_get_vietnamese_words().join("\n"));
+            crate::legacy_engine::set_custom_vietnamese_words(&db::db_get_vietnamese_words().join("\n"));
         }
     }
     if let Some(bytes) = english_dict {
         if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
             db::db_insert_english_words(&words);
-            crate::engine::set_custom_english_words(&db::db_get_english_words().join("\n"));
+            crate::legacy_engine::set_custom_english_words(&db::db_get_english_words().join("\n"));
         }
     }
     if let Some(bytes) = programming_keywords {
         if let Ok(words) = decrypt_json::<Vec<String>>(bytes, sync_password) {
             db::db_insert_programming_keywords(&words);
-            crate::engine::set_custom_programming_keywords(&db::db_get_programming_keywords().join("\n"));
+            crate::legacy_engine::set_custom_programming_keywords(&db::db_get_programming_keywords().join("\n"));
         }
     }
     if let Some(bytes) = macros {
         if let Ok(m) = decrypt_json::<Vec<(String, String)>>(bytes, sync_password) {
             db::db_insert_macros(&m);
             for (shortcut, content) in m {
-                crate::engine::add_macro(&shortcut, &content);
+                crate::legacy_engine::add_macro(&shortcut, &content);
             }
         }
     }
