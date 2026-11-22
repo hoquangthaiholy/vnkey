@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import ServiceManagement
 import VNKeyCore
 import UniformTypeIdentifiers
@@ -174,6 +175,32 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
     }
 }
 
+/// Mọi khoảng cách của cửa sổ Cài đặt, theo lưới 4pt. Đổi ở đây, đừng rải số lẻ trong mã.
+private enum Metrics {
+    static let pageMargin: CGFloat = 20  // lề trái/phải/dưới của thẻ
+    static let pageTop: CGFloat = 16
+    static let sectionGap: CGFloat = 20  // giữa hai nhóm
+    static let titleGap: CGFloat = 8  // tiêu đề nhóm -> khung
+    static let noteGap: CGFloat = 6  // khung -> chú thích
+    static let rowInset: CGFloat = 14  // lề trái/phải trong khung
+    static let rowPadding: CGFloat = 10  // lề trên/dưới của một dòng
+    static let rowMinHeight: CGFloat = 40
+    static let labelGap: CGFloat = 2  // tên -> mô tả
+    static let controlGap: CGFloat = 8
+}
+
+/// Nhãn nhiều dòng tự tính lại chiều cao theo bề rộng thật sau khi dàn trang. Nhãn chuẩn của AppKit tính
+/// chiều cao trước khi biết bề rộng, nên dòng mô tả dài bị dồn sát mép khung.
+private final class WrappingLabel: NSTextField {
+    override func layout() {
+        super.layout()
+        if abs(preferredMaxLayoutWidth - bounds.width) > 0.5 {
+            preferredMaxLayoutWidth = bounds.width
+            invalidateIntrinsicContentSize()
+        }
+    }
+}
+
 /// Khung bo góc chứa một nhóm dòng cài đặt, kiểu System Settings.
 private final class Card: NSView {
     override var wantsUpdateLayer: Bool { true }
@@ -181,7 +208,7 @@ private final class Card: NSView {
     init(rows: [NSView]) {
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 8
+        layer?.cornerRadius = 10
         layer?.borderWidth = 1
         let stack = NSStackView()
         stack.orientation = .vertical
@@ -203,7 +230,7 @@ private final class Card: NSView {
                 line.translatesAutoresizingMaskIntoConstraints = false
                 holder.addSubview(line)
                 constraints += [
-                    line.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: 12),
+                    line.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: Metrics.rowInset),
                     line.trailingAnchor.constraint(equalTo: holder.trailingAnchor),
                     line.topAnchor.constraint(equalTo: holder.topAnchor), line.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
                     holder.heightAnchor.constraint(equalToConstant: 1),
@@ -225,8 +252,16 @@ private final class Card: NSView {
     }
 }
 
-/// Thanh thẻ kiểu Cài đặt của macOS; cửa sổ tự đổi chiều cao theo nội dung từng thẻ.
+/// Thanh thẻ kiểu Cài đặt của macOS. Khi chuyển thẻ: nội dung đổi ngay (không mờ chuyển), cửa sổ trượt tới
+/// chiều cao mới (mép trên đứng yên).
 private final class SettingsTabs: NSTabViewController {
+    static let duration: TimeInterval = 0.22
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        transitionOptions = []  // không mờ chuyển giữa hai thẻ: người dùng thấy rối
+    }
+
     override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         super.tabView(tabView, didSelect: tabViewItem)
         fitWindow(animated: true)
@@ -235,11 +270,25 @@ private final class SettingsTabs: NSTabViewController {
     func fitWindow(animated: Bool) {
         guard let window = view.window, let page = tabView.selectedTabViewItem?.view else { return }
         page.layoutSubtreeIfNeeded()
-        let content = NSRect(origin: .zero, size: NSSize(width: SettingsController.width, height: page.fittingSize.height))
+        page.layoutSubtreeIfNeeded()  // lượt hai: nhãn nhiều dòng vừa biết bề rộng thật ở lượt một
+        // Chiều cao tính từ chính nội dung của thẻ (khối xếp dọc bên trong), không hỏi thẻ: thẻ không được
+        // giữ chiều cao tối thiểu, nếu không thẻ cũ (còn nằm đó suốt lúc mờ chuyển) sẽ chặn cửa sổ co lại.
+        let inner = page.subviews.first?.fittingSize.height ?? page.fittingSize.height
+        let height = inner + Metrics.pageTop + Metrics.pageMargin
+        let content = NSRect(origin: .zero, size: NSSize(width: SettingsController.width, height: height))
         var frame = window.frameRect(forContentRect: content)
         frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)  // giữ mép trên
-        window.setFrame(frame, display: true, animate: animated && window.isVisible)
         window.title = tabView.selectedTabViewItem?.label ?? "VNKey"
+        // Tôn trọng "Giảm chuyển động" của hệ thống.
+        guard animated, window.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            window.setFrame(frame, display: true)
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = SettingsTabs.duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(frame, display: true)
+        }
     }
 }
 
@@ -247,6 +296,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
     static let width: CGFloat = 540
     /// Đánh dấu một view cần giãn hết chiều ngang của thẻ.
     fileprivate static let wide = NSUserInterfaceItemIdentifier("wide")
+    fileprivate static let titleID = NSUserInterfaceItemIdentifier("title")
+    fileprivate static let noteID = NSUserInterfaceItemIdentifier("note")
     let window: NSWindow
     private let tabs = SettingsTabs()
     private let defaults = UserDefaults.standard
@@ -282,9 +333,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     /// Số thẻ và cách chọn thẻ, dùng cho chế độ chụp giao diện.
     var tabCount: Int { tabs.tabViewItems.count }
-    func selectTab(_ index: Int) {
-        tabs.selectedTabViewItemIndex = index
-        tabs.fitWindow(animated: false)
+    func selectTab(_ index: Int, animated: Bool = false) {
+        tabs.selectedTabViewItemIndex = index  // tự gọi fitWindow(animated: true) qua didSelect
+        if !animated { tabs.fitWindow(animated: false) }
     }
     var contentView: NSView { tabs.view }
 
@@ -302,28 +353,38 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     // MARK: - Thành phần
 
-    /// Một thẻ: các nhóm xếp dọc, lề 20pt, cao vừa đủ nội dung.
+    /// Một thẻ: các nhóm xếp dọc, cao vừa đủ nội dung. Khoảng cách tính theo loại phần tử đứng cạnh nhau
+    /// (xem `Metrics`), nên thêm/bớt phần tử không làm lệch nhịp.
     private func page(_ views: [NSView]) -> NSView {
         let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 8
+        stack.spacing = Metrics.titleGap
         stack.translatesAutoresizingMaskIntoConstraints = false
         let container = NSView()
         container.addSubview(stack)
+        // Mép dưới để mức ưu tiên thấp: nội dung dồn lên trên, và thẻ KHÔNG đòi chiều cao tối thiểu — trong
+        // lúc cửa sổ trượt giữa hai chiều cao, thẻ được phép tràn tạm thời thay vì chặn cửa sổ co lại.
+        let bottom = stack.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor, constant: -Metrics.pageMargin)
+        bottom.priority = .defaultLow
         var constraints = [
             container.widthAnchor.constraint(equalToConstant: SettingsController.width),
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
-            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
-            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -20),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: Metrics.pageMargin),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -Metrics.pageMargin),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: Metrics.pageTop),
+            bottom,
         ]
         for v in views where v is Card || v is NSScrollView || v.identifier == SettingsController.wide {
             constraints.append(v.widthAnchor.constraint(equalTo: stack.widthAnchor))
         }
         NSLayoutConstraint.activate(constraints)
-        for (i, v) in views.enumerated() where i > 0 && v is NSTextField && (v as! NSTextField).font?.pointSize == 13 {
-            stack.setCustomSpacing(18, after: views[i - 1])  // khoảng thở trước mỗi tiêu đề nhóm
+        for (i, v) in views.enumerated() where i > 0 {
+            let before = views[i - 1]
+            if v.identifier == SettingsController.titleID {
+                stack.setCustomSpacing(Metrics.sectionGap, after: before)
+            } else if v.identifier == SettingsController.noteID {
+                stack.setCustomSpacing(Metrics.noteGap, after: before)
+            }
         }
         return container
     }
@@ -332,6 +393,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private func title(_ text: String) -> NSTextField {
         let l = NSTextField(labelWithString: text)
         l.font = .systemFont(ofSize: 13, weight: .semibold)
+        l.identifier = SettingsController.titleID
         return l
     }
 
@@ -340,32 +402,51 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let l = NSTextField(wrappingLabelWithString: text)
         l.font = .systemFont(ofSize: 11)
         l.textColor = .secondaryLabelColor
-        l.preferredMaxLayoutWidth = SettingsController.width - 48
+        l.preferredMaxLayoutWidth = SettingsController.width - 2 * Metrics.pageMargin
+        l.identifier = SettingsController.noteID
         return l
     }
 
-    /// Một dòng trong nhóm: tên (và mô tả) bên trái, điều khiển bên phải.
+    /// Một dòng trong nhóm: tên (và mô tả) bên trái, điều khiển bên phải. Phần chữ chiếm hết chỗ trống còn
+    /// lại và mô tả tự xuống dòng theo bề rộng đó (không đặt bề rộng cố định: điều khiển rộng hẹp khác nhau).
     private func row(_ name: String, _ detail: String? = nil, _ controls: NSView...) -> NSView {
         let label = NSTextField(labelWithString: name)
         label.font = .systemFont(ofSize: 13)
+        label.lineBreakMode = .byTruncatingTail
         let text = NSStackView(views: [label])
         text.orientation = .vertical
         text.alignment = .leading
-        text.spacing = 2
+        text.spacing = Metrics.labelGap
         if let detail {
-            let d = NSTextField(wrappingLabelWithString: detail)
+            let d = WrappingLabel(wrappingLabelWithString: detail)
             d.font = .systemFont(ofSize: 11)
             d.textColor = .secondaryLabelColor
-            d.preferredMaxLayoutWidth = 350
+            d.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            d.setContentHuggingPriority(.defaultLow, for: .horizontal)
             text.addArrangedSubview(d)
+            d.widthAnchor.constraint(equalTo: text.widthAnchor).isActive = true
         }
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         text.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let line = NSStackView(views: [text, NSView()] + controls)
+        text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        for c in controls {
+            c.setContentHuggingPriority(.required, for: .horizontal)
+            c.setContentCompressionResistancePriority(.required, for: .horizontal)
+        }
+        let line = NSStackView(views: [text] + controls)
         line.orientation = .horizontal
         line.alignment = .centerY
-        line.spacing = 8
-        line.edgeInsets = NSEdgeInsets(top: 9, left: 12, bottom: 9, right: 12)
-        line.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        line.distribution = .fill
+        line.spacing = Metrics.controlGap
+        line.setCustomSpacing(Metrics.rowInset, after: text)  // chữ không dính sát điều khiển
+        line.edgeInsets = NSEdgeInsets(
+            top: Metrics.rowPadding, left: Metrics.rowInset, bottom: Metrics.rowPadding, right: Metrics.rowInset)
+        // Dòng xếp theo tâm dọc nên lề trên/dưới của stack không tự giữ: ép phần chữ cách mép đúng một nhịp.
+        NSLayoutConstraint.activate([
+            line.heightAnchor.constraint(greaterThanOrEqualToConstant: Metrics.rowMinHeight),
+            text.topAnchor.constraint(greaterThanOrEqualTo: line.topAnchor, constant: Metrics.rowPadding),
+            text.bottomAnchor.constraint(lessThanOrEqualTo: line.bottomAnchor, constant: -Metrics.rowPadding),
+        ])
         return line
     }
 
@@ -426,7 +507,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
             title("Phím tắt"),
             Card(rows: [
                 hotkey("Bật/tắt tiếng Việt", nil, Key.toggleHotkey),
-                hotkey("Đổi từ vừa gõ", "Chuyển giữa phím gốc và tiếng Việt, và nhớ lựa chọn đó.", Key.restoreHotkey),
+                hotkey("Đổi từ vừa gõ", "Phím gốc ↔ tiếng Việt, và nhớ cho lần sau.", Key.restoreHotkey),
             ]),
             note("Bấm vào ô phím tắt rồi nhấn tổ hợp mới; Esc để huỷ. Có thể dùng riêng phím bổ trợ như ⌃⇧: nhấn giữ rồi thả."),
             title("Hiển thị"),
@@ -445,10 +526,10 @@ final class SettingsController: NSObject, NSWindowDelegate {
             labels: ["hòa, thủy", "hoà, thuỷ"], trackingMode: .selectOne, target: self, action: #selector(pickTone(_:)))
         toneControl = tone
         return page([
-            title("Kiểu gõ"),
+            title("Cơ bản"),
             Card(rows: [
-                row("Bảng gõ", nil, method),
-                row("Vị trí dấu thanh", "Kiểu cũ đặt dấu ở nguyên âm đầu, kiểu mới ở nguyên âm sau.", tone),
+                row("Kiểu gõ", nil, method),
+                row("Vị trí dấu thanh", "Ở nguyên âm đầu (cũ) hay nguyên âm sau (mới).", tone),
                 toggle("Phím “w” đứng riêng thành “ư”", "Chỉ áp dụng cho Telex. Gõ “ww” để ra chữ w.", key: Key.standaloneW),
             ]),
             title("Tự động"),
@@ -466,7 +547,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         ])
         lists.orientation = .horizontal
         lists.distribution = .fillEqually
-        lists.spacing = 12
+        lists.spacing = Metrics.rowInset
         lists.identifier = SettingsController.wide
         return page([
             title("Xen kẽ tiếng Anh"),
@@ -522,7 +603,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let remove = NSButton(title: "Xoá mục đã chọn", target: self, action: #selector(removeApps))
         let buttons = NSStackView(views: [add, remove])
         buttons.orientation = .horizontal
-        buttons.spacing = 8
+        buttons.spacing = Metrics.controlGap
         return page([
             title("Theo từng ứng dụng"),
             Card(rows: [

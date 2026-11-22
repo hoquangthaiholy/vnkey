@@ -20,9 +20,9 @@ description: Sửa và cải thiện giao diện của VNKey — menu thanh tr�
 | Thành phần | Tệp | Ghi chú |
 |---|---|---|
 | Biểu tượng thanh menu | `Sources/VNKey/StatusIcon.swift` | Ô bo góc tô đặc ở CẢ HAI chế độ, chữ V/E khoét rỗng, canh giữa theo khung bao của nét chữ |
-| Menu thanh trạng thái | `Sources/VNKey/main.swift` (`menuNeedsUpdate`) | Chỉ có: cảnh báo (nếu có), Gõ tiếng Việt, Bảng gõ, Cài đặt…, Thoát |
+| Menu thanh trạng thái | `Sources/VNKey/main.swift` (`menuNeedsUpdate`) | Chỉ có: cảnh báo (nếu có), Gõ tiếng Việt, Kiểu gõ, Cài đặt…, Thoát |
 | Cửa sổ Cài đặt | `Sources/VNKey/Settings.swift` | Thanh thẻ kiểu macOS (`NSTabViewController`, `.toolbar`), cửa sổ tự cao theo từng thẻ |
-| Nhãn cạnh con trỏ | `Sources/VNKey/HUD.swift` | `NSPanel` không kích hoạt, vị trí lấy qua AX |
+| Nhãn cạnh con trỏ | `Sources/VNKey/HUD.swift` | `HUDPill` 32×20: nền `controlAccentColor` (màu nhấn người dùng chọn cho macOS), chữ trắng; `NSPanel` không kích hoạt, vị trí lấy qua AX |
 | Biểu tượng app | `Scripts/make-icon.swift` → `Resources/AppIcon.icns` | |
 | Khoá cài đặt | `Sources/VNKey/Shared.swift` (`Key`) | Mặc định trong `Key.registered` |
 
@@ -34,7 +34,7 @@ cho một hai mục.
 | Thẻ | Câu hỏi | Nội dung |
 |---|---|---|
 | Chung | App chạy thế nào? | Phím tắt, nhãn VN/EN, mở cùng lúc đăng nhập, nhật ký, phiên bản |
-| Gõ | Tôi gõ kiểu gì? | Bảng gõ, vị trí dấu thanh, phím w, viết hoa đầu câu, dọn khoảng trắng |
+| Gõ | Tôi gõ kiểu gì? | Kiểu gõ (Telex/VNI), vị trí dấu thanh, phím w, viết hoa đầu câu, dọn khoảng trắng |
 | Việt & Anh | Khi nào thì KHÔNG bỏ dấu? | Tự trả lại từ, đoán ngữ cảnh, sửa đảo phím, ngữ cảnh code, chữ teen, từ đã nhớ |
 | Gõ tắt | Gõ ít ra nhiều | Gõ tắt của người dùng, bung viết tắt teen |
 | Ứng dụng | Khác nhau theo ứng dụng | Nhớ chế độ theo app, sửa lặp chữ ở ô gợi ý, danh sách bắt đầu ở chế độ Anh |
@@ -60,6 +60,15 @@ Công tắc gắn thẳng vào UserDefaults bằng Cocoa Bindings, không cần 
 - `row(tên, mô tả, điều khiển…)`: tên bên trái, điều khiển bên phải. `toggle(...)` là `row` với `NSSwitch`.
 - `ListEditor` (ô văn bản mỗi dòng một mục), `AppList` (bảng ứng dụng), `HotkeyButton`.
 
+Khoảng cách: mọi con số nằm trong `Metrics` (lưới 4pt). Đổi ở đó; đừng viết số lẻ ở nơi dùng.
+
+Chuyển thẻ: nội dung đổi NGAY, không mờ chuyển (`transitionOptions = []`; người dùng đã yêu cầu bỏ hiệu ứng
+mờ). Chỉ còn cửa sổ trượt tới chiều cao mới trong 0,22 giây, mép trên đứng yên, bỏ qua khi hệ thống bật
+"Giảm chuyển động". Thẻ không được đòi chiều cao tối thiểu (ràng buộc mép dưới ưu tiên thấp), nếu không
+cửa sổ không co lại được. Kiểm tra bằng chiều cao các ảnh `settings-N.png`: mỗi thẻ phải cao khác nhau.
+
+Thuật ngữ: Telex/VNI gọi là "Kiểu gõ" ở mọi nơi (không dùng "Bảng gõ").
+
 Quy ước chữ: tên dòng nói điều người dùng nhận được; mô tả một câu, có ví dụ cụ thể (`user, string…`).
 
 ## Xem thử
@@ -70,8 +79,8 @@ Tự xem bố cục (không cần người dùng, không đụng tới bản đa
 swift build -c release --product VNKey && .build/release/VNKey --snapshot <thư mục tạm>
 ```
 
-Sinh `settings-1.png` … `settings-6.png` (từng thẻ Cài đặt) và `status-vn.png`, `status-en.png` (biểu
-tượng thanh menu phóng to; thêm `--dark` để xem trên nền tối). Mở ảnh bằng Read để nhìn. Chế độ này
+Sinh `settings-1.png` … `settings-5.png` (từng thẻ Cài đặt), `hud-vn.png`, `hud-en.png` (nhãn cạnh con
+trỏ, phóng to 6 lần) và `status-vn.png`, `status-en.png` (biểu tượng thanh menu phóng to; thêm `--dark` để xem trên nền tối). Mở ảnh bằng Read để nhìn. Chế độ này
 KHÔNG khởi động event tap, nên chạy song song với bản người dùng đang dùng được. Luôn chạy và xem lại
 sau mỗi thay đổi bố cục, trước khi nhờ người dùng.
 
@@ -89,4 +98,5 @@ Biểu tượng app: sửa `Scripts/make-icon.swift`, chạy `swift Scripts/make
 - "Gõ tắt" và "Từ đã nhớ" vẫn là ô văn bản; có thể nâng lên bảng như `AppList` (giữ định dạng lưu).
 - Nhãn HUD rơi về vị trí chuột ở các app không báo vị trí con trỏ (nhiều app Electron).
 - Chế độ tối, cỡ chữ lớn và VoiceOver của cửa sổ Cài đặt chưa được ai xem.
-- Ảnh chụp không thấy thanh thẻ (nằm trên thanh công cụ của cửa sổ) lẫn menu thanh trạng thái.
+- Ảnh chụp không thấy thanh thẻ (nằm trên thanh công cụ của cửa sổ), menu thanh trạng thái, lẫn chuyển
+  động đổi thẻ (chỉ thấy trạng thái cuối sau khi chuyển động chạy xong).

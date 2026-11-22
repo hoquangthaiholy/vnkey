@@ -115,7 +115,9 @@ enum Syl {
     }
 
     /// Âm tiết hoàn chỉnh, đúng chính tả (chữ thường, có dấu mũ/móc, thanh truyền riêng).
-    static func isValid(_ s: [Character], tone: Tone, teen allowTeen: Bool) -> Bool {
+    /// `ignoreToneRule`: bỏ qua luật "âm cuối c/ch/p/t phải có thanh sắc hoặc nặng" — dùng để nhận ra từ
+    /// đúng cấu trúc nhưng người gõ chưa (hoặc quên) bỏ dấu thanh, vd "đươc".
+    static func isValid(_ s: [Character], tone: Tone, teen allowTeen: Bool, ignoreToneRule: Bool = false) -> Bool {
         let inis = allowTeen ? teen.exact : std.exact
         for p in parse(s) where inis.contains(p.ini) {
             var finals = nuclei[p.nuc] ?? []
@@ -125,7 +127,7 @@ enum Syl {
             }
             guard finals.contains(p.fin) else { continue }
             // Âm cuối c/ch/p/t chỉ đi với thanh sắc hoặc nặng.
-            if ["c", "ch", "p", "t"].contains(p.fin) && tone != .sac && tone != .nang { continue }
+            if !ignoreToneRule, ["c", "ch", "p", "t"].contains(p.fin), tone != .sac, tone != .nang { continue }
             return true
         }
         return false

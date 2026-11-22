@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Menu
 
-    /// Menu gọn: trạng thái, bật/tắt, bảng gõ, Cài đặt, Thoát. Mọi tuỳ chọn khác nằm trong Cài đặt.
+    /// Menu gọn: trạng thái, bật/tắt, kiểu gõ, Cài đặt, Thoát. Mọi tuỳ chọn khác nằm trong Cài đặt.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !tap.isRunning {
@@ -205,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggle)
         menu.addItem(.separator())
 
-        let header = NSMenuItem(title: "Bảng gõ", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "Kiểu gõ", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         let method = defaults.string(forKey: Key.method)

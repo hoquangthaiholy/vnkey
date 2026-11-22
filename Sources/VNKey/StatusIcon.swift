@@ -15,7 +15,7 @@ enum StatusIcon {
 
             // Canh giữa theo khung bao của chính nét chữ, không theo ô chữ của font: ô chữ có phần chừa
             // cho dấu và chân chữ nên chữ hoa sẽ lệch (chữ V nhìn rõ nhất vì đỉnh nhọn ở dưới).
-            let font = NSFont.systemFont(ofSize: 11.5, weight: .heavy)
+            let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
             var chars = Array(String(letter).utf16)
             var glyphs = [CGGlyph](repeating: 0, count: chars.count)
             guard CTFontGetGlyphsForCharacters(font, &chars, &glyphs, chars.count) else { return true }

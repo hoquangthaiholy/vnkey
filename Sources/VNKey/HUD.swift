@@ -1,11 +1,47 @@
 import AppKit
 
+/// Viên nhãn "VN"/"EN": nền là màu nhấn mà người dùng chọn cho macOS, chữ trắng.
+final class HUDPill: NSView {
+    static let size = NSSize(width: 32, height: 20)
+    private let label = NSTextField(labelWithString: "")
+
+    override var wantsUpdateLayer: Bool { true }
+
+    init(text: String) {
+        super.init(frame: NSRect(origin: .zero, size: HUDPill.size))
+        wantsLayer = true
+        layer?.cornerRadius = 6
+        layer?.cornerCurve = .continuous
+        label.font = .systemFont(ofSize: 11, weight: .semibold)
+        label.textColor = .white
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: centerXAnchor), label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        self.text = text
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    var text: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue }
+    }
+
+    /// Gọi lại mỗi khi giao diện đổi, nên nhãn theo ngay khi người dùng đổi màu nhấn trong Cài đặt hệ thống.
+    override func updateLayer() {
+        layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+    }
+}
+
 /// Nhãn nhỏ "VN"/"EN" hiện thoáng qua cạnh con trỏ soạn thảo khi đổi chế độ.
 final class HUD {
     private let panel: NSPanel
-    private let label = NSTextField(labelWithString: "")
+    private let pill = HUDPill(text: "")
     private var generation = 0
-    private let size = NSSize(width: 46, height: 28)
+    private let size = HUDPill.size
 
     init() {
         panel = NSPanel(
@@ -17,22 +53,12 @@ final class HUD {
         panel.hasShadow = true
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
-
-        let bg = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        bg.material = .hudWindow
-        bg.state = .active
-        bg.wantsLayer = true
-        bg.layer?.cornerRadius = 8
-        bg.layer?.masksToBounds = true
-        label.font = .systemFont(ofSize: 14, weight: .semibold)
-        label.alignment = .center
-        label.frame = NSRect(x: 0, y: 5, width: size.width, height: 18)
-        bg.addSubview(label)
-        panel.contentView = bg
+        panel.contentView = pill
     }
 
     func show(_ text: String) {
-        label.stringValue = text
+        pill.text = text
+        pill.needsDisplay = true
         panel.setFrameOrigin(origin())
         panel.alphaValue = 1
         panel.orderFrontRegardless()
@@ -51,9 +77,9 @@ final class HUD {
 
     /// Ngay dưới con trỏ soạn thảo nếu ứng dụng cho biết vị trí, không thì cạnh con trỏ chuột.
     private func origin() -> NSPoint {
-        if let r = caretRect() { return NSPoint(x: r.minX, y: r.minY - size.height - 4) }
+        if let r = caretRect() { return NSPoint(x: r.minX, y: r.minY - size.height - 3) }
         let m = NSEvent.mouseLocation
-        return NSPoint(x: m.x + 12, y: m.y - size.height - 12)
+        return NSPoint(x: m.x + 10, y: m.y - size.height - 10)
     }
 
     /// Vị trí con trỏ soạn thảo (toạ độ Cocoa) lấy qua Accessibility; nhiều app Electron không trả về.

@@ -19,13 +19,41 @@ enum Snapshot {
         window.orderFrontRegardless()
         settings.reload()
         for i in 0..<settings.tabCount {
-            settings.selectTab(i)
+            settings.selectTab(i, animated: true)
+            // Đợi chuyển động đổi thẻ chạy xong: ảnh phản ánh đúng trạng thái cuối mà người dùng thấy.
+            RunLoop.current.run(until: Date().addingTimeInterval(0.6))
             window.layoutIfNeeded()
             window.displayIfNeeded()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
             write(settings.contentView, dark: dark, to: dir.appendingPathComponent("settings-\(i + 1)\(suffix).png"))
         }
         window.orderOut(nil)
+
+        // Nhãn cạnh con trỏ, phóng to 6 lần cho dễ nhìn.
+        for text in ["VN", "EN"] {
+            let pill = HUDPill(text: text)
+            let holder = NSWindow(
+                contentRect: NSRect(origin: NSPoint(x: -4000, y: -4000), size: HUDPill.size), styleMask: .borderless,
+                backing: .buffered, defer: false)
+            holder.contentView = pill
+            holder.orderFrontRegardless()
+            pill.layoutSubtreeIfNeeded()
+            pill.displayIfNeeded()
+            if let rep = pill.bitmapImageRepForCachingDisplay(in: pill.bounds) {
+                pill.cacheDisplay(in: pill.bounds, to: rep)
+                let big = NSImage(size: NSSize(width: HUDPill.size.width * 6 + 48, height: HUDPill.size.height * 6 + 48), flipped: false) { r in
+                    (dark ? NSColor(white: 0.15, alpha: 1) : NSColor.white).setFill()
+                    r.fill()
+                    NSGraphicsContext.current?.imageInterpolation = .none
+                    rep.draw(in: r.insetBy(dx: 24, dy: 24))
+                    return true
+                }
+                if let tiff = big.tiffRepresentation, let out = NSBitmapImageRep(data: tiff) {
+                    try? out.representation(using: .png, properties: [:])?.write(
+                        to: dir.appendingPathComponent("hud-\(text.lowercased())\(suffix).png"))
+                }
+            }
+            holder.orderOut(nil)
+        }
 
         for (name, image) in StatusIcon.all {
             write(image, scale: 8, dark: dark, to: dir.appendingPathComponent("status-\(name)\(suffix).png"))

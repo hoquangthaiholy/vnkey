@@ -290,6 +290,9 @@ public final class Engine {
         "post", "fix", "box", "now", "how", "see",
     ]
 
+    /// Từ tiếng Anh thông dụng có hai chữ d mà gõ ra âm tiết Việt hợp lệ (dùng khi không có từ điển).
+    static let lateBarEnglish: Set<String> = ["did", "dad", "deed", "dud", "dido", "dude"]
+
     static let teenExpansions: [String: String] = [
         "ko": "không", "hok": "không", "hem": "không", "dc": "được", "đc": "được", "ntn": "như thế nào",
         "bik": "biết", "bít": "biết", "trc": "trước", "vs": "với", "mn": "mọi người", "cx": "cũng",
@@ -303,6 +306,9 @@ public final class Engine {
         let key = raw.lowercased()
         if preferRaw.contains(key) { return raw }
         if preferVN.contains(key) || comp.keepComposed { return shown }
+        // Chữ đ do chữ d gõ muộn tạo ra: nếu chuỗi phím là một từ tiếng Anh ("did", "dad") thì giữ tiếng Anh.
+        // Người gõ tiếng Việt muốn "đi", "đa" hầu như luôn gõ "ddi", "dda".
+        if comp.lateBar, Engine.lateBarEnglish.contains(key) || isEnglish(key) { return raw }
 
         // Gõ lặp để huỷ dấu ("tass" -> "tas") được tôn trọng, trừ khi chuỗi phím gốc là từ tiếng Anh ("pass", "off").
         func afterCancel() -> String {
@@ -311,7 +317,15 @@ public final class Engine {
         if comp.isLiteral { return comp.cancelled ? afterCancel() : shown }
         if !comp.hasVowel { return shown }  // viết tắt toàn phụ âm: đc, đt...
         if !Syl.isValid(comp.plainChars, tone: comp.tone, teen: config.teenInitials) {
-            return comp.cancelled ? afterCancel() : raw
+            if comp.cancelled { return afterCancel() }
+            // Sai duy nhất ở chỗ thiếu dấu thanh trước âm cuối c/ch/p/t ("đươc", "dât"): có thể là tiếng Việt
+            // gõ quên dấu, cũng có thể là tiếng Anh ("data"). Có từ điển thì hỏi; không thì từ mang từ hai
+            // dấu mũ/móc/đ trở lên coi là tiếng Việt và giữ nguyên để người dùng bỏ dấu tiếp.
+            if Syl.isValid(comp.plainChars, tone: comp.tone, teen: config.teenInitials, ignoreToneRule: true) {
+                if lexicon != nil { return isEnglish(key) ? raw : shown }
+                return comp.markCount >= 2 ? shown : raw
+            }
+            return raw
         }
         if comp.cancelled { return shown }
         if Engine.builtinEnglish.contains(key) { return raw }

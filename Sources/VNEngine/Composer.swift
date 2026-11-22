@@ -62,6 +62,8 @@ struct Composer {
     var cancelled = false
     /// Từ toàn phụ âm có biến đổi (vd "đc"): giữ nguyên kết quả, không khôi phục.
     var keepComposed = false
+    /// Chữ đ được tạo bởi một chữ d gõ muộn (không liền sau chữ d đầu): "duocd", "did".
+    var lateBar = false
     /// Từ nằm trong ngữ cảnh code (sau @ # / . _ hoặc chữ số): không biến đổi.
     var codeLiteral = false
 
@@ -75,6 +77,8 @@ struct Composer {
     var shown: String { override ?? render() }
     var hasVowel: Bool { letters.contains(where: \.isVowel) }
     var plainChars: [Character] { letters.map(\.plain) }
+    /// Số chữ đang mang dấu mũ, móc, trăng hoặc gạch (đ).
+    var markCount: Int { letters.filter { $0.mark != .none }.count }
 
     // MARK: - Nhập phím
 
@@ -147,7 +151,7 @@ struct Composer {
 
     private mutating func clear() {
         letters = []; tone = .none; raw = []; owner = []; override = nil
-        cancelled = false; keepComposed = false
+        cancelled = false; keepComposed = false; lateBar = false
     }
 
     private mutating func dropKeys(_ pred: (Int) -> Bool) {
@@ -179,7 +183,7 @@ struct Composer {
                     $0.doW(k, upper, breve: true, horn: true, standalone: $0.standaloneW)
                 }
             case "d":
-                return attempt(k, upper, fallbackLetter: true) { $0.doBar(k, upper, adjacentOnly: true) }
+                return attempt(k, upper, fallbackLetter: true) { $0.doBar(k, upper) }
             default:
                 appendLetter(k, upper); return true
             }
@@ -202,7 +206,7 @@ struct Composer {
                 return attempt(k, upper, fallbackLetter: false) {
                     $0.doW(k, upper, breve: true, horn: false, standalone: false)
                 }
-            case "9": return attempt(k, upper, fallbackLetter: false) { $0.doBar(k, upper, adjacentOnly: false) }
+            case "9": return attempt(k, upper, fallbackLetter: false) { $0.doBar(k, upper) }
             default:
                 if k.isNumber { return false }
                 appendLetter(k, upper); return true
@@ -275,7 +279,9 @@ struct Composer {
         return .applied
     }
 
-    private mutating func doBar(_ k: Character, _ upper: Bool, adjacentOnly: Bool) -> Outcome {
+    /// Chữ d thứ hai biến chữ d đầu từ thành đ, dù gõ liền ("dd") hay gõ muộn ("duocd"). Tiếng Việt không
+    /// có âm cuối d nên chữ d muộn không thể là chữ thường; từ tiếng Anh kiểu "did" do Engine phân xử.
+    private mutating func doBar(_ k: Character, _ upper: Bool) -> Outcome {
         guard let first = letters.first, first.base == "d" else { return .none }
         if first.mark == .bar {
             guard letters.count == 1 else { return .none }
@@ -283,7 +289,7 @@ struct Composer {
             appendLetter(k, upper)
             return .cancelled
         }
-        if adjacentOnly && letters.count != 1 { return .none }
+        if letters.count != 1 { lateBar = true }
         letters[0].mark = .bar
         owner.append(0)
         return .applied
