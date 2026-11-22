@@ -182,15 +182,21 @@ public final class Engine {
             resume(e)
         }
         guard !comp.isEmpty else { return .pass }
-        comp.backspace()
-        let new = comp.shown
-        var out = Output.pass
-        if new != String(screen.dropLast()) {  // vd dấu thanh đổi vị trí: hoàn -> hòa
-            let p = commonPrefix(screen, new)
-            out = Output(backspaces: screen.count - p, text: String(new.dropFirst(p)), passKey: false)
-        }
-        screen = new
-        return out
+        // Xoá lùi LUÔN đi thẳng: màn hình mất đúng ký tự cuối, engine chỉ cập nhật trạng thái cho khớp.
+        // Không bao giờ sửa chữ khác ở đây — phát phím xoá + chữ trong lúc người dùng đang giữ phím xoá
+        // đã làm màn hình và engine lệch nhau. Nếu cách hiển thị chuẩn khác với màn hình (dấu thanh nằm
+        // khác chỗ: "hoà" so với "hòa"), phím kế tiếp hoặc lúc kết thúc từ sẽ sửa.
+        comp.backspace(dropTone: screen.last.map(Engine.carriesTone) ?? false)
+        screen.removeLast()
+        if comp.isEmpty { screen = "" }
+        return .pass
+    }
+
+    private static let toneMarks: Set<Unicode.Scalar> = ["\u{301}", "\u{300}", "\u{309}", "\u{303}", "\u{323}"]
+
+    /// Ký tự đang mang dấu thanh (sắc, huyền, hỏi, ngã, nặng).
+    static func carriesTone(_ ch: Character) -> Bool {
+        String(ch).decomposedStringWithCanonicalMapping.unicodeScalars.contains(where: toneMarks.contains)
     }
 
     /// Quay lại sửa từ trước đó, giữ nguyên thứ tự phím đã gõ.

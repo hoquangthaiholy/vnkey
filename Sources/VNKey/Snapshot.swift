@@ -1,0 +1,71 @@
+import AppKit
+
+/// Vẽ giao diện ra tệp PNG mà không cần quyền chụp màn hình, để xem bố cục khi phát triển:
+/// `VNKey --snapshot <thư mục>`.
+///
+/// Chỉ đáng tin ở chế độ sáng. Đã thử ép chế độ tối (`--dark`): chữ đổi màu nhưng nền và các nút vẫn
+/// vẽ kiểu sáng, nên ảnh ra sai. Chế độ tối phải nhờ người dùng xem trên màn hình thật; cờ `--dark`
+/// chỉ còn dùng để xem biểu tượng thanh menu trên nền tối.
+enum Snapshot {
+    static func run(into dir: URL, dark: Bool) {
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        let suffix = dark ? "-dark" : ""
+
+        let settings = SettingsController()
+        let window = settings.window
+        window.appearance = NSApp.appearance
+        window.setFrameOrigin(NSPoint(x: -4000, y: -4000))  // ngoài màn hình
+        window.orderFrontRegardless()
+        settings.reload()
+        for i in 0..<settings.tabCount {
+            settings.selectTab(i)
+            window.layoutIfNeeded()
+            window.displayIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            write(settings.contentView, dark: dark, to: dir.appendingPathComponent("settings-\(i + 1)\(suffix).png"))
+        }
+        window.orderOut(nil)
+
+        for (name, image) in StatusIcon.all {
+            write(image, scale: 8, dark: dark, to: dir.appendingPathComponent("status-\(name)\(suffix).png"))
+        }
+    }
+
+    /// Vẽ view lên nền cửa sổ (thẻ của NSTabView trong suốt một phần, nhất là ở chế độ tối).
+    private static func write(_ view: NSView, dark: Bool, to url: URL) {
+        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        (NSApp.appearance ?? view.effectiveAppearance).performAsCurrentDrawingAppearance {
+            view.cacheDisplay(in: view.bounds, to: rep)
+        }
+        // Màu nền cửa sổ chuẩn của macOS ở hai chế độ (ghi cứng: màu động không phân giải đúng ở đây).
+        let background = dark ? NSColor(white: 0.196, alpha: 1) : NSColor(white: 0.925, alpha: 1)
+        let out = NSImage(size: view.bounds.size, flipped: false) { rect in
+            background.setFill()
+            rect.fill()
+            rep.draw(in: rect)
+            return true
+        }
+        guard let tiff = out.tiffRepresentation, let flat = NSBitmapImageRep(data: tiff) else { return }
+        try? flat.representation(using: .png, properties: [:])?.write(to: url)
+    }
+
+    /// Phóng to ảnh template trên nền thanh menu sáng/tối để nhìn rõ.
+    private static func write(_ image: NSImage, scale: CGFloat, dark: Bool, to url: URL) {
+        let size = NSSize(width: (image.size.width + 8) * scale, height: (image.size.height + 8) * scale)
+        let out = NSImage(size: size, flipped: false) { rect in
+            (dark ? NSColor(white: 0.15, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+            rect.fill()
+            let tinted = NSImage(size: image.size, flipped: false) { r in
+                image.draw(in: r)
+                (dark ? NSColor.white : NSColor.black).set()
+                r.fill(using: .sourceAtop)
+                return true
+            }
+            tinted.draw(in: rect.insetBy(dx: 4 * scale, dy: 4 * scale))
+            return true
+        }
+        guard let tiff = out.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return }
+        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
+}

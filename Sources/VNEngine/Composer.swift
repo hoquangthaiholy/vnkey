@@ -125,7 +125,9 @@ struct Composer {
         cancelled = false; keepComposed = false
     }
 
-    mutating func backspace() {
+    /// Xoá chữ cuối. `dropTone`: chữ bị xoá trên màn hình đang mang dấu thanh, nên dấu mất theo nó
+    /// (không dời sang nguyên âm khác).
+    mutating func backspace(dropTone: Bool = false) {
         if override != nil {
             override!.removeLast()
             if override!.isEmpty { clear() } else { forceLiteral(override!) }
@@ -135,7 +137,7 @@ struct Composer {
         let idx = letters.count - 1
         letters.removeLast()
         dropKeys { $0 == idx || $0 == -2 }
-        if cluster() == nil {
+        if dropTone || cluster() == nil {
             tone = .none
             dropKeys { $0 == -1 }
         }

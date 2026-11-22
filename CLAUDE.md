@@ -43,7 +43,8 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
    vào `EngineTests.swift`, thấy nó đỏ, rồi mới sửa. Lỗi phía app (gửi phím) không test tự động
    được thì ghi rõ là chưa kiểm chứng.
 2. **Không tuyên bố "đã sửa" với lỗi trong ứng dụng thật khi chưa có người dùng xác nhận.** Claude
-   không gõ được vào ứng dụng khác và không chụp được màn hình trên máy này. Nói rõ phần nào đã
+   không gõ được vào ứng dụng khác và không chụp được màn hình trên máy này (bố cục cửa sổ Cài đặt thì
+   tự xem được bằng `VNKey --snapshot`, xem skill `ui`). Nói rõ phần nào đã
    test, phần nào mới chỉ biên dịch.
 3. **Chẩn đoán bằng nhật ký, không đoán.** Lỗi Spotlight "toôi" tốn bốn vòng đoán; một dòng log đã
    chỉ ra nguyên nhân. Thiếu thông tin thì thêm dòng log rồi nhờ người dùng thử lại.

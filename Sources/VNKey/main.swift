@@ -1,6 +1,5 @@
 import AppKit
 import Carbon.HIToolbox
-import ServiceManagement
 import VNEngine
 import VNKeyCore
 
@@ -18,6 +17,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         defaults.register(defaults: Key.registered)
+        // Chế độ chụp giao diện: vẽ các cửa sổ ra PNG rồi thoát, KHÔNG khởi động event tap
+        // (một bản VNKey khác có thể đang chạy; hai tap cùng lúc sẽ xử lý phím hai lần).
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
+            status.isVisible = false
+            Snapshot.run(into: URL(fileURLWithPath: CommandLine.arguments[i + 1]), dark: CommandLine.arguments.contains("--dark"))
+            NSApp.terminate(nil)
+            return
+        }
         Log.enabled = defaults.bool(forKey: Key.debugLog)
         let info = Bundle.main.infoDictionary
         Log.write(
@@ -148,10 +155,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if announce, defaults.bool(forKey: Key.showHUD) { hud.show(on ? "VN" : "EN") }
     }
 
+    /// Thanh menu: biểu tượng V (đặc) / E (viền) theo chế độ, kèm ⚠︎ khi thiếu quyền, 🔒 khi ô bảo mật.
     private func refreshTitle() {
-        var title = tap.enabled ? "VN" : "EN"
-        if !tap.isRunning { title += " ⚠︎" } else if IsSecureEventInputEnabled() { title += " 🔒" }
-        if status.button?.title != title { status.button?.title = title }
+        guard let button = status.button else { return }
+        let image = tap.enabled ? StatusIcon.vn : StatusIcon.en
+        var title = "", tip = tap.enabled ? "VNKey: đang gõ tiếng Việt" : "VNKey: đang gõ tiếng Anh"
+        if !tap.isRunning {
+            title = " ⚠︎"; tip = "VNKey: chưa có quyền Trợ năng"
+        } else if IsSecureEventInputEnabled() {
+            title = " 🔒"; tip = "VNKey: tạm ngưng vì đang ở ô nhập bảo mật"
+        }
+        if button.image !== image { button.image = image }
+        if button.title != title {
+            button.title = title
+            button.imagePosition = title.isEmpty ? .imageOnly : .imageLeft
+        }
+        if button.toolTip != tip {
+            button.toolTip = tip
+            button.setAccessibilityLabel(tip)
+        }
     }
 
     @objc private func appActivated(_ note: Notification) {
@@ -166,39 +188,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Menu
 
+    /// Menu gọn: trạng thái, bật/tắt, bảng gõ, Cài đặt, Thoát. Mọi tuỳ chọn khác nằm trong Cài đặt.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !tap.isRunning {
-            menu.addItem(item("⚠︎ Chưa có quyền Trợ năng — bấm để mở cài đặt", #selector(openAccessibility)))
+            menu.addItem(item("Cấp quyền Trợ năng để bắt đầu gõ…", #selector(openAccessibility), symbol: "exclamationmark.triangle"))
             menu.addItem(.separator())
         } else if IsSecureEventInputEnabled() {
-            menu.addItem(
-                NSMenuItem(title: "🔒 Đang ở ô nhập bảo mật (mật khẩu): tạm ngưng gõ", action: nil, keyEquivalent: ""))
+            let i = item("Tạm ngưng: đang ở ô nhập bảo mật", nil, symbol: "lock")
+            i.isEnabled = false
+            menu.addItem(i)
             menu.addItem(.separator())
         }
-        menu.addItem(item("Gõ tiếng Việt  (\(tap.toggleHotkey.label))", #selector(toggleEnabled), on: tap.enabled))
+        let toggle = item("Gõ tiếng Việt", #selector(toggleEnabled), on: tap.enabled)
+        toggle.attributedTitle = titled("Gõ tiếng Việt", shortcut: tap.toggleHotkey.label)
+        menu.addItem(toggle)
         menu.addItem(.separator())
+
+        let header = NSMenuItem(title: "Bảng gõ", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
         let method = defaults.string(forKey: Key.method)
-        menu.addItem(item("Telex", #selector(pickMethod(_:)), on: method == "telex", tag: "telex"))
-        menu.addItem(item("VNI", #selector(pickMethod(_:)), on: method == "vni", tag: "vni"))
-        menu.addItem(.separator())
-        menu.addItem(item("Cài đặt…", #selector(openSettings)))
-        menu.addItem(
-            item("Ghi nhật ký gỡ lỗi (lưu cả nội dung gõ)", #selector(toggleLog), on: defaults.bool(forKey: Key.debugLog)))
-        menu.addItem(item("Mở tệp nhật ký", #selector(openLog)))
-        if #available(macOS 13.0, *) {
-            menu.addItem(
-                item("Mở cùng lúc đăng nhập", #selector(toggleLogin), on: SMAppService.mainApp.status == .enabled))
+        for (title, tag) in [("Telex", "telex"), ("VNI", "vni")] {
+            let i = item(title, #selector(pickMethod(_:)), on: method == tag, tag: tag)
+            i.indentationLevel = 1
+            menu.addItem(i)
         }
         menu.addItem(.separator())
-        menu.addItem(item("Thoát VNKey", #selector(quit)))
+        let settings = item("Cài đặt…", #selector(openSettings))
+        settings.keyEquivalent = ","
+        menu.addItem(settings)
+        menu.addItem(.separator())
+        let quit = item("Thoát VNKey", #selector(quit))
+        quit.keyEquivalent = "q"
+        menu.addItem(quit)
     }
 
-    private func item(_ title: String, _ action: Selector, on: Bool = false, tag: String? = nil) -> NSMenuItem {
+    /// Tên mục kèm phím tắt in mờ (phím tắt chỉ gồm phím bổ trợ không gắn được vào keyEquivalent).
+    private func titled(_ name: String, shortcut: String) -> NSAttributedString {
+        let s = NSMutableAttributedString(string: name, attributes: [.font: NSFont.menuFont(ofSize: 0)])
+        s.append(
+            NSAttributedString(
+                string: "    " + shortcut,
+                attributes: [.font: NSFont.menuFont(ofSize: 0), .foregroundColor: NSColor.tertiaryLabelColor]))
+        return s
+    }
+
+    private func item(_ title: String, _ action: Selector?, on: Bool = false, tag: String? = nil, symbol: String? = nil)
+        -> NSMenuItem
+    {
         let i = NSMenuItem(title: title, action: action, keyEquivalent: "")
         i.target = self
         i.state = on ? .on : .off
         i.representedObject = tag
+        if let symbol { i.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
         return i
     }
 
@@ -208,26 +251,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         defaults.set(sender.representedObject as? String, forKey: Key.method)
     }
 
-    @objc private func toggleLog() {
-        defaults.set(!defaults.bool(forKey: Key.debugLog), forKey: Key.debugLog)
-    }
-
-    @objc private func openLog() {
-        NSWorkspace.shared.activateFileViewerSelecting([Log.url])
-    }
-
     @objc private func openSettings() {
         if settings == nil { settings = SettingsController() }
         NSApp.activate(ignoringOtherApps: true)
         settings?.window.makeKeyAndOrderFront(nil)
-    }
-
-    @objc private func toggleLogin() {
-        guard #available(macOS 13.0, *) else { return }
-        let s = SMAppService.mainApp
-        do { if s.status == .enabled { try s.unregister() } else { try s.register() } } catch {
-            NSLog("VNKey: không đổi được mục đăng nhập: \(error)")
-        }
     }
 
     @objc private func openAccessibility() {

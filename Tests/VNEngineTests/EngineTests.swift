@@ -62,7 +62,7 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
     func repeatCancels(keys: String, want: String) { #expect(run(keys) == want) }
 
     @Test(arguments: [
-        ("tieengs<", "tiến"), ("tieengs<<<<<<", ""), ("hoanf<", "hòa"), ("dduwowcj<<", "đự"),
+        ("tieengs<", "tiến"), ("tieengs<<<<<<", ""), ("hoanf<", "hoà"), ("dduwowcj<<", "đư"),
         ("vieetj <s", "viết"),  // quay lại từ trước và sửa thanh
         ("tieeng  <<s", "tiếng"),
         ("as<<", ""),
@@ -263,4 +263,43 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
         var c = Config(); c.tidyPunctuation = true; c.expandTeen = true; c.autoCapitalize = true
         #expect(run("ko dc ddaau . j z ", c) == "không được đâu. Gì vậy ")
     }
+}
+
+/// Lỗi "lâu lâu không gõ được tiếng Việt" (22/11/2026): giữ phím xoá lùi qua "việt", "tiếng" làm engine
+/// dời dấu thanh sang nguyên âm trước ("tiế" -> "tí"), buộc app nuốt phím xoá rồi tự phát phím xoá + chữ
+/// trong lúc phím thật đang lặp; màn hình và engine lệch nhau từ đó.
+@Suite struct BackspaceIsPlain {
+    static let words = [
+        "tieengs", "vieetj", "dduwowcj", "hoanf", "nguwowif", "quyeets", "thuyr", "khuyur", "muoons", "giuwax",
+        "DDAAY", "toio", "ruwowuj", "oong", "uyr", "hoaf", "user", "string", "ddc", "ass", "ww",
+    ]
+
+    /// Xoá lùi luôn chỉ xoá đúng một ký tự cuối: engine không bao giờ đòi sửa chữ khác.
+    @Test(arguments: words) func neverRewrites(word: String) {
+        for method in [Method.telex] {
+            var c = Config(); c.method = method
+            let e = Engine(config: c)
+            var screen = ""
+            for ch in word {
+                let out = e.type(ch)
+                screen.removeLast(min(out.backspaces, screen.count)); screen += out.text
+                if out.passKey { screen.append(ch) }
+            }
+            while !screen.isEmpty {
+                let out = e.backspace()
+                #expect(out.isPass, "xoá lùi từ \"\(screen)\" (gõ \(word)) phải đi thẳng")
+                screen.removeLast()
+                #expect(e.currentWord == screen)
+            }
+        }
+    }
+
+    /// Xoá chữ mang dấu thanh thì dấu mất theo; xoá chữ khác thì dấu ở yên.
+    @Test(arguments: [
+        ("tieengs<<<", "ti"), ("vieetj<<", "vi"), ("dduwowcj<", "đượ"), ("hoanf<<", "ho"), ("quas<", "qu"),
+        ("tieengs<<<eens", "tiến"),  // xoá rồi gõ tiếp vẫn bỏ dấu được
+        ("tieengs vieetj<<<<<<<<s", "tí"),  // xoá ngược qua hai từ
+        ("hoanf<n ", "hoàn "), ("hoanf< ", "hòa "),  // dấu về đúng chỗ khi kết thúc từ
+    ])
+    func toneGoesWithItsLetter(keys: String, want: String) { #expect(run(keys) == want) }
 }

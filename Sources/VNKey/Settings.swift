@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import VNKeyCore
 import UniformTypeIdentifiers
 
@@ -11,12 +12,12 @@ private final class ListEditor: NSObject, NSTextViewDelegate {
     private let load: () -> String
     private let save: (String) -> Void
 
-    init(load: @escaping () -> String, save: @escaping (String) -> Void) {
+    init(height: CGFloat, load: @escaping () -> String, save: @escaping (String) -> Void) {
         self.load = load; self.save = save
         super.init()
         scroll.borderType = .bezelBorder
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
-        scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 110).isActive = true
+        scroll.heightAnchor.constraint(equalToConstant: height).isActive = true
         textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         textView.isRichText = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -43,7 +44,7 @@ private final class HotkeyButton: NSButton {
         self.init(title: "", target: nil, action: #selector(toggle))
         self.key = key
         target = self
-        widthAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
+        widthAnchor.constraint(equalToConstant: 150).isActive = true
         refresh()
     }
 
@@ -59,7 +60,7 @@ private final class HotkeyButton: NSButton {
     @objc private func toggle() { monitor == nil ? start() : stop() }
 
     private func start() {
-        title = "Nhấn tổ hợp phím… (Esc để huỷ)"
+        title = "Nhấn tổ hợp phím…"
         hotkeyRecording = true; peak = 0
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [unowned self] e in
             let m = UInt(e.modifierFlags.rawValue) & Hotkey.modMask
@@ -89,211 +90,478 @@ private final class HotkeyButton: NSButton {
     }
 }
 
+/// Danh sách ứng dụng (lưu bằng bundle ID) hiện kèm biểu tượng và tên.
+private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    let scroll = NSScrollView()
+    private let table = NSTableView()
+    private let key: String
+    private var items: [(id: String, name: String?, icon: NSImage)] = []
+
+    init(key: String) {
+        self.key = key
+        super.init()
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("app"))
+        column.resizingMask = .autoresizingMask
+        table.addTableColumn(column)
+        table.headerView = nil
+        table.rowHeight = 30
+        table.allowsMultipleSelection = true
+        table.usesAlternatingRowBackgroundColors = true
+        table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
+        table.dataSource = self
+        table.delegate = self
+        scroll.documentView = table
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
+        scroll.heightAnchor.constraint(equalToConstant: 186).isActive = true
+        reload()
+    }
+
+    func reload() {
+        let ids = UserDefaults.standard.stringArray(forKey: key) ?? []
+        let generic = NSWorkspace.shared.icon(for: .applicationBundle)
+        items = ids.map { id in
+            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else {
+                return (id, nil, generic)
+            }
+            return (id, FileManager.default.displayName(atPath: url.path), NSWorkspace.shared.icon(forFile: url.path))
+        }
+        // Ứng dụng đã cài lên trước, theo tên; chưa cài xuống dưới.
+        .sorted { a, b in
+            switch (a.name, b.name) {
+            case let (x?, y?): return x.localizedCaseInsensitiveCompare(y) == .orderedAscending
+            case (_?, nil): return true
+            case (nil, _?): return false
+            default: return a.id < b.id
+            }
+        }
+        table.reloadData()
+    }
+
+    func removeSelected() {
+        let gone = Set(table.selectedRowIndexes.map { items[$0].id })
+        guard !gone.isEmpty else { return }
+        let rest = (UserDefaults.standard.stringArray(forKey: key) ?? []).filter { !gone.contains($0) }
+        UserDefaults.standard.set(rest, forKey: key)
+        reload()
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int { items.count }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let item = items[row]
+        let icon = NSImageView(image: item.icon)
+        icon.widthAnchor.constraint(equalToConstant: 20).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        let text = NSMutableAttributedString(
+            string: item.name ?? item.id,
+            attributes: [.foregroundColor: item.name == nil ? NSColor.secondaryLabelColor : NSColor.labelColor])
+        text.append(
+            NSAttributedString(
+                string: item.name == nil ? "   chưa cài trên máy này" : "   \(item.id)",
+                attributes: [
+                    .foregroundColor: NSColor.tertiaryLabelColor,
+                    .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                ]))
+        let label = NSTextField(labelWithAttributedString: text)
+        label.lineBreakMode = .byTruncatingTail
+        let row = NSStackView(views: [icon, label])
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.edgeInsets = NSEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
+        return row
+    }
+}
+
+/// Khung bo góc chứa một nhóm dòng cài đặt, kiểu System Settings.
+private final class Card: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    init(rows: [NSView]) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.borderWidth = 1
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 0
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        var constraints = [
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ]
+        for (i, row) in rows.enumerated() {
+            if i > 0 {  // đường kẻ mảnh giữa các dòng, thụt vào cho thẳng với chữ
+                let line = NSBox()
+                line.boxType = .custom
+                line.borderWidth = 0
+                line.fillColor = .separatorColor
+                let holder = NSView()
+                line.translatesAutoresizingMaskIntoConstraints = false
+                holder.addSubview(line)
+                constraints += [
+                    line.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: 12),
+                    line.trailingAnchor.constraint(equalTo: holder.trailingAnchor),
+                    line.topAnchor.constraint(equalTo: holder.topAnchor), line.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+                    holder.heightAnchor.constraint(equalToConstant: 1),
+                ]
+                stack.addArrangedSubview(holder)
+                constraints.append(holder.widthAnchor.constraint(equalTo: stack.widthAnchor))
+            }
+            stack.addArrangedSubview(row)
+            constraints.append(row.widthAnchor.constraint(equalTo: stack.widthAnchor))
+        }
+        NSLayoutConstraint.activate(constraints)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func updateLayer() {
+        layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.6).cgColor
+        layer?.borderColor = NSColor.separatorColor.cgColor
+    }
+}
+
+/// Thanh thẻ kiểu Cài đặt của macOS; cửa sổ tự đổi chiều cao theo nội dung từng thẻ.
+private final class SettingsTabs: NSTabViewController {
+    override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
+        super.tabView(tabView, didSelect: tabViewItem)
+        fitWindow(animated: true)
+    }
+
+    func fitWindow(animated: Bool) {
+        guard let window = view.window, let page = tabView.selectedTabViewItem?.view else { return }
+        page.layoutSubtreeIfNeeded()
+        let content = NSRect(origin: .zero, size: NSSize(width: SettingsController.width, height: page.fittingSize.height))
+        var frame = window.frameRect(forContentRect: content)
+        frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)  // giữ mép trên
+        window.setFrame(frame, display: true, animate: animated && window.isVisible)
+        window.title = tabView.selectedTabViewItem?.label ?? "VNKey"
+    }
+}
+
 final class SettingsController: NSObject, NSWindowDelegate {
+    static let width: CGFloat = 540
+    /// Đánh dấu một view cần giãn hết chiều ngang của thẻ.
+    fileprivate static let wide = NSUserInterfaceItemIdentifier("wide")
     let window: NSWindow
+    private let tabs = SettingsTabs()
     private let defaults = UserDefaults.standard
     private var editors: [ListEditor] = []
+    private var appList: AppList?
     private var hotkeyButtons: [HotkeyButton] = []
     private var methodControl: NSSegmentedControl?
-    private let pageWidth: CGFloat = 560
+    private var toneControl: NSSegmentedControl?
+    private var loginSwitch: NSSwitch?
 
     override init() {
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 460), styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered, defer: false)
+        window = NSWindow(contentViewController: tabs)
         super.init()
-        window.title = "Cài đặt VNKey"
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-
-        let tabs = NSTabView()
-        for (title, view) in [
-            ("Chung", general()), ("Thông minh", smart()), ("Phím tắt", hotkeys()), ("Gõ tắt", macros()),
-            ("Từ đã nhớ", learned()), ("Ứng dụng", apps()),
+        tabs.tabStyle = .toolbar
+        for (title, symbol, view) in [
+            ("Chung", "gearshape", general()), ("Gõ", "keyboard", typing()), ("Việt & Anh", "character.bubble", mixed()),
+            ("Gõ tắt", "text.badge.plus", shortcuts()), ("Ứng dụng", "macwindow.on.rectangle", apps()),
         ] {
-            let item = NSTabViewItem()
+            let controller = NSViewController()
+            controller.view = view
+            let item = NSTabViewItem(viewController: controller)
             item.label = title
-            item.view = view
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
             tabs.addTabViewItem(item)
         }
-        window.contentView = tabs
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.toolbarStyle = .preference
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        tabs.fitWindow(animated: false)
         window.center()
     }
+
+    /// Số thẻ và cách chọn thẻ, dùng cho chế độ chụp giao diện.
+    var tabCount: Int { tabs.tabViewItems.count }
+    func selectTab(_ index: Int) {
+        tabs.selectedTabViewItemIndex = index
+        tabs.fitWindow(animated: false)
+    }
+    var contentView: NSView { tabs.view }
 
     func windowDidBecomeKey(_ notification: Notification) { reload() }
     func windowWillClose(_ notification: Notification) { hotkeyButtons.forEach { $0.stop() } }
 
     func reload() {
         editors.forEach { $0.reload() }
+        appList?.reload()
         hotkeyButtons.forEach { $0.refresh() }
         methodControl?.selectedSegment = defaults.string(forKey: Key.method) == "vni" ? 1 : 0
+        toneControl?.selectedSegment = defaults.bool(forKey: Key.modernTone) ? 1 : 0
+        if #available(macOS 13.0, *) { loginSwitch?.state = SMAppService.mainApp.status == .enabled ? .on : .off }
     }
 
     // MARK: - Thành phần
 
-    private func page(_ views: [NSView], stretch: Bool = false) -> NSView {
-        let stack = NSStackView(views: views + (stretch ? [] : [NSView()]))
+    /// Một thẻ: các nhóm xếp dọc, lề 20pt, cao vừa đủ nội dung.
+    private func page(_ views: [NSView]) -> NSView {
+        let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-        for v in views where v is NSScrollView || v is NSBox {
-            v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32).isActive = true
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        let container = NSView()
+        container.addSubview(stack)
+        var constraints = [
+            container.widthAnchor.constraint(equalToConstant: SettingsController.width),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -20),
+        ]
+        for v in views where v is Card || v is NSScrollView || v.identifier == SettingsController.wide {
+            constraints.append(v.widthAnchor.constraint(equalTo: stack.widthAnchor))
         }
-        return stack
+        NSLayoutConstraint.activate(constraints)
+        for (i, v) in views.enumerated() where i > 0 && v is NSTextField && (v as! NSTextField).font?.pointSize == 13 {
+            stack.setCustomSpacing(18, after: views[i - 1])  // khoảng thở trước mỗi tiêu đề nhóm
+        }
+        return container
     }
 
-    /// Ô đánh dấu gắn thẳng vào UserDefaults qua Cocoa Bindings.
-    private func check(_ title: String, _ key: String) -> NSButton {
-        let b = NSButton(checkboxWithTitle: title, target: nil, action: nil)
-        b.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + key)
-        return b
-    }
-
-    private func hint(_ text: String) -> NSTextField {
-        let l = NSTextField(wrappingLabelWithString: text)
-        l.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        l.textColor = .secondaryLabelColor
-        l.preferredMaxLayoutWidth = pageWidth - 60
-        return l
-    }
-
-    private func heading(_ text: String) -> NSTextField {
+    /// Tiêu đề của một nhóm.
+    private func title(_ text: String) -> NSTextField {
         let l = NSTextField(labelWithString: text)
-        l.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        l.font = .systemFont(ofSize: 13, weight: .semibold)
         return l
     }
 
-    private func separator() -> NSBox {
-        let b = NSBox()
-        b.boxType = .separator
-        return b
+    /// Chú thích nhỏ dưới một nhóm.
+    private func note(_ text: String) -> NSTextField {
+        let l = NSTextField(wrappingLabelWithString: text)
+        l.font = .systemFont(ofSize: 11)
+        l.textColor = .secondaryLabelColor
+        l.preferredMaxLayoutWidth = SettingsController.width - 48
+        return l
     }
 
-    private func row(_ views: NSView...) -> NSStackView {
-        let s = NSStackView(views: views)
-        s.orientation = .horizontal
-        s.spacing = 8
-        return s
+    /// Một dòng trong nhóm: tên (và mô tả) bên trái, điều khiển bên phải.
+    private func row(_ name: String, _ detail: String? = nil, _ controls: NSView...) -> NSView {
+        let label = NSTextField(labelWithString: name)
+        label.font = .systemFont(ofSize: 13)
+        let text = NSStackView(views: [label])
+        text.orientation = .vertical
+        text.alignment = .leading
+        text.spacing = 2
+        if let detail {
+            let d = NSTextField(wrappingLabelWithString: detail)
+            d.font = .systemFont(ofSize: 11)
+            d.textColor = .secondaryLabelColor
+            d.preferredMaxLayoutWidth = 350
+            text.addArrangedSubview(d)
+        }
+        text.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let line = NSStackView(views: [text, NSView()] + controls)
+        line.orientation = .horizontal
+        line.alignment = .centerY
+        line.spacing = 8
+        line.edgeInsets = NSEdgeInsets(top: 9, left: 12, bottom: 9, right: 12)
+        line.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        return line
     }
 
-    private func editor(load: @escaping () -> String, save: @escaping (String) -> Void) -> NSView {
-        let e = ListEditor(load: load, save: save)
+    /// Công tắc gắn thẳng vào UserDefaults; `dependsOn`: mờ đi khi tuỳ chọn cha đang tắt.
+    private func toggle(_ name: String, _ detail: String? = nil, key: String, dependsOn parent: String? = nil) -> NSView {
+        let s = NSSwitch()
+        s.controlSize = .small
+        s.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + key)
+        if let parent { s.bind(.enabled, to: NSUserDefaultsController.shared, withKeyPath: "values." + parent) }
+        s.setAccessibilityLabel(name)
+        return row(name, detail, s)
+    }
+
+    private func editor(height: CGFloat, load: @escaping () -> String, save: @escaping (String) -> Void) -> NSView {
+        let e = ListEditor(height: height, load: load, save: save)
         editors.append(e)
         return e.scroll
     }
 
-    private func listEditor(_ key: String, lowercase: Bool) -> NSView {
+    private func listEditor(_ key: String, height: CGFloat) -> NSView {
         editor(
+            height: height,
             load: { [defaults] in (defaults.stringArray(forKey: key) ?? []).sorted().joined(separator: "\n") },
-            save: { [defaults] text in
-                defaults.set(ListFormat.lines(lowercase ? text.lowercased() : text), forKey: key)
-            })
+            save: { [defaults] text in defaults.set(ListFormat.lines(text.lowercased()), forKey: key) })
     }
 
-    // MARK: - Các trang
+    // MARK: - Các thẻ
 
     private func general() -> NSView {
-        let seg = NSSegmentedControl(
-            labels: ["Telex", "VNI"], trackingMode: .selectOne, target: self, action: #selector(pickMethod(_:)))
-        methodControl = seg
+        func hotkey(_ name: String, _ detail: String?, _ key: String) -> NSView {
+            let b = HotkeyButton(key: key)
+            hotkeyButtons.append(b)
+            let reset = NSButton(
+                image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: "Về mặc định")!,
+                target: self, action: #selector(resetHotkey(_:)))
+            reset.bezelStyle = .circular
+            reset.toolTip = "Về mặc định"
+            reset.tag = hotkeyButtons.count - 1
+            return row(name, detail, b, reset)
+        }
+        let login = NSSwitch()
+        login.controlSize = .small
+        login.target = self
+        login.action = #selector(toggleLogin(_:))
+        loginSwitch = login
+        let openLog = NSButton(title: "Mở tệp", target: self, action: #selector(openLog))
+        openLog.controlSize = .small
+        let logSwitch = NSSwitch()
+        logSwitch.controlSize = .small
+        logSwitch.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.debugLog)
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "bản phát triển"
+
+        var system: [NSView] = []
+        if #available(macOS 13.0, *) { system.append(row("Mở cùng lúc đăng nhập", nil, login)) }
+        system.append(
+            row("Ghi nhật ký gỡ lỗi", "Lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào máy này để tìm lỗi.", openLog, logSwitch))
         return page([
-            row(NSTextField(labelWithString: "Kiểu gõ"), seg),
-            check("Bỏ dấu kiểu mới (hoà, thuỷ)", Key.modernTone),
-            check("Telex: “w” đứng riêng thành “ư”", Key.standaloneW),
-            separator(),
-            check("Hiện nhãn VN/EN cạnh con trỏ khi đổi chế độ", Key.showHUD),
-            check("Sửa lỗi lặp chữ ở ô có gợi ý (trình duyệt, Spotlight)", Key.fixBrowser),
-            separator(),
-            check("Tự viết hoa đầu câu", Key.autoCapitalize),
-            hint("Sau . ! ? hoặc xuống dòng. Xoá lùi rồi gõ lại để giữ chữ thường."),
-            check("Xoá khoảng trắng thừa trước , . ; ! ?", Key.tidyPunctuation),
+            title("Phím tắt"),
+            Card(rows: [
+                hotkey("Bật/tắt tiếng Việt", nil, Key.toggleHotkey),
+                hotkey("Đổi từ vừa gõ", "Chuyển giữa phím gốc và tiếng Việt, và nhớ lựa chọn đó.", Key.restoreHotkey),
+            ]),
+            note("Bấm vào ô phím tắt rồi nhấn tổ hợp mới; Esc để huỷ. Có thể dùng riêng phím bổ trợ như ⌃⇧: nhấn giữ rồi thả."),
+            title("Hiển thị"),
+            Card(rows: [toggle("Hiện nhãn VN/EN cạnh con trỏ khi đổi chế độ", key: Key.showHUD)]),
+            title("Hệ thống"),
+            Card(rows: system),
+            note("VNKey \(version)"),
         ])
     }
+
+    private func typing() -> NSView {
+        let method = NSSegmentedControl(
+            labels: ["Telex", "VNI"], trackingMode: .selectOne, target: self, action: #selector(pickMethod(_:)))
+        methodControl = method
+        let tone = NSSegmentedControl(
+            labels: ["hòa, thủy", "hoà, thuỷ"], trackingMode: .selectOne, target: self, action: #selector(pickTone(_:)))
+        toneControl = tone
+        return page([
+            title("Kiểu gõ"),
+            Card(rows: [
+                row("Bảng gõ", nil, method),
+                row("Vị trí dấu thanh", "Kiểu cũ đặt dấu ở nguyên âm đầu, kiểu mới ở nguyên âm sau.", tone),
+                toggle("Phím “w” đứng riêng thành “ư”", "Chỉ áp dụng cho Telex. Gõ “ww” để ra chữ w.", key: Key.standaloneW),
+            ]),
+            title("Tự động"),
+            Card(rows: [
+                toggle("Viết hoa đầu câu", "Sau . ! ? hoặc xuống dòng. Xoá lùi rồi gõ lại để giữ chữ thường.", key: Key.autoCapitalize),
+                toggle("Xoá khoảng trắng thừa trước dấu câu", "Áp dụng cho , . ; ! ?", key: Key.tidyPunctuation),
+            ]),
+        ])
+    }
+
+    private func mixed() -> NSView {
+        let lists = NSStackView(views: [
+            column("Luôn giữ phím gốc", listEditor(Key.preferRaw, height: 84)),
+            column("Luôn bỏ dấu tiếng Việt", listEditor(Key.preferVN, height: 84)),
+        ])
+        lists.orientation = .horizontal
+        lists.distribution = .fillEqually
+        lists.spacing = 12
+        lists.identifier = SettingsController.wide
+        return page([
+            title("Xen kẽ tiếng Anh"),
+            Card(rows: [
+                toggle("Tự trả lại từ không phải tiếng Việt", "user, string, data… hiện đúng như bạn đã gõ.", key: Key.autoRestore),
+                toggle(
+                    "Đoán theo ngữ cảnh", "Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.",
+                    key: Key.contextAware, dependsOn: Key.autoRestore),
+                toggle(
+                    "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
+                    key: Key.fixTransposition, dependsOn: Key.autoRestore),
+                toggle("Giữ nguyên trong ngữ cảnh code", "Sau @ # / . _ hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
+            ]),
+            title("Chữ teen"),
+            Card(rows: [toggle("Cho phép f, j, w, z đứng đầu từ", "zậy, jờ, dzô, fải…", key: Key.teen)]),
+            title("Từ đã nhớ"),
+            lists,
+            note("Mỗi lần bạn dùng phím “Đổi từ vừa gõ”, VNKey nhớ lựa chọn đó. Mỗi dòng là một chuỗi phím; xoá dòng để quên."),
+        ])
+    }
+
+    private func column(_ heading: String, _ body: NSView) -> NSView {
+        let l = NSTextField(labelWithString: heading)
+        l.font = .systemFont(ofSize: 11)
+        l.textColor = .secondaryLabelColor
+        let s = NSStackView(views: [l, body])
+        s.orientation = .vertical
+        s.alignment = .leading
+        s.spacing = 4
+        body.widthAnchor.constraint(equalTo: s.widthAnchor).isActive = true
+        return s
+    }
+
+    private func shortcuts() -> NSView {
+        page([
+            title("Gõ tắt của bạn"),
+            editor(
+                height: 170,
+                load: { [defaults] in
+                    ListFormat.text(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:])
+                },
+                save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) }),
+            note("Mỗi dòng một mục dạng  vn = Việt Nam. Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa."),
+            title("Có sẵn"),
+            Card(rows: [toggle("Bung viết tắt teen", "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
+        ])
+    }
+
+    private func apps() -> NSView {
+        let list = AppList(key: Key.excludedApps)
+        appList = list
+        let add = NSButton(title: "Thêm ứng dụng…", target: self, action: #selector(addApp))
+        let remove = NSButton(title: "Xoá mục đã chọn", target: self, action: #selector(removeApps))
+        let buttons = NSStackView(views: [add, remove])
+        buttons.orientation = .horizontal
+        buttons.spacing = 8
+        return page([
+            title("Theo từng ứng dụng"),
+            Card(rows: [
+                toggle("Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", key: Key.perApp),
+                toggle("Sửa lặp chữ ở ô có gợi ý", "Thanh địa chỉ trình duyệt, Spotlight.", key: Key.fixBrowser),
+            ]),
+            title("Bắt đầu ở chế độ Anh"),
+            list.scroll,
+            buttons,
+            note("Mỗi lần chuyển sang các ứng dụng này VNKey tự tắt bỏ dấu; vẫn bật lại được bằng phím tắt."),
+        ])
+    }
+
+    // MARK: - Hành động
 
     @objc private func pickMethod(_ sender: NSSegmentedControl) {
         defaults.set(sender.selectedSegment == 1 ? "vni" : "telex", forKey: Key.method)
     }
 
-    private func smart() -> NSView {
-        page([
-            check("Tự trả lại từ tiếng Anh / từ sai chính tả", Key.autoRestore),
-            hint("Hai mục dưới đây chỉ có tác dụng khi mục trên đang bật."),
-            check("Đoán theo ngữ cảnh", Key.contextAware),
-            hint("Sau hai từ tiếng Anh liên tiếp, từ mơ hồ (this, test…) cũng giữ tiếng Anh."),
-            check("Sửa lỗi gõ đảo hai phím liền nhau", Key.fixTransposition),
-            hint("tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển."),
-            separator(),
-            check("Không bỏ dấu trong ngữ cảnh code", Key.codeAware),
-            hint("Từ đứng liền sau @ # / \\ . _ : $ ~ = < & hoặc chữ số, và từ đứng liền trước _ hay @."),
-            separator(),
-            check("Cho phép chữ teen: f, j, w, z đứng đầu (zậy, jờ, dzô)", Key.teen),
-            check("Bung viết tắt teen (ko → không, dc → được…)", Key.expandTeen),
-        ])
-    }
-
-    private func hotkeys() -> NSView {
-        func line(_ title: String, _ key: String, _ fallback: Hotkey) -> NSView {
-            let b = HotkeyButton(key: key)
-            hotkeyButtons.append(b)
-            let reset = NSButton(title: "Mặc định", target: nil, action: nil)
-            reset.target = self
-            reset.action = #selector(resetHotkey(_:))
-            reset.tag = hotkeyButtons.count - 1
-            return row(b, reset, NSTextField(labelWithString: title))
-        }
-        return page([
-            line("Bật/tắt tiếng Việt", Key.toggleHotkey, .defaultToggle),
-            line("Đổi từ vừa gõ (phím gốc ↔ tiếng Việt)", Key.restoreHotkey, .defaultRestore),
-            hint("Bấm vào nút rồi nhấn tổ hợp mới. Có thể dùng riêng phím bổ trợ (ví dụ ⌃⇧): nhấn giữ rồi thả."),
-        ])
+    @objc private func pickTone(_ sender: NSSegmentedControl) {
+        defaults.set(sender.selectedSegment == 1, forKey: Key.modernTone)
     }
 
     @objc private func resetHotkey(_ sender: NSButton) {
         hotkeyButtons[sender.tag].set(sender.tag == 0 ? .defaultToggle : .defaultRestore)
     }
 
-    private func macros() -> NSView {
-        page(
-            [
-                hint(
-                    "Mỗi dòng một mục dạng:  vn = Việt Nam\nGõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra. Viết hoa chữ đầu thì kết quả cũng viết hoa."
-                ),
-                editor(
-                    load: { [defaults] in
-                        ListFormat.text(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:])
-                    },
-                    save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) }),
-            ], stretch: true)
+    @objc private func toggleLogin(_ sender: NSSwitch) {
+        guard #available(macOS 13.0, *) else { return }
+        let service = SMAppService.mainApp
+        do { if sender.state == .on { try service.register() } else { try service.unregister() } } catch {
+            NSLog("VNKey: không đổi được mục đăng nhập: \(error)")
+        }
+        sender.state = service.status == .enabled ? .on : .off
     }
 
-    private func learned() -> NSView {
-        page(
-            [
-                hint(
-                    "Mỗi lần bạn dùng phím “Đổi từ vừa gõ”, VNKey nhớ lựa chọn đó. Mỗi dòng là một chuỗi phím đã gõ; xoá dòng để quên, thêm dòng để dạy trước."
-                ),
-                heading("Luôn giữ phím gốc"),
-                listEditor(Key.preferRaw, lowercase: true),
-                heading("Luôn bỏ dấu tiếng Việt"),
-                listEditor(Key.preferVN, lowercase: true),
-            ], stretch: true)
-    }
+    @objc private func openLog() { NSWorkspace.shared.activateFileViewerSelecting([Log.url]) }
 
-    private func apps() -> NSView {
-        let add = NSButton(title: "Thêm ứng dụng…", target: self, action: #selector(addApp))
-        return page(
-            [
-                check("Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", Key.perApp),
-                separator(),
-                heading("Ứng dụng bắt đầu ở chế độ Anh"),
-                hint(
-                    "Mỗi dòng một bundle ID. Mỗi lần chuyển sang các ứng dụng này VNKey tự tắt bỏ dấu; vẫn bật lại được bằng phím tắt."
-                ),
-                listEditor(Key.excludedApps, lowercase: false),
-                add,
-            ], stretch: true)
-    }
+    @objc private func removeApps() { appList?.removeSelected() }
 
     @objc private func addApp() {
         let panel = NSOpenPanel()
@@ -306,7 +574,6 @@ final class SettingsController: NSObject, NSWindowDelegate {
             if let id = Bundle(url: url)?.bundleIdentifier, !list.contains(id) { list.append(id) }
         }
         defaults.set(list, forKey: Key.excludedApps)
-        window.makeFirstResponder(nil)
         reload()
     }
 }

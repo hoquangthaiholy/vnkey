@@ -325,7 +325,7 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         ("user ", "user "),
         ("vieetj <s", "viết"),
         ("tieengs<<", "tiế"),
-        ("hoanf<", "hòa"),
+        ("hoanf<", "hoà"),
     ]
 
     @Test(arguments: cases) func plainField(keys: String, want: String) {
@@ -345,7 +345,7 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
     @Test(arguments: [
         ("toio ddang muoons timf", "tôi đang muốn tìm"), ("tooi", "tôi"), ("dduwowcj", "được"), ("user ", "user "),
         ("vieetj <s", "viết"), ("tieengs<", "tiếng"), ("tieengs<<", "tiến"), ("tieengs<<<", "tiế"), ("tieengs<<<f", "tiề"),
-        ("hoanf<<", "hòa"),
+        ("hoanf<<", "hoà"),
     ])
     func browser(keys: String, want: String) {
         #expect(typeInto(.browser, keys) == want)
