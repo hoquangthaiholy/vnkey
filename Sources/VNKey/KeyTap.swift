@@ -66,17 +66,28 @@ final class KeyTap {
     func ensureEnabled() {
         if let p = port, !CGEvent.tapIsEnabled(tap: p) {
             CGEvent.tapEnable(tap: p, enable: true)
-            engine.reset()
+            Log.write("TAP bị hệ thống tắt -> đã bật lại")
+            reset("tap bật lại")
         }
+    }
+
+    private func reset(_ why: String) {
+        Log.write("RESET \(why) | trước: \(engine.debugState)")
+        engine.reset()
+    }
+
+    private func describe(_ out: Output) -> String {
+        out.isPass ? "pass" : "bs=\(out.backspaces) text=\(Log.show(out.text)) passKey=\(out.passKey)"
     }
 
     fileprivate func handle(_ proxy: CGEventTapProxy, _ type: CGEventType, _ event: CGEvent) -> Bool {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            Log.write("TAP nhận sự kiện bị tắt: \(type == .tapDisabledByTimeout ? "timeout" : "user input")")
             ensureEnabled()
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             modsDirty = true
-            engine.reset()
+            reset("chuột")
         case .flagsChanged:
             trackModifiers(event.flags, proxy)
         case .keyDown:
@@ -98,14 +109,19 @@ final class KeyTap {
         let peak = peakMods, clean = !modsDirty
         peakMods = 0; modsDirty = false
         guard clean, !hotkeyRecording else { return }
-        if toggleHotkey.code < 0, toggleHotkey.mods == peak { onToggle?() }
+        if toggleHotkey.code < 0, toggleHotkey.mods == peak {
+            Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
+            onToggle?()
+        }
         else if restoreHotkey.code < 0, restoreHotkey.mods == peak { restoreWord(proxy) }
     }
 
     /// Đổi từ vừa gõ giữa phím gốc <-> tiếng Việt và ghi nhớ.
     private func restoreWord(_ proxy: CGEventTapProxy) {
         guard enabled else { return }
+        let before = engine.debugState
         let out = engine.toggleLast()
+        Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(engine.debugState)")
         if !out.isPass { send(out, original: nil, proxy) }
     }
 
@@ -118,6 +134,7 @@ final class KeyTap {
         let m = mods(flags)
 
         if toggleHotkey.code == Int(code), toggleHotkey.mods == m {
+            Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
             onToggle?()
             return false
         }
@@ -125,33 +142,47 @@ final class KeyTap {
             restoreWord(proxy)
             return false
         }
+
+        var len = 0
+        var buf = [UniChar](repeating: 0, count: 4)
+        event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &len, unicodeString: &buf)
+        let s = String(utf16CodeUnits: buf, count: len)
+        let repeated = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        func tag() -> String {
+            "KEY code=\(code) ch=\(Log.show(s))\(repeated ? " repeat" : "") mods=\(Hotkey(code: -1, mods: m, keyLabel: "").label) app=\(frontApp)"
+        }
+
         if flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate) {
-            engine.reset()
+            Log.write("\(tag()) -> bỏ qua (phím tắt)")
+            reset("phím bổ trợ")
             return true
         }
-        guard enabled else { return true }
+        guard enabled else {
+            Log.write("\(tag()) -> bỏ qua (đang ở chế độ EN)")
+            return true
+        }
 
+        let before = engine.debugState
         let out: Output
         switch code {
         case 51: out = engine.backspace()
         case 36, 76: out = engine.type("\n")
         case 48: out = engine.type("\t")
         case 53, 117, 115, 116, 119, 121, 123...126:  // esc, del, home/end/page, mũi tên
-            engine.reset()
+            Log.write("\(tag()) -> bỏ qua (phím điều hướng)")
+            reset("phím điều hướng")
             return true
         default:
-            var len = 0
-            var buf = [UniChar](repeating: 0, count: 4)
-            event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &len, unicodeString: &buf)
-            let s = String(utf16CodeUnits: buf, count: len)
             guard s.count == 1, let ch = s.first, let u = ch.unicodeScalars.first,
                 u.value >= 0x20, !(0xF700...0xF8FF).contains(u.value)
             else {
-                engine.reset()
+                Log.write("\(tag()) -> bỏ qua (không phải ký tự in được)")
+                reset("ký tự lạ")
                 return true
             }
             out = engine.type(ch)
         }
+        Log.write("\(tag()) | \(before) -> \(describe(out)) | \(engine.debugState)")
         if out.isPass { return true }
         send(out, original: event, proxy)
         return false
@@ -214,19 +245,6 @@ final class KeyTap {
         return f
     }
 
-    /// Nhật ký chẩn đoán: chỉ ghi ứng dụng, số phím xoá và cách xử lý — không ghi nội dung gõ.
-    private let logURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/VNKey.log")
-    private func log(_ line: String) {
-        // Mặc định tắt. Bật: defaults write local.vnkey debugLog -bool true
-        guard UserDefaults.standard.bool(forKey: "debugLog") else { return }
-        guard let data = "\(Date()) \(line)\n".data(using: .utf8) else { return }
-        if let h = try? FileHandle(forWritingTo: logURL) {
-            h.seekToEndOfFile(); h.write(data); try? h.close()
-        } else {
-            try? data.write(to: logURL)
-        }
-    }
-
     private func send(_ out: Output, original: CGEvent?, _ proxy: CGEventTapProxy) {
         var n = out.backspaces
         if n > 0, fixAutocomplete {
@@ -248,7 +266,10 @@ final class KeyTap {
                 n += 1
                 mode = "emptyChar"
             }
-            log("app=\(f.app) front=\(frontApp) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note) bs=\(out.backspaces) mode=\(mode)")
+            Log.write(
+                "  SEND mode=\(mode) xoá=\(n) focus=\(f.app) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note)")
+        } else {
+            Log.write("  SEND mode=plain xoá=\(n)")
         }
         for _ in 0..<n { postKey(51, proxy) }
         if !out.text.isEmpty { postText(out.text, proxy) }

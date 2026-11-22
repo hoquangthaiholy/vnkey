@@ -88,6 +88,16 @@ public final class Engine {
         sepRun = ""; capBlocked = false; englishStreak = 0
     }
 
+    /// Trạng thái từ đang gõ, dùng cho nhật ký gỡ lỗi.
+    public var debugState: String {
+        var flags: [String] = []
+        if comp.isLiteral { flags.append(comp.codeLiteral ? "code" : "literal") }
+        if comp.cancelled { flags.append("cancelled") }
+        if englishStreak > 0 { flags.append("en×\(englishStreak)") }
+        return "raw=\"\(comp.rawString)\" shown=\"\(screen)\" hist=\(history.count)"
+            + (flags.isEmpty ? "" : " [" + flags.joined(separator: ",") + "]")
+    }
+
     // MARK: - Gõ
 
     public func type(_ ch: Character) -> Output {

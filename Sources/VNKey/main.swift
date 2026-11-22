@@ -34,9 +34,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private var timer: Timer?
     private var settings: SettingsController?
+    private var lastSecure = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         defaults.register(defaults: Key.registered)
+        Log.enabled = defaults.bool(forKey: Key.debugLog)
+        let info = Bundle.main.infoDictionary
+        Log.write(
+            "==== VNKey \(info?["CFBundleShortVersionString"] ?? "?") khởi động, macOS \(ProcessInfo.processInfo.operatingSystemVersionString), AX trusted=\(AXIsProcessTrusted())"
+        )
         engine.lexicon = lexicon
         engine.onLearn = { [unowned self] in
             defaults.set(Array(engine.preferRaw), forKey: Key.preferRaw)
@@ -66,8 +72,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             _ = AXIsProcessTrustedWithOptions(opts)
         }
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [unowned self] _ in
-            if !tap.isRunning { _ = tap.start() }
+            if !tap.isRunning, tap.start() { Log.write("TAP đã khởi động (có quyền Trợ năng)") }
             tap.ensureEnabled()
+            let secure = IsSecureEventInputEnabled()
+            if secure != lastSecure {
+                lastSecure = secure
+                Log.write("SECURE INPUT \(secure ? "bật: bộ gõ không nhận được phím" : "tắt")")
+            }
             refreshTitle()
         }
         refreshTitle()
@@ -101,7 +112,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.tidyPunctuation = defaults.bool(forKey: Key.tidyPunctuation)
         c.macros = (defaults.dictionary(forKey: Key.macros) as? [String: String]) ?? [:]
         // Gán config sẽ xoá trạng thái đang gõ: chỉ gán khi thật sự đổi.
-        if engine.config != c { engine.config = c }
+        if engine.config != c {
+            engine.config = c
+            Log.write("CONFIG \(c)")
+        }
+        let logging = defaults.bool(forKey: Key.debugLog)
+        if logging != Log.enabled {
+            if !logging { Log.write("LOG tắt") }
+            Log.enabled = logging
+            Log.write("LOG bật")
+        }
 
         let raw = Set(defaults.stringArray(forKey: Key.preferRaw) ?? [])
         let vn = Set(defaults.stringArray(forKey: Key.preferVN) ?? [])
@@ -129,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setEnabled(_ on: Bool, announce: Bool) {
         tap.enabled = on
         engine.reset()
+        Log.write("MODE \(on ? "VN" : "EN") app=\(tap.frontApp)")
         // Trong ứng dụng "bắt đầu ở chế độ Anh", bật/tắt chỉ có hiệu lực tạm thời.
         if !excluded.contains(tap.frontApp) {
             defaults.set(on, forKey: Key.enabled)
@@ -153,6 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
         tap.frontApp = app?.bundleIdentifier ?? ""
         tap.enabled = state(for: tap.frontApp)
+        Log.write("APP \(tap.frontApp) -> \(tap.enabled ? "VN" : "EN")")
         refreshTitle()
     }
 
@@ -175,6 +197,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("VNI", #selector(pickMethod(_:)), on: method == "vni", tag: "vni"))
         menu.addItem(.separator())
         menu.addItem(item("Cài đặt…", #selector(openSettings)))
+        menu.addItem(
+            item("Ghi nhật ký gỡ lỗi (lưu cả nội dung gõ)", #selector(toggleLog), on: defaults.bool(forKey: Key.debugLog)))
+        menu.addItem(item("Mở tệp nhật ký", #selector(openLog)))
         if #available(macOS 13.0, *) {
             menu.addItem(
                 item("Mở cùng lúc đăng nhập", #selector(toggleLogin), on: SMAppService.mainApp.status == .enabled))
@@ -195,6 +220,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func pickMethod(_ sender: NSMenuItem) {
         defaults.set(sender.representedObject as? String, forKey: Key.method)
+    }
+
+    @objc private func toggleLog() {
+        defaults.set(!defaults.bool(forKey: Key.debugLog), forKey: Key.debugLog)
+    }
+
+    @objc private func openLog() {
+        NSWorkspace.shared.activateFileViewerSelecting([Log.url])
     }
 
     @objc private func openSettings() {
