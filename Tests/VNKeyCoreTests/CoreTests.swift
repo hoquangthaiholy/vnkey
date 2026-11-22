@@ -86,10 +86,30 @@ import Testing
 }
 
 @Suite struct Planning {
-    func plan(_ bs: Int, _ text: String, pass: Bool = false, app: String = "com.apple.TextEdit", sel: Int? = 0, fix: Bool = true)
-        -> SendPlan
-    {
-        SendPlanner.plan(backspaces: bs, text: text, passKey: pass, app: app, selection: sel, fixAutocomplete: fix)
+    func plan(
+        _ bs: Int, _ text: String, pass: Bool = false, app: String = "com.apple.TextEdit", sel: Int? = 0, fix: Bool = true,
+        role: String = "?"
+    ) -> SendPlan {
+        SendPlanner.plan(
+            backspaces: bs, text: text, passKey: pass, app: app, selection: sel, fixAutocomplete: fix, role: role)
+    }
+
+    @Test func fieldRoles() {
+        for role in ["AXTextField", "AXComboBox", "AXSearchField"] {
+            #expect(SendPlanner.shouldAskSelection(app: "com.apple.Safari", role: role))
+        }
+        for role in ["AXTextArea", "AXWebArea", "AXGroup", "?"] {
+            #expect(!SendPlanner.shouldAskSelection(app: "com.apple.Safari", role: role))
+        }
+        #expect(!SendPlanner.shouldAskSelection(app: "com.apple.campo", role: "AXTextField"))
+    }
+
+    /// Trong nội dung trang web (vùng nhiều dòng) không có gợi ý nối đuôi: không chèn ký tự rỗng.
+    @Test func browserPageContentIsPlain() {
+        #expect(plan(1, "ô", app: "com.apple.Safari", sel: nil, role: "AXTextArea").steps == [.backspace(1), .text("ô")])
+        #expect(plan(1, "ô", app: "com.apple.Safari", sel: nil, role: "AXWebArea").mode == "plain")
+        #expect(plan(1, "ô", app: "com.apple.Safari", sel: nil, role: "AXTextField").mode == "emptyChar")
+        #expect(plan(1, "ô", app: "com.apple.Safari", sel: nil, role: "?").mode == "emptyChar")  // không biết: giữ cách cũ
     }
 
     @Test func plain() {
@@ -109,6 +129,18 @@ import Testing
         let p = plan(1, "ô", app: "com.google.Chrome", sel: nil)
         #expect(p.mode == "emptyChar")
         #expect(p.steps == [.text(SendPlanner.emptyChar), .backspace(2), .text("ô")])
+    }
+
+    /// Lỗi nuốt ký tự ở thanh địa chỉ Safari (22/11/2026): Accessibility báo rõ không có vùng bôi chọn
+    /// (sel = 0) thì không có gợi ý nào để chốt; chèn ký tự rỗng rồi xoá thêm một phím là thừa và
+    /// có thể xoá lố chữ thật. Chỉ dùng ký tự rỗng khi KHÔNG biết vùng chọn.
+    @Test func knownEmptySelectionIsPlain() {
+        for app in ["com.apple.Safari", "com.google.Chrome"] {
+            let p = plan(1, "â", app: app, sel: 0, role: "AXTextField")
+            #expect(p.mode == "plain")
+            #expect(p.steps == [.backspace(1), .text("â")])
+            #expect(plan(1, "â", app: app, sel: nil, role: "AXTextField").mode == "emptyChar")
+        }
     }
 
     @Test func selectionWinsOverAppLists() {
@@ -188,6 +220,8 @@ struct Field {
         case spotlight(leftAbsorbed: Bool)
         /// Trình duyệt: gợi ý được chèn vào sau con trỏ và bôi chọn.
         case browser
+        /// Vùng soạn thảo nhiều dòng trong trang web: không có gợi ý nối đuôi.
+        case browserPage
     }
 
     let kind: Kind
@@ -200,11 +234,15 @@ struct Field {
         switch kind {
         case .plain: return "com.apple.TextEdit"
         case .spotlight: return "com.apple.campo"
-        case .browser: return "com.google.Chrome"
+        case .browser, .browserPage: return "com.google.Chrome"
         }
     }
-    /// Điều Accessibility báo về vùng chọn.
-    var axSelection: Int? { selected.count }
+    var role: String {
+        if case .browserPage = kind { return "AXTextArea" }
+        return "AXTextField"
+    }
+    /// Điều Accessibility báo về vùng chọn; nil khi app quyết định không hỏi (như KeyTap.focus).
+    var axSelection: Int? { SendPlanner.shouldAskSelection(app: app, role: role) ? selected.count : nil }
 
     private var index: String.Index { text.index(text.startIndex, offsetBy: caret) }
 
@@ -214,7 +252,7 @@ struct Field {
         caret += s.count
         guard caret == text.count, let last = s.last, last.isLetter else { suggestion = false; return }
         switch kind {
-        case .plain: break
+        case .plain, .browserPage: break
         case .spotlight: suggestion = true
         case .browser: selected = "gợiý"
         }
@@ -264,7 +302,7 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         if out.isPass { original(); continue }
         let plan = SendPlanner.plan(
             backspaces: out.backspaces, text: out.text, passKey: out.passKey, app: field.app,
-            selection: out.backspaces > 0 && fix ? field.axSelection : nil, fixAutocomplete: fix)
+            selection: out.backspaces > 0 && fix ? field.axSelection : nil, fixAutocomplete: fix, role: field.role)
         for step in plan.steps {
             switch step {
             case .arrowLeft: field.left()
@@ -313,6 +351,10 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(typeInto(.browser, keys) == want)
     }
 
+    @Test(arguments: cases) func browserPageContent(keys: String, want: String) {
+        #expect(typeInto(.browserPage, keys) == want)
+    }
+
     @Test func backspaceRoutes() {
         typealias R = SendPlanner.BackspaceRoute
         func r(_ app: String, _ sel: Int?, _ fix: Bool = true) -> R {
@@ -331,5 +373,69 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
     @Test func modelReproducesOriginalBug() {
         #expect(typeInto(.spotlight(leftAbsorbed: true), "toio", fix: false) == "toôi")
         #expect(typeInto(.plain, "toio", fix: false) == "tôi")
+    }
+}
+
+@Suite struct Perf {
+    @Test func accumulates() {
+        var p = PerfStats()
+        p.key(2_000); p.key(4_000); p.key(1_500_000); p.key(12_000_000)
+        p.ax(900_000); p.ax(100_000)
+        #expect(p.keys == 4)
+        #expect(p.over1ms == 2)
+        #expect(p.over10ms == 1)
+        #expect(p.maxNs == 12_000_000)
+        #expect(p.axCalls == 2)
+        #expect(p.axMaxNs == 900_000)
+        #expect(p.summary == "phím=4 tb=3376µs max=12.00ms ≥1ms=2 ≥10ms=1 | ax=2 tb=500µs max=0.90ms")
+        p.reset()
+        #expect(p.keys == 0)
+        #expect(p.summary.contains("tb=-µs"))
+    }
+}
+
+@Suite struct ScreenChecks {
+    @Test func compare() {
+        typealias C = ScreenCheck
+        #expect(C.compare(value: "tôi đang", caret: 8, expected: "đang") == .match)
+        #expect(C.compare(value: "tôi đang gợi ý", caret: 8, expected: "đang") == .match)  // gợi ý nằm sau con trỏ
+        #expect(C.compare(value: "to\u{302}i", caret: 4, expected: "tôi") == .match)  // dạng tổ hợp
+        #expect(C.compare(value: "toôi", caret: 4, expected: "tôi") == .mismatch(expected: "tôi", actual: "toôi"))
+        #expect(C.compare(value: "ây", caret: 2, expected: "Đây") == .mismatch(expected: "Đây", actual: "ây"))
+        #expect(C.compare(value: "a😀tôi", caret: 6, expected: "tôi") == .match)  // con trỏ tính theo UTF-16
+        #expect(C.compare(value: "tôi", caret: 99, expected: "tôi") == .match)
+    }
+}
+
+/// Lỗi nuốt chữ trong Safari (22/11/2026): gõ "ddia" rồi "j" khi chưa nhả phím "a" thì đoạn "ịa" bị mất.
+/// VNKey gửi chữ bằng sự kiện phím mang mã 0 (= phím A); ứng dụng thấy phím A đang được giữ nên coi đó
+/// là phím lặp và bỏ qua. Sự kiện mang chữ phải dùng mã phím không trùng phím nào đang giữ.
+@Suite struct Carriers {
+    @Test func avoidsHeldKeys() {
+        var h = HeldKeys()
+        #expect(h.carrier == 0)
+        h.down(0)  // đang giữ phím A
+        #expect(h.carrier != 0)
+        #expect(!h.isDown(h.carrier))
+        h.up(0)
+        #expect(h.carrier == 0)
+    }
+
+    @Test func manyKeysHeld() {
+        var h = HeldKeys()
+        for code in HeldKeys.candidates.dropLast() { h.down(code) }
+        #expect(h.carrier == HeldKeys.candidates.last)
+        h.down(HeldKeys.candidates.last!)
+        #expect(HeldKeys.candidates.contains(h.carrier))  // hết lựa chọn: vẫn trả về một mã hợp lệ
+        h.clear()
+        #expect(h.carrier == 0)
+    }
+
+    @Test func forgetsStaleKeys() {
+        var h = HeldKeys()
+        h.down(0, at: 0)
+        #expect(h.isDown(0, at: 1_000_000_000))
+        #expect(!h.isDown(0, at: 3_000_000_000))  // lỡ mất sự kiện nhả phím: tự quên sau 2 giây
+        #expect(h.carrier(at: 3_000_000_000) == 0)
     }
 }

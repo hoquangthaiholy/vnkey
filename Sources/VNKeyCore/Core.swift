@@ -123,11 +123,24 @@ public enum SendPlanner {
 
     public static let emptyChar = "\u{202F}"
 
+    /// Ô nhập một dòng (thanh địa chỉ, ô tìm kiếm): nơi gợi ý tự điền nối đuôi thật sự xuất hiện.
+    /// Vùng soạn thảo nhiều dòng và nội dung trang web thì không, nên khỏi tốn công hỏi/sửa ở đó.
+    public static func isSuggestionField(role: String) -> Bool {
+        ["AXTextField", "AXComboBox", "AXSearchField"].contains(role)
+    }
+
+    /// Có đáng hỏi Accessibility về vùng bôi chọn không (mỗi lần hỏi có thể mất 10–20 ms ở Safari).
+    public static func shouldAskSelection(app: String, role: String) -> Bool {
+        !nudgeApps.contains(app) && isSuggestionField(role: role)
+    }
+
     /// - Parameters:
     ///   - app: bundle ID của tiến trình đang thật sự nhận phím.
     ///   - selection: độ dài vùng bôi chọn trong ô nhập, nil nếu không biết.
+    ///   - role: vai trò Accessibility của ô đang nhận phím, "?" nếu không biết.
     public static func plan(
-        backspaces: Int, text: String, passKey: Bool, app: String, selection: Int?, fixAutocomplete: Bool
+        backspaces: Int, text: String, passKey: Bool, app: String, selection: Int?, fixAutocomplete: Bool,
+        role: String = "?"
     ) -> SendPlan {
         var steps: [SendStep] = []
         var mode = "plain"
@@ -142,8 +155,9 @@ public enum SendPlanner {
                 // "nuốt" để gạt gợi ý hay không thì con trỏ vẫn về lại cuối.
                 steps += [.arrowLeft, .arrowRight]
                 mode = "nudge"
-            } else if emptyCharApps.contains(app) {
-                // Chèn một ký tự rỗng để "chốt" phần gợi ý, rồi xoá luôn ký tự đó.
+            } else if emptyCharApps.contains(app), selection == nil, role == "?" || isSuggestionField(role: role) {
+                // Không biết có gợi ý hay không: chèn một ký tự rỗng để "chốt" nó, rồi xoá luôn ký tự đó.
+                // Khi Accessibility đã báo sel = 0 thì không có gợi ý nào, cứ xoá như thường.
                 steps.append(.text(emptyChar))
                 n += 1
                 mode = "emptyChar"
@@ -235,4 +249,58 @@ public func showControl(_ s: String) -> String {
         }
     }
     return out + "\""
+}
+
+/// Đối chiếu nội dung thật của ô nhập với điều engine mong đợi sau một lần sửa chữ.
+public enum ScreenCheck {
+    public enum Result: Equatable {
+        case match
+        /// `actual` là đoạn cuối trước con trỏ trên màn hình, dài bằng `expected` cộng vài ký tự.
+        case mismatch(expected: String, actual: String)
+    }
+
+    /// - Parameters:
+    ///   - value: toàn bộ nội dung ô nhập.
+    ///   - caret: vị trí con trỏ tính theo đơn vị UTF-16 (như Accessibility trả về).
+    ///   - expected: từ đang gõ theo engine.
+    public static func compare(value: String, caret: Int, expected: String) -> Result {
+        let units = Array(value.utf16)
+        let before = String(decoding: units.prefix(max(0, min(caret, units.count))), as: UTF16.self)
+        // Bỏ ký tự rỗng dùng để chốt gợi ý nếu còn sót, và so theo dạng chuẩn hoá.
+        let a = before.precomposedStringWithCanonicalMapping
+        let e = expected.precomposedStringWithCanonicalMapping
+        if a.hasSuffix(e) { return .match }
+        return .mismatch(expected: expected, actual: String(a.suffix(expected.count + 4)))
+    }
+}
+
+/// Các phím vật lý đang được giữ, để chọn mã phím "chở" chữ khi VNKey phát văn bản.
+///
+/// Văn bản được gửi bằng một sự kiện phím có kèm chuỗi Unicode. Nếu mã phím của sự kiện đó trùng với
+/// một phím người dùng chưa nhả, ứng dụng (đã thấy ở Safari) coi nó là phím lặp và bỏ luôn đoạn chữ.
+public struct HeldKeys {
+    /// Mã phím chữ cái (A S D F G H J K L): dùng mã phím chữ để ứng dụng xử lý như một lần gõ thường.
+    public static let candidates = [0, 1, 2, 3, 5, 4, 38, 40, 37]
+    private static let staleNs: UInt64 = 2_000_000_000
+
+    private var downAt: [Int: UInt64] = [:]
+    public init() {}
+
+    public mutating func down(_ code: Int, at now: UInt64 = DispatchTime.now().uptimeNanoseconds) {
+        downAt[code] = now
+    }
+
+    public mutating func up(_ code: Int) { downAt[code] = nil }
+    public mutating func clear() { downAt.removeAll() }
+
+    public func isDown(_ code: Int, at now: UInt64 = DispatchTime.now().uptimeNanoseconds) -> Bool {
+        guard let t = downAt[code] else { return false }
+        return now &- t < HeldKeys.staleNs
+    }
+
+    public func carrier(at now: UInt64 = DispatchTime.now().uptimeNanoseconds) -> Int {
+        HeldKeys.candidates.first { !isDown($0, at: now) } ?? HeldKeys.candidates[0]
+    }
+
+    public var carrier: Int { carrier() }
 }

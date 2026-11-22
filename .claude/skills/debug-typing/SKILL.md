@@ -29,6 +29,17 @@ Các dòng khác: `RESET <lý do>`, `APP`, `MODE`, `HOTKEY`, `TAP`, `SECURE INPU
 Nếu log trống: kiểm tra `AX trusted=` ở dòng khởi động, mục "Ghi nhật ký gỡ lỗi" trong menu, và
 `SECURE INPUT`.
 
+Tìm chỗ màn hình lệch với engine trước tiên:
+
+```bash
+grep -n "VERIFY LỆCH" ~/Library/Logs/VNKey.log | tail
+```
+
+Dòng `VERIFY LỆCH … engine="…" màn hình=…"…"` nằm ngay sau phím gây lỗi. Xem khoảng cách thời gian với
+phím trước đó: hai phím cách nhau vài mili giây (gõ lăn tay) là dấu hiệu sự kiện bị ứng dụng bỏ hoặc
+đảo thứ tự. Phép đối chiếu bị bỏ qua nếu người dùng gõ tiếp trong 0,12 giây, và không chạy ở ứng dụng
+không cho đọc nội dung ô nhập.
+
 ## 2. Phân loại
 
 - `shown="…"` sau phím **khác** với điều người dùng mong muốn → lỗi **engine**. Sang bước 3.

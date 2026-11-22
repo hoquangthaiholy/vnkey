@@ -95,6 +95,9 @@ public final class Engine {
     /// Engine đang theo dõi chữ trước con trỏ (từ đang gõ hoặc từ vừa gõ xong).
     public var isTracking: Bool { !comp.isEmpty || !history.isEmpty }
 
+    /// Từ đang gõ như engine tin là đang hiện trên màn hình.
+    public var currentWord: String { screen }
+
     /// Trạng thái từ đang gõ, dùng cho nhật ký gỡ lỗi.
     public var debugState: String {
         var flags: [String] = []

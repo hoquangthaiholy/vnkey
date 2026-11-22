@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var timer: Timer?
     private var settings: SettingsController?
     private var lastSecure = false
+    private var ticks = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         defaults.register(defaults: Key.registered)
@@ -53,6 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [unowned self] _ in
             if !tap.isRunning, tap.start() { Log.write("TAP đã khởi động (có quyền Trợ năng)") }
             tap.ensureEnabled()
+            ticks += 1
+            if ticks % 15 == 0 { tap.flushPerf() }  // tổng kết hiệu năng mỗi 30 giây nếu có gõ
             let secure = IsSecureEventInputEnabled()
             if secure != lastSecure {
                 lastSecure = secure
@@ -62,6 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         refreshTitle()
         if CommandLine.arguments.contains("--settings") { openSettings() }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        tap.flushPerf()
+        Log.write("==== VNKey thoát")
     }
 
     /// Mở lại app khi đang chạy (từ Finder/Spotlight) = mở cửa sổ cài đặt.
@@ -125,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setEnabled(_ on: Bool, announce: Bool) {
         tap.enabled = on
         engine.reset()
+        tap.invalidateFocus()
         Log.write("MODE \(on ? "VN" : "EN") app=\(tap.frontApp)")
         // Trong ứng dụng "bắt đầu ở chế độ Anh", bật/tắt chỉ có hiệu lực tạm thời.
         if !excluded.contains(tap.frontApp) {
@@ -147,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func appActivated(_ note: Notification) {
         engine.reset()
+        tap.invalidateFocus()
         let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
         tap.frontApp = app?.bundleIdentifier ?? ""
         tap.enabled = state(for: tap.frontApp)

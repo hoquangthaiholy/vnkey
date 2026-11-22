@@ -1,5 +1,6 @@
 import Foundation
 import VNEngine
+import VNKeyCore
 
 // vnkey-tool type [tuỳ chọn] "<chuỗi phím>"   Gõ lại chuỗi phím qua engine, in kết quả trên màn hình.
 //                                              "<" = Backspace, "~" = phím đổi từ vừa gõ, "\n" "\t" như thường.
@@ -82,6 +83,32 @@ case "bench":
                  count, avg, Double(worst) / 1000, lexicon == nil ? "tắt" : "bật"))
     // Ngân sách: callback của event tap phải xong trong vài trăm µs; macOS tắt tap nếu chậm cỡ giây.
     if avg > 50 { print("CẢNH BÁO: trung bình vượt ngân sách 50 µs/phím"); exit(1) }
+
+case "bench-parts":
+    // Các phần ngoài engine đo được mà không cần giao diện.
+    func ms(_ body: () -> Void) -> Double {
+        let t0 = DispatchTime.now().uptimeNanoseconds
+        body()
+        return Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
+    }
+    let lex = SystemLexicon()
+    print(String(format: "từ điển, lần gọi ĐẦU tiên (en): %.1f ms", ms { _ = lex.isEnglish("window") }))
+    print(String(format: "từ điển, lần gọi ĐẦU tiên (vi): %.1f ms", ms { _ = lex.isVietnamese("tiếng") }))
+    let words = (0..<300).map { "tu\($0 % 7)word\($0)" }
+    let cold = ms { for w in words { _ = lex.isEnglish(w) } } / 300
+    let warm = ms { for w in words { _ = lex.isEnglish(w) } } / 300
+    print(String(format: "từ điển, từ chưa gặp: %.3f ms/từ   từ đã nhớ: %.4f ms/từ", cold, warm))
+
+    Log.url = FileManager.default.temporaryDirectory.appendingPathComponent("vnkey-bench-\(getpid()).log")
+    Log.enabled = true
+    let line = "KEY code=31 ch=\"o\" mods= app=com.example.app | raw=\"toi\" shown=\"toi\" hist=0 -> bs=2 text=\"ôi\" passKey=false | raw=\"toio\" shown=\"tôi\" hist=0"
+    Log.write(line)
+    let n = 20000
+    var worst = 0.0
+    let total = ms { for _ in 0..<n { worst = max(worst, ms { Log.write(line) }) } }
+    print(String(format: "ghi log: %.2f µs/dòng trung bình, chậm nhất %.2f ms", total * 1000 / Double(n), worst))
+    Log.flush()
+    try? FileManager.default.removeItem(at: Log.url)
 
 default:
     print("cách dùng: vnkey-tool type [--vni] [--trace] [--no-lexicon] \"<chuỗi phím>\" | vnkey-tool bench")

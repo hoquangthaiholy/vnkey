@@ -16,7 +16,7 @@ let package = Package(
         .target(name: "VNKeyCore"),
         .executableTarget(name: "VNKey", dependencies: ["VNEngine", "VNKeyCore"]),
         // Công cụ dòng lệnh: gõ lại một chuỗi phím qua engine, đo hiệu năng.
-        .executableTarget(name: "vnkey-tool", dependencies: ["VNEngine"], path: "Sources/VNTool"),
+        .executableTarget(name: "vnkey-tool", dependencies: ["VNEngine", "VNKeyCore"], path: "Sources/VNTool"),
         .testTarget(name: "VNEngineTests", dependencies: ["VNEngine"]),
         .testTarget(name: "VNKeyCoreTests", dependencies: ["VNKeyCore", "VNEngine"]),
     ]

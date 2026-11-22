@@ -27,6 +27,12 @@ final class KeyTap {
 
     private var port: CFMachPort?
     private var modifiers = ModifierTracker()
+    private var perf = PerfStats()
+    private var held = HeldKeys()
+    /// Số thứ tự phím; dùng để bỏ phép đối chiếu màn hình nếu người dùng đã gõ tiếp.
+    private var keySeq = 0
+    /// Thời gian hỏi Accessibility trong phím đang xử lý (ns).
+    private var axNsThisKey: UInt64 = 0
     private let source = CGEventSource(stateID: .privateState)
 
     init(engine: Engine) { self.engine = engine }
@@ -36,7 +42,7 @@ final class KeyTap {
     /// false nếu chưa được cấp quyền Trợ năng.
     func start() -> Bool {
         if port != nil { return true }
-        let types: [CGEventType] = [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
         let mask = types.reduce(CGEventMask(0)) { $0 | (1 << CGEventMask($1.rawValue)) }
         guard
             let p = CGEvent.tapCreate(
@@ -54,14 +60,23 @@ final class KeyTap {
     func ensureEnabled() {
         if let p = port, !CGEvent.tapIsEnabled(tap: p) {
             CGEvent.tapEnable(tap: p, enable: true)
+            held.clear()
             Log.write("TAP bị hệ thống tắt -> đã bật lại")
             reset("tap bật lại")
         }
     }
 
+    /// Ghi tổng kết hiệu năng của đợt phím vừa qua vào nhật ký.
+    func flushPerf() {
+        guard perf.keys > 0 else { return }
+        Log.write("PERF \(perf.summary)")
+        perf.reset()
+    }
+
     private func reset(_ why: String) {
         Log.write("RESET \(why) | trước: \(engine.debugState)")
         engine.reset()
+        invalidateFocus()
     }
 
     private func describe(_ out: Output) -> String {
@@ -78,8 +93,28 @@ final class KeyTap {
             reset("chuột")
         case .flagsChanged:
             trackModifiers(event.flags, proxy)
+        case .keyUp:
+            if event.getIntegerValueField(.eventSourceUserData) != kMagic {
+                held.up(Int(event.getIntegerValueField(.keyboardEventKeycode)))
+            }
         case .keyDown:
-            return keyDown(proxy, event)
+            if event.getIntegerValueField(.eventSourceUserData) == kMagic { return true }
+            held.down(Int(event.getIntegerValueField(.keyboardEventKeycode)))
+            axNsThisKey = 0
+            keySeq += 1
+            let t0 = DispatchTime.now().uptimeNanoseconds
+            let epochBefore = focusEpoch
+            let pass = keyDown(proxy, event)
+            // Phím vừa làm tiêu điểm có thể đổi (⌘Space mở Spotlight, Tab, Enter…) thì CHƯA tra cứu:
+            // ô mới chưa kịp nhận tiêu điểm, tra bây giờ sẽ nhớ nhầm ô cũ. Đợi phím thường kế tiếp.
+            if focusEpoch == epochBefore { prefetchFocus() }
+            let dt = DispatchTime.now().uptimeNanoseconds - t0
+            perf.key(dt)
+            if dt >= 2_000_000 {
+                Log.write(String(format: "SLOW dt=%.2fms ax=%.2fms app=%@", Double(dt) / 1e6, Double(axNsThisKey) / 1e6, frontApp))
+            }
+            if perf.keys >= 200 { flushPerf() }
+            return pass
         default: break
         }
         return true
@@ -145,6 +180,7 @@ final class KeyTap {
         }
 
         let before = engine.debugState
+        var focusMayMove = false
         let out: Output
         switch classifyKey(code: Int(code), chars: s) {
         case .backspace:
@@ -160,8 +196,12 @@ final class KeyTap {
             var o = engine.backspace()
             if o.isPass, route == .planned { o = Output(backspaces: 1, text: "", passKey: false) }
             out = o
-        case .newline: out = engine.type("\n")
-        case .tab: out = engine.type("\t")
+        case .newline:
+            out = engine.type("\n")
+            focusMayMove = true
+        case .tab:
+            out = engine.type("\t")
+            focusMayMove = true
         case .navigation:
             Log.write("\(tag()) -> bỏ qua (phím điều hướng)")
             reset("phím điều hướng")
@@ -173,14 +213,14 @@ final class KeyTap {
         case .character(let ch): out = engine.type(ch)
         }
         Log.write("\(tag()) | \(before) -> \(describe(out)) | \(engine.debugState)")
+        // Enter và Tab thường chuyển tiêu điểm sang ô khác: quên ô đã nhớ SAU khi sửa xong từ hiện tại.
+        defer { if focusMayMove { invalidateFocus() } }
         if out.isPass { return true }
         send(out, original: event, proxy)
         return false
     }
 
     // MARK: - Phát phím
-
-    private var bundleByPid: [pid_t: String] = [:]
 
     private struct Focus {
         var app: String
@@ -190,47 +230,102 @@ final class KeyTap {
         var note = ""
     }
 
-    /// Ô đang thực sự nhận phím. Khác với app "ở trước": Spotlight và các bảng nổi
-    /// nhận phím mà không trở thành app ở trước.
-    private func focus() -> Focus {
-        var f = Focus(app: frontApp)
+    /// Ô đang nhận phím, nhớ lại cho tới khi tiêu điểm có thể đã đổi (chuột, phím tắt, Tab, Enter,
+    /// đổi ứng dụng). Hỏi Accessibility là lời gọi đồng bộ sang ứng dụng khác, đo được tới 45 ms/lần.
+    private struct FocusCache {
+        var element: AXUIElement?
+        var app: String
+        var role: String
+        /// Ứng dụng có trả lời được câu hỏi về vùng bôi chọn không; sai một lần thì thôi hỏi.
+        var canAskSelection: Bool
+        var created = DispatchTime.now().uptimeNanoseconds
+    }
+    /// Lưới an toàn: tiêu điểm đôi khi đổi mà không có sự kiện nào báo (trang web tự chuyển ô),
+    /// nên sau khoảng này thông tin được làm mới ở luồng nền (trong lúc đó vẫn dùng bản cũ).
+    private let focusCacheLifetimeNs: UInt64 = 5_000_000_000
+    private var focusCache: FocusCache?
+    /// Tăng mỗi lần tiêu điểm có thể đã đổi; kết quả tra cứu nền của đợt cũ bị bỏ.
+    private var focusEpoch = 0
+    private var lookupPending = false
+    private let axQueue = DispatchQueue(label: "local.vnkey.ax", qos: .userInteractive)
+
+    func invalidateFocus() {
+        focusCache = nil
+        focusEpoch += 1
+    }
+
+    /// Tra cứu ô đang nhận phím trên luồng nền ngay khi có phím đầu tiên sau khi tiêu điểm đổi, hoặc khi
+    /// thông tin đã cũ. Lần tra cứu này đo được tới 85 ms ở Safari; làm ở đây thì nó không chặn phím nào.
+    /// Phím sửa chữ hiếm khi là phím đầu của một từ, nên tới lúc cần thì kết quả thường đã có.
+    private func prefetchFocus() {
+        guard enabled, fixAutocomplete, !lookupPending else { return }
+        if let c = focusCache, DispatchTime.now().uptimeNanoseconds - c.created <= focusCacheLifetimeNs { return }
+        lookupPending = true
+        let epoch = focusEpoch, front = frontApp
+        axQueue.async { [weak self] in
+            let t0 = DispatchTime.now().uptimeNanoseconds
+            let c = KeyTap.lookUpFocus(fallbackApp: front)
+            let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.lookupPending = false
+                let current = self.focusEpoch == epoch
+                if current { self.focusCache = c }
+                Log.write(String(format: "FOCUS nền %.2fms app=%@ role=%@%@", ms, c.app, c.role, current ? "" : " (bỏ: tiêu điểm đã đổi)"))
+            }
+        }
+    }
+
+    /// Chạy được trên luồng bất kỳ: không đụng tới trạng thái của KeyTap.
+    private static func lookUpFocus(fallbackApp: String) -> FocusCache {
+        var c = FocusCache(element: nil, app: fallbackApp, role: "?", canAskSelection: false)
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.1)
         var ref: CFTypeRef?
-        let err = AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &ref)
-        guard err == .success, let ref, CFGetTypeID(ref) == AXUIElementGetTypeID() else {
-            f.note = "focusErr=\(err.rawValue)"
-            return f
-        }
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &ref) == .success,
+            let ref, CFGetTypeID(ref) == AXUIElementGetTypeID()
+        else { return c }
         let el = ref as! AXUIElement
         AXUIElementSetMessagingTimeout(el, 0.1)
+        c.element = el
         var pid: pid_t = 0
-        if AXUIElementGetPid(el, &pid) == .success {
-            if let hit = bundleByPid[pid] {
-                f.app = hit
-            } else if let id = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier {
-                if bundleByPid.count > 200 { bundleByPid.removeAll() }
-                bundleByPid[pid] = id
-                f.app = id
-            }
+        if AXUIElementGetPid(el, &pid) == .success,
+            let id = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
+        {
+            c.app = id
         }
         var role: CFTypeRef?
         if AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &role) == .success, let r = role as? String {
-            f.role = r
+            c.role = r
         }
-        var value: CFTypeRef?
-        if AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &value) == .success,
-            let v = value as? String
-        {
-            f.note = "valueLen=\(v.count) "
+        // Chỉ hỏi vùng chọn ở ô một dòng, và không hỏi Spotlight (nó không báo gợi ý qua vùng chọn).
+        c.canAskSelection = SendPlanner.shouldAskSelection(app: c.app, role: c.role)
+        return c
+    }
+
+    /// Ô đang thực sự nhận phím. Khác với app "ở trước": Spotlight và các bảng nổi
+    /// nhận phím mà không trở thành app ở trước.
+    private func focus() -> Focus {
+        let t0 = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let dt = DispatchTime.now().uptimeNanoseconds - t0
+            perf.ax(dt); axNsThisKey += dt
         }
+        var note = "cache"
+        if focusCache == nil {  // tra cứu nền chưa kịp xong: đành tra ngay tại đây
+            focusCache = KeyTap.lookUpFocus(fallbackApp: frontApp)
+            note = "lookup"
+        }
+        var f = Focus(app: focusCache!.app, role: focusCache!.role, selection: nil, note: note)
+        guard let el = focusCache!.element, focusCache!.canAskSelection else { return f }
         var range: CFTypeRef?
-        let rerr = AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range)
-        if rerr == .success, let range, CFGetTypeID(range) == AXValueGetTypeID() {
+        let err = AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range)
+        if err == .success, let range, CFGetTypeID(range) == AXValueGetTypeID() {
             var r = CFRange(location: 0, length: 0)
             if AXValueGetValue(range as! AXValue, .cfRange, &r) { f.selection = r.length }
         } else {
-            f.note += "rangeErr=\(rerr.rawValue)"
+            focusCache!.canAskSelection = false
+            f.note += " rangeErr=\(err.rawValue)"
         }
         return f
     }
@@ -240,7 +335,7 @@ final class KeyTap {
         let f = out.backspaces > 0 && fixAutocomplete ? focus() : Focus(app: frontApp)
         let plan = SendPlanner.plan(
             backspaces: out.backspaces, text: out.text, passKey: out.passKey, app: f.app, selection: f.selection,
-            fixAutocomplete: fixAutocomplete)
+            fixAutocomplete: fixAutocomplete, role: f.role)
         Log.write(
             "  SEND mode=\(plan.mode) \(plan.steps) focus=\(f.app) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note)"
         )
@@ -255,6 +350,34 @@ final class KeyTap {
                 if let copy = original?.copy() {
                     copy.setIntegerValueField(.eventSourceUserData, value: kMagic)
                     copy.tapPostEvent(proxy)
+                }
+            }
+        }
+        verifyScreen(mode: plan.mode)
+    }
+
+    /// Khi bật nhật ký: sau một lần sửa chữ, đọc lại nội dung ô nhập ở luồng nền và ghi `VERIFY` nếu
+    /// màn hình khác với điều engine mong đợi. Bỏ qua nếu người dùng đã gõ tiếp (màn hình đã đổi).
+    private func verifyScreen(mode: String) {
+        let expected = engine.currentWord
+        guard Log.enabled, !expected.isEmpty, let el = focusCache?.element else { return }
+        let seq = keySeq, app = focusCache?.app ?? "?"
+        axQueue.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            var value: CFTypeRef?, range: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &value) == .success,
+                let text = value as? String,
+                AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
+                let range, CFGetTypeID(range) == AXValueGetTypeID()
+            else { return }
+            var r = CFRange(location: 0, length: 0)
+            guard AXValueGetValue(range as! AXValue, .cfRange, &r) else { return }
+            let result = ScreenCheck.compare(value: text, caret: r.location, expected: expected)
+            DispatchQueue.main.async {
+                guard let self, self.keySeq == seq else { return }
+                switch result {
+                case .match: Log.write("  VERIFY khớp app=\(app) mode=\(mode)")
+                case .mismatch(let e, let a):
+                    Log.write("  VERIFY LỆCH app=\(app) mode=\(mode) engine=\(Log.show(e)) màn hình=…\(Log.show(a)) sel=\(r.length)")
                 }
             }
         }
@@ -273,9 +396,13 @@ final class KeyTap {
     }
 
     private func postText(_ text: String, _ proxy: CGEventTapProxy) {
+        // Mã phím chở chữ không được trùng phím người dùng đang giữ (xem HeldKeys).
+        let carrier = CGKeyCode(held.carrier)
+        if carrier != 0 { Log.write("  CARRIER mã phím \(carrier) (phím A đang được giữ)") }
         for chunk in SendPlanner.chunks(text) {
             for down in [true, false] {
-                let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
+                let e = CGEvent(keyboardEventSource: source, virtualKey: carrier, keyDown: down)
+                e?.setIntegerValueField(.keyboardEventAutorepeat, value: 0)
                 e?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
                 post(e, proxy)
             }
