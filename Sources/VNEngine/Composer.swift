@@ -92,6 +92,10 @@ struct Composer {
             return false
         }
         normalizeUO()
+        if method == .telex, raw.count >= 3, raw.allSatisfy({ $0 == "w" || $0 == "W" }) {
+            override = rawString  // "www": muốn chữ w thật, không phải "wư"
+            return true
+        }
         if !Syl.isValidPrefix(letters.map(\.base), teen: teen) { enterLiteral() }
         return true
     }
@@ -337,7 +341,7 @@ struct Composer {
                 }
             }
         }
-        guard standalone else { return .none }
+        guard standalone, !cancelled else { return .none }
         letters.append(Letter(base: "u", mark: .horn, upper: upper, fromW: true))
         owner.append(letters.count - 1)
         return .applied

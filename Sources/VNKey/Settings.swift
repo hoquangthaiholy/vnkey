@@ -1,4 +1,5 @@
 import AppKit
+import VNKeyCore
 import UniformTypeIdentifiers
 
 // Cửa sổ cài đặt viết bằng AppKit thuần: Command Line Tools không kèm plugin macro của SwiftUI.
@@ -61,7 +62,7 @@ private final class HotkeyButton: NSButton {
         title = "Nhấn tổ hợp phím… (Esc để huỷ)"
         hotkeyRecording = true; peak = 0
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [unowned self] e in
-            let m = e.modifierFlags.rawValue & Hotkey.modMask
+            let m = UInt(e.modifierFlags.rawValue) & Hotkey.modMask
             if e.type == .keyDown {
                 if e.keyCode == 53 { stop(); return nil }
                 guard m != 0 else { return nil }  // phải có ít nhất một phím bổ trợ
@@ -182,18 +183,11 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return e.scroll
     }
 
-    private func lines(_ text: String) -> [String] {
-        var seen = Set<String>()
-        return text.split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty && seen.insert($0).inserted }
-    }
-
     private func listEditor(_ key: String, lowercase: Bool) -> NSView {
         editor(
             load: { [defaults] in (defaults.stringArray(forKey: key) ?? []).sorted().joined(separator: "\n") },
-            save: { [defaults, unowned self] text in
-                defaults.set(lines(lowercase ? text.lowercased() : text), forKey: key)
+            save: { [defaults] text in
+                defaults.set(ListFormat.lines(lowercase ? text.lowercased() : text), forKey: key)
             })
     }
 
@@ -267,19 +261,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 ),
                 editor(
                     load: { [defaults] in
-                        let d = defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:]
-                        return d.sorted { $0.key < $1.key }.map { "\($0.key) = \($0.value)" }.joined(separator: "\n")
+                        ListFormat.text(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:])
                     },
-                    save: { [defaults, unowned self] text in
-                        var d: [String: String] = [:]
-                        for l in lines(text) {
-                            let p = l.split(separator: "=", maxSplits: 1).map {
-                                $0.trimmingCharacters(in: .whitespaces)
-                            }
-                            if p.count == 2, !p[0].isEmpty, !p[1].isEmpty { d[p[0].lowercased()] = p[1] }
-                        }
-                        defaults.set(d, forKey: Key.macros)
-                    }),
+                    save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) }),
             ], stretch: true)
     }
 

@@ -4,8 +4,8 @@ import Testing
 
 /// Từ điển giả cho test (app thật dùng NSSpellChecker).
 final class FakeLexicon: Lexicon {
-    let en: Set<String> = ["string", "window", "class", "meeting", "form", "pass", "as", "ass", "off", "see", "this", "fair", "data", "user", "test", "error"]
-    let vi: Set<String> = ["tiếng", "việt", "người", "được", "chào", "bạn", "thí", "tét", "á", "là", "sẽ"]
+    let en: Set<String> = ["fix", "bug", "www", "cu3a", "nghi4a", "now", "how", "string", "window", "class", "meeting", "form", "pass", "as", "ass", "off", "see", "this", "fair", "data", "user", "test", "error"]
+    let vi: Set<String> = ["của", "tôi", "nơ", "hơ", "sê", "tiếng", "việt", "người", "được", "chào", "bạn", "thí", "tét", "á", "là", "sẽ"]
     static let shared = FakeLexicon()
     func isEnglish(_ w: String) -> Bool { en.contains(w) }
     func isVietnamese(_ w: String) -> Bool { vi.contains(w) }
@@ -177,5 +177,90 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
     func tidyPunctuation(keys: String, want: String) {
         var c = Config(); c.tidyPunctuation = true
         #expect(run(keys, c) == want)
+    }
+}
+
+/// Các lỗi tìm được khi mở rộng độ phủ (22/11/2026).
+@Suite struct Regressions {
+    let lex = FakeLexicon.shared
+
+    /// VNI: chuỗi phím gốc có chữ số nên không bao giờ là "từ tiếng Anh", kể cả khi trình
+    /// kiểm tra chính tả bỏ qua từ có số.
+    @Test(arguments: [
+        ("fix bug cu3a ", "fix bug của "), ("fix bug to6i ", "fix bug tôi "), ("tie61gn ", "tiếng "),
+    ])
+    func vniDigitsAreNotEnglish(keys: String, want: String) {
+        var c = Config(); c.method = .vni
+        #expect(run(keys, c, lexicon: lex) == want)
+    }
+
+    /// "ww" huỷ thành "w"; gõ tiếp "w" là muốn chữ w thật (www), không phải "ư".
+    @Test(arguments: [("www", "www"), ("www.vnexpress.net ", "www.vnexpress.net "), ("ww", "w"), ("wwa", "wa")])
+    func tripleW(keys: String, want: String) { #expect(run(keys) == want) }
+
+    /// Từ tiếng Anh rất phổ biến mà nghĩa tiếng Việt hiếm gặp.
+    @Test(arguments: [("now ", "now "), ("how ", "how "), ("see ", "see ")])
+    func commonEnglish(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+}
+
+@Suite struct Coverage {
+    let lex = FakeLexicon.shared
+
+    @Test(arguments: [
+        ("DDAAY LAF", "ĐÂY LÀ"), ("Tooi ", "Tôi "), ("TOOI", "TÔI"), ("tOOI", "tÔI"), ("VIEETJ NAM", "VIỆT NAM"),
+        ("Uw", "Ư"), ("W ", "Ư "), ("OWr", "Ở"), ("DDc ", "Đc "), ("Ddc ", "Đc "), ("HOAF", "HÒA"),
+        ("Giangr", "Giảng"), ("QUAS", "QUÁ"), ("User ", "User "), ("String ", "String "),
+    ])
+    func uppercase(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    @Test(arguments: [
+        ("tooi ddang<<<<< ", "tôi "), ("string<<<", "str"), ("user <<<<<", ""), ("user <s", "users"),
+        ("tooi  ddi<<<<<s", "tố"), ("ddc<<", ""), ("ass<", "a"), ("a<<<b", "b"), ("tieengs<<<<<<<tooi", "tôi"),
+        ("ww<", ""), ("window <<s", "windos"), ("muoons <<<<", "m"), ("<<<tooi", "tôi"),
+    ])
+    func backspace(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    @Test(arguments: [
+        ("user ~", "ủe "), ("user ~~", "user "), ("toi ~~", "toi "), ("tooi dda~ng", "tôi ddang"), ("tooi ~", "tooi "),
+    ])
+    func toggle(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    @Test(arguments: [
+        ("khoong? cos! ", "không? có! "), ("(tooi) ", "(tôi) "), ("\"tooi\" ", "\"tôi\" "), ("ddi-veef ", "đi-về "),
+        ("a.b.c ", "a.b.c "), ("abc@gmail.com ", "abc@gmail.com "), ("tooi,ban ", "tôi,ban "),
+        ("http://vnexpress.net/tin-tuc ", "http://vnexpress.net/tin-tuc "),
+        ("3 thangs 5 nawm ", "3 tháng 5 năm "), ("20k ddoongf ", "20k đồng "), ("covid19 ", "covid19 "),
+    ])
+    func punctuation(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    @Test(arguments: [
+        ("gioiws ", "giới "), ("quoocs ", "quốc "), ("uoongs nuwowcs ", "uống nước "), ("khuyeens ", "khuyến "),
+        ("ruwowuj ", "rượu "), ("huow ", "huơ "), ("quyeenf ", "quyền "), ("oong ", "ông "), ("uyr ", "ủy "),
+    ])
+    func syllables(keys: String, want: String) { #expect(run(keys) == want) }
+
+    @Test(arguments: [
+        ("to6i d9ang fix bug cu3a user ", "tôi đang fix bug của user "), ("window ", "window "), ("mp3 ", "mp3 "),
+        ("0912345678 ", "0912345678 "), ("ngay2 22/11/2026 ", "ngày 22/11/2026 "), ("a1b2 ", "a1b2 "),
+        ("user1 ", "user1 "), ("h2o ", "h2o "), ("vie65t<1", "viế"), ("A6m ", "Âm "), ("D9A6Y", "ĐÂY"),
+        ("tie61ng2 ", "tiềng "), ("web3 ", "web3 "), ("u7o7c1 ", "ước "), ("thuo73 ", "thuở "),
+        ("Nghi4a ", "Nghĩa "),
+    ])
+    func vniMixed(keys: String, want: String) {
+        var c = Config(); c.method = .vni
+        #expect(run(keys, c, lexicon: lex) == want)
+    }
+
+    @Test(arguments: [
+        ("xin chaof. toio ", "xin chào. Tôi "), ("ok. @user ", "ok. @user "), ("a. b ", "a. b "),
+    ])
+    func capitalizeCombos(keys: String, want: String) {
+        var c = Config(); c.autoCapitalize = true
+        #expect(run(keys, c, lexicon: lex) == want)
+    }
+
+    @Test func optionCombos() {
+        var c = Config(); c.tidyPunctuation = true; c.expandTeen = true; c.autoCapitalize = true
+        #expect(run("ko dc ddaau . j z ", c) == "không được đâu. Gì vậy ")
     }
 }

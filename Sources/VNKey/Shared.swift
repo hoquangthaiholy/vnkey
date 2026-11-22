@@ -1,4 +1,5 @@
 import AppKit
+import VNKeyCore
 
 enum Key {
     static let enabled = "enabled", method = "method", modernTone = "modernTone", standaloneW = "standaloneW"
@@ -26,43 +27,6 @@ enum Key {
 
 /// Cửa sổ cài đặt đang ghi phím tắt: KeyTap tạm thời cho mọi phím đi qua.
 var hotkeyRecording = false
-
-/// Phím tắt: tổ hợp phím bổ trợ + một phím, hoặc chỉ phím bổ trợ (code = -1, nhấn rồi thả).
-struct Hotkey: Equatable {
-    static let modMask: UInt =
-        NSEvent.ModifierFlags([.control, .option, .shift, .command]).rawValue
-
-    var code: Int
-    var mods: UInt
-    var keyLabel: String
-
-    static let defaultToggle = Hotkey(
-        code: -1, mods: NSEvent.ModifierFlags([.control, .shift]).rawValue, keyLabel: "")
-    static let defaultRestore = Hotkey(
-        code: 6, mods: NSEvent.ModifierFlags([.control, .option]).rawValue, keyLabel: "Z")
-
-    var string: String { "\(code):\(mods):\(keyLabel)" }
-
-    init(code: Int, mods: UInt, keyLabel: String) {
-        self.code = code; self.mods = mods & Hotkey.modMask; self.keyLabel = keyLabel
-    }
-
-    init?(string: String) {
-        let p = string.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false)
-        guard p.count == 3, let c = Int(p[0]), let m = UInt(p[1]), m & Hotkey.modMask != 0 else { return nil }
-        self.init(code: c, mods: m, keyLabel: String(p[2]))
-    }
-
-    var label: String {
-        let f = NSEvent.ModifierFlags(rawValue: mods)
-        var s = ""
-        if f.contains(.control) { s += "⌃" }
-        if f.contains(.option) { s += "⌥" }
-        if f.contains(.shift) { s += "⇧" }
-        if f.contains(.command) { s += "⌘" }
-        return s + keyLabel
-    }
-}
 
 /// Nhật ký gỡ lỗi đầy đủ: mọi phím, kết quả của engine, cách gửi phím và các sự kiện hệ thống.
 /// LƯU Ý: khi bật, tệp log chứa nguyên văn những gì bạn gõ (trừ ô mật khẩu — macOS không cho
@@ -101,17 +65,5 @@ enum Log {
         h.write(data)
     }
 
-    /// Hiện ký tự điều khiển cho dễ đọc trong log.
-    static func show(_ s: String) -> String {
-        var out = "\""
-        for u in s.unicodeScalars {
-            switch u {
-            case "\n", "\r": out += "⏎"
-            case "\t": out += "⇥"
-            case " ": out += "␣"
-            default: out += u.value < 0x20 || u.value == 0x202F ? "\\u{\(String(u.value, radix: 16))}" : String(u)
-            }
-        }
-        return out + "\""
-    }
+    static func show(_ s: String) -> String { showControl(s) }
 }

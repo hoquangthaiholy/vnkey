@@ -1,5 +1,6 @@
 import AppKit
 import VNEngine
+import VNKeyCore
 
 /// Đánh dấu sự kiện do chính VNKey phát ra để không xử lý lại.
 private let kMagic: Int64 = 0x564E_4B59
@@ -25,21 +26,8 @@ final class KeyTap {
     var restoreHotkey = Hotkey.defaultRestore
 
     private var port: CFMachPort?
-    /// Tập phím bổ trợ lớn nhất kể từ lúc bắt đầu giữ, và đã có phím/chuột khác chen vào chưa.
-    private var peakMods: UInt = 0
-    private var modsDirty = false
+    private var modifiers = ModifierTracker()
     private let source = CGEventSource(stateID: .privateState)
-
-    /// App có gợi ý tự điền ngay trong ô nhập: xoá lùi sẽ xoá phần gợi ý thay vì ký tự vừa gõ.
-    private let autocompleteApps: Set<String> = [
-        "com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser", "company.thebrowser.Browser",
-        "com.apple.Safari", "org.mozilla.firefox", "com.vivaldi.Vivaldi", "com.operasoftware.Opera",
-        "com.microsoft.Excel",
-    ]
-
-    /// Spotlight (tiến trình "campo" trên macOS mới): phần gợi ý không nằm trong nội dung ô nhập,
-    /// ký tự rỗng không gạt được nó, và phím xoá lùi đầu tiên chỉ gạt gợi ý chứ không xoá chữ.
-    private let nudgeApps: Set<String> = ["com.apple.campo", "com.apple.Spotlight"]
 
     init(engine: Engine) { self.engine = engine }
 
@@ -86,7 +74,7 @@ final class KeyTap {
             Log.write("TAP nhận sự kiện bị tắt: \(type == .tapDisabledByTimeout ? "timeout" : "user input")")
             ensureEnabled()
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-            modsDirty = true
+            modifiers.interrupted()
             reset("chuột")
         case .flagsChanged:
             trackModifiers(event.flags, proxy)
@@ -101,19 +89,13 @@ final class KeyTap {
 
     /// Phím tắt chỉ gồm phím bổ trợ: kích hoạt khi nhấn rồi thả mà không kèm phím khác.
     private func trackModifiers(_ flags: CGEventFlags, _ proxy: CGEventTapProxy) {
-        let m = mods(flags)
-        if m != 0 {
-            if m & peakMods == peakMods { peakMods = m }
-            return
-        }
-        let peak = peakMods, clean = !modsDirty
-        peakMods = 0; modsDirty = false
-        guard clean, !hotkeyRecording else { return }
-        if toggleHotkey.code < 0, toggleHotkey.mods == peak {
+        guard let peak = modifiers.flagsChanged(mods(flags)), !hotkeyRecording else { return }
+        if toggleHotkey.isModifierOnly, toggleHotkey.mods == peak {
             Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
             onToggle?()
+        } else if restoreHotkey.isModifierOnly, restoreHotkey.mods == peak {
+            restoreWord(proxy)
         }
-        else if restoreHotkey.code < 0, restoreHotkey.mods == peak { restoreWord(proxy) }
     }
 
     /// Đổi từ vừa gõ giữa phím gốc <-> tiếng Việt và ghi nhớ.
@@ -127,18 +109,18 @@ final class KeyTap {
 
     private func keyDown(_ proxy: CGEventTapProxy, _ event: CGEvent) -> Bool {
         if event.getIntegerValueField(.eventSourceUserData) == kMagic { return true }
-        modsDirty = true
+        modifiers.interrupted()
         if hotkeyRecording { return true }
         let flags = event.flags
         let code = event.getIntegerValueField(.keyboardEventKeycode)
         let m = mods(flags)
 
-        if toggleHotkey.code == Int(code), toggleHotkey.mods == m {
+        if toggleHotkey.matches(code: Int(code), mods: m) {
             Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
             onToggle?()
             return false
         }
-        if enabled, restoreHotkey.code == Int(code), restoreHotkey.mods == m {
+        if enabled, restoreHotkey.matches(code: Int(code), mods: m) {
             restoreWord(proxy)
             return false
         }
@@ -164,23 +146,31 @@ final class KeyTap {
 
         let before = engine.debugState
         let out: Output
-        switch code {
-        case 51: out = engine.backspace()
-        case 36, 76: out = engine.type("\n")
-        case 48: out = engine.type("\t")
-        case 53, 117, 115, 116, 119, 121, 123...126:  // esc, del, home/end/page, mũi tên
+        switch classifyKey(code: Int(code), chars: s) {
+        case .backspace:
+            var route = SendPlanner.BackspaceRoute.normal
+            if fixAutocomplete, engine.isTracking {
+                let f = focus()
+                route = SendPlanner.userBackspace(app: f.app, selection: f.selection, fixAutocomplete: true)
+            }
+            if route == .suggestionOnly {
+                Log.write("\(tag()) -> đi thẳng (chỉ gạt gợi ý, giữ nguyên engine) | \(before)")
+                return true
+            }
+            var o = engine.backspace()
+            if o.isPass, route == .planned { o = Output(backspaces: 1, text: "", passKey: false) }
+            out = o
+        case .newline: out = engine.type("\n")
+        case .tab: out = engine.type("\t")
+        case .navigation:
             Log.write("\(tag()) -> bỏ qua (phím điều hướng)")
             reset("phím điều hướng")
             return true
-        default:
-            guard s.count == 1, let ch = s.first, let u = ch.unicodeScalars.first,
-                u.value >= 0x20, !(0xF700...0xF8FF).contains(u.value)
-            else {
-                Log.write("\(tag()) -> bỏ qua (không phải ký tự in được)")
-                reset("ký tự lạ")
-                return true
-            }
-            out = engine.type(ch)
+        case .unprintable:
+            Log.write("\(tag()) -> bỏ qua (không phải ký tự in được)")
+            reset("ký tự lạ")
+            return true
+        case .character(let ch): out = engine.type(ch)
         }
         Log.write("\(tag()) | \(before) -> \(describe(out)) | \(engine.debugState)")
         if out.isPass { return true }
@@ -246,36 +236,27 @@ final class KeyTap {
     }
 
     private func send(_ out: Output, original: CGEvent?, _ proxy: CGEventTapProxy) {
-        var n = out.backspaces
-        if n > 0, fixAutocomplete {
-            let f = focus()
-            var mode = "plain"
-            if let sel = f.selection, sel > 0 {
-                // Đang gõ dở mà có vùng bôi chọn = phần gợi ý tự điền: phím xoá đầu tiên chỉ xoá gợi ý.
-                n += 1
-                mode = "selection"
-            } else if nudgeApps.contains(f.app) {
-                // Nhích con trỏ trái rồi phải: gạt gợi ý đi mà không đổi nội dung, dù phím trái
-                // có bị "nuốt" để gạt gợi ý hay không thì con trỏ vẫn về lại cuối.
-                postKey(123, proxy, flags: [.maskNumericPad, .maskSecondaryFn])
-                postKey(124, proxy, flags: [.maskNumericPad, .maskSecondaryFn])
-                mode = "nudge"
-            } else if autocompleteApps.contains(f.app) {
-                // Chèn một ký tự rỗng để "chốt" phần gợi ý, rồi xoá luôn ký tự đó.
-                postText("\u{202F}", proxy)
-                n += 1
-                mode = "emptyChar"
+        // Chỉ hỏi Accessibility khi sắp xoá lùi: đó là lúc gợi ý tự điền có thể làm hỏng kết quả.
+        let f = out.backspaces > 0 && fixAutocomplete ? focus() : Focus(app: frontApp)
+        let plan = SendPlanner.plan(
+            backspaces: out.backspaces, text: out.text, passKey: out.passKey, app: f.app, selection: f.selection,
+            fixAutocomplete: fixAutocomplete)
+        Log.write(
+            "  SEND mode=\(plan.mode) \(plan.steps) focus=\(f.app) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note)"
+        )
+        let arrow: CGEventFlags = [.maskNumericPad, .maskSecondaryFn]
+        for step in plan.steps {
+            switch step {
+            case .arrowLeft: postKey(123, proxy, flags: arrow)
+            case .arrowRight: postKey(124, proxy, flags: arrow)
+            case .backspace(let n): for _ in 0..<n { postKey(51, proxy) }
+            case .text(let t): postText(t, proxy)
+            case .original:
+                if let copy = original?.copy() {
+                    copy.setIntegerValueField(.eventSourceUserData, value: kMagic)
+                    copy.tapPostEvent(proxy)
+                }
             }
-            Log.write(
-                "  SEND mode=\(mode) xoá=\(n) focus=\(f.app) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note)")
-        } else {
-            Log.write("  SEND mode=plain xoá=\(n)")
-        }
-        for _ in 0..<n { postKey(51, proxy) }
-        if !out.text.isEmpty { postText(out.text, proxy) }
-        if out.passKey, let copy = original?.copy() {
-            copy.setIntegerValueField(.eventSourceUserData, value: kMagic)
-            copy.tapPostEvent(proxy)
         }
     }
 
@@ -292,16 +273,12 @@ final class KeyTap {
     }
 
     private func postText(_ text: String, _ proxy: CGEventTapProxy) {
-        let units = Array(text.utf16)
-        var i = 0
-        while i < units.count {  // một số app cắt chuỗi dài: gửi từng đoạn ngắn
-            let chunk = Array(units[i..<min(i + 16, units.count)])
+        for chunk in SendPlanner.chunks(text) {
             for down in [true, false] {
                 let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
                 e?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
                 post(e, proxy)
             }
-            i += chunk.count
         }
     }
 }

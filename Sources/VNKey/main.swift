@@ -2,28 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import ServiceManagement
 import VNEngine
-
-/// Phân xử từ mơ hồ bằng từ điển chính tả của macOS (có sẵn "en" và "vi").
-final class SystemLexicon: Lexicon {
-    private let checker = NSSpellChecker.shared
-    private let hasVietnamese = NSSpellChecker.shared.availableLanguages.contains("vi")
-    private var cache: [String: Bool] = [:]
-
-    private func known(_ word: String, _ lang: String) -> Bool {
-        let key = lang + ":" + word
-        if let hit = cache[key] { return hit }
-        let r = checker.checkSpelling(
-            of: word, startingAt: 0, language: lang, wrap: false, inSpellDocumentWithTag: 0, wordCount: nil)
-        let ok = r.location == NSNotFound
-        if cache.count > 5000 { cache.removeAll() }
-        cache[key] = ok
-        return ok
-    }
-
-    func isEnglish(_ word: String) -> Bool { known(word, "en") }
-    /// Không có từ điển Việt thì coi như hợp lệ (không tự khôi phục từ mơ hồ).
-    func isVietnamese(_ word: String) -> Bool { hasVietnamese ? known(word, "vi") : true }
-}
+import VNKeyCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let defaults = UserDefaults.standard
@@ -137,13 +116,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Chế độ khởi đầu khi chuyển sang một ứng dụng.
     private func state(for bundle: String) -> Bool {
-        if excluded.contains(bundle) { return false }
-        if defaults.bool(forKey: Key.perApp),
-            let on = (defaults.dictionary(forKey: Key.appStates) as? [String: Bool])?[bundle]
-        {
-            return on
-        }
-        return defaults.bool(forKey: Key.enabled)
+        AppMode.initial(
+            bundle: bundle, excluded: excluded, perApp: defaults.bool(forKey: Key.perApp),
+            states: defaults.dictionary(forKey: Key.appStates) as? [String: Bool] ?? [:],
+            global: defaults.bool(forKey: Key.enabled))
     }
 
     private func setEnabled(_ on: Bool, announce: Bool) {

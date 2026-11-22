@@ -42,6 +42,10 @@ public struct Output: Equatable, Sendable {
     /// Phím gốc có được đi tiếp tới ứng dụng (sau `backspaces`/`text`) hay không.
     public var passKey = true
 
+    public init(backspaces: Int = 0, text: String = "", passKey: Bool = true) {
+        self.backspaces = backspaces; self.text = text; self.passKey = passKey
+    }
+
     public static let pass = Output()
     public var isPass: Bool { backspaces == 0 && text.isEmpty && passKey }
 }
@@ -87,6 +91,9 @@ public final class Engine {
         comp = Composer(config); screen = ""; history = []
         sepRun = ""; capBlocked = false; englishStreak = 0
     }
+
+    /// Engine đang theo dõi chữ trước con trỏ (từ đang gõ hoặc từ vừa gõ xong).
+    public var isTracking: Bool { !comp.isEmpty || !history.isEmpty }
 
     /// Trạng thái từ đang gõ, dùng cho nhật ký gỡ lỗi.
     public var debugState: String {
@@ -212,7 +219,7 @@ public final class Engine {
             Syl.isValid(comp.plainChars, tone: comp.tone, teen: config.teenInitials)
         { return nil }
         let key = String(raw).lowercased()
-        guard !preferRaw.contains(key), !lex.isEnglish(key) else { return nil }
+        guard !preferRaw.contains(key), !isEnglish(key) else { return nil }
         var found: Composer?
         for i in 0..<(raw.count - 1) where raw[i] != raw[i + 1] {
             var keys = raw
@@ -233,7 +240,7 @@ public final class Engine {
         if final.contains(where: { !$0.isASCII }) {
             englishStreak = 0
         } else if final == raw, !comp.codeLiteral, raw.count >= 2,
-            composed != raw || comp.isLiteral, lexicon?.isEnglish(raw.lowercased()) == true
+            composed != raw || comp.isLiteral, isEnglish(raw.lowercased())
         {
             englishStreak += 1
         }
@@ -271,7 +278,7 @@ public final class Engine {
     /// Từ tiếng Anh rất phổ biến mà gõ Telex ra âm tiết hợp lệ nhưng hiếm gặp.
     static let builtinEnglish: Set<String> = [
         "is", "as", "of", "if", "or", "us", "was", "for", "her", "more", "here", "test", "just", "first", "most",
-        "post", "fix", "box",
+        "post", "fix", "box", "now", "how", "see",
     ]
 
     static let teenExpansions: [String: String] = [
@@ -290,8 +297,7 @@ public final class Engine {
 
         // Gõ lặp để huỷ dấu ("tass" -> "tas") được tôn trọng, trừ khi chuỗi phím gốc là từ tiếng Anh ("pass", "off").
         func afterCancel() -> String {
-            guard let lex = lexicon else { return shown }
-            return lex.isEnglish(key) ? raw : shown
+            return isEnglish(key) ? raw : shown
         }
         if comp.isLiteral { return comp.cancelled ? afterCancel() : shown }
         if !comp.hasVowel { return shown }  // viết tắt toàn phụ âm: đc, đt...
@@ -300,11 +306,18 @@ public final class Engine {
         }
         if comp.cancelled { return shown }
         if Engine.builtinEnglish.contains(key) { return raw }
-        if let lex = lexicon, lex.isEnglish(key) {
+        if let lex = lexicon, isEnglish(key) {
             if !lex.isVietnamese(shown.lowercased()) { return raw }
             if config.contextAware, englishStreak >= 2 { return raw }
         }
         return shown
+    }
+
+    /// Chuỗi phím gốc có phải từ tiếng Anh không. Chuỗi có chữ số (phím dấu của VNI) thì không bao giờ:
+    /// trình kiểm tra chính tả bỏ qua từ chứa số nên sẽ trả lời "đúng" một cách vô nghĩa.
+    private func isEnglish(_ key: String) -> Bool {
+        guard let lex = lexicon, key.allSatisfy(\.isLetter) else { return false }
+        return lex.isEnglish(key)
     }
 
     private func expansion(for word: String) -> String? {
