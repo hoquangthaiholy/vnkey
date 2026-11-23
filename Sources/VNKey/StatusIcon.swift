@@ -14,7 +14,33 @@ enum StatusIcon {
         image.isTemplate = true
         return image
     }()
-    static var all: [(String, NSImage)] { [("vn", vn), ("en", en), ("paused", paused)] }
+    /// Đang ở ô nhập bảo mật (mật khẩu): macOS không cho bộ gõ thấy phím.
+    static let locked = make(symbol: "lock.fill")
+    /// Chưa có quyền Trợ năng: VNKey chưa làm việc được.
+    static let warning = make(symbol: "exclamationmark")
+    static var all: [(String, NSImage)] {
+        [("vn", vn), ("en", en), ("paused", paused), ("locked", locked), ("warning", warning)]
+    }
+
+    /// Cùng ô bo góc tô đặc như V/E, nhưng khoét rỗng một ký hiệu SF Symbols thay cho chữ: trạng thái đặc biệt
+    /// vẫn đồng nhất với biểu tượng thường ngày (trước đây là emoji 🔒 / ⚠︎ đặt cạnh, lệch kiểu với thanh menu).
+    private static func make(symbol: String) -> NSImage {
+        let size = NSSize(width: 21, height: 16)
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4.5, yRadius: 4.5).fill()
+            let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
+            guard let glyph = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+            else { return true }
+            let g = glyph.size
+            glyph.draw(
+                in: NSRect(x: rect.midX - g.width / 2, y: rect.midY - g.height / 2, width: g.width, height: g.height),
+                from: .zero, operation: .destinationOut, fraction: 1)
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
 
     private static func make(_ letter: Character) -> NSImage {
         let size = NSSize(width: 21, height: 16)

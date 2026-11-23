@@ -300,23 +300,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if announce, defaults.bool(forKey: Key.showHUD) { hud.show(modeLabel) }
     }
 
-    /// Thanh menu: biểu tượng V / E (đều là ô tô đặc) theo chế độ, kèm ⚠︎ khi thiếu quyền, 🔒 khi ô bảo mật.
+    /// Thanh menu: V / E theo chế độ; dấu chấm than khi thiếu quyền, ổ khoá khi ở ô bảo mật, V mờ khi tạm ngưng.
     private func refreshTitle() {
         guard let button = status.button else { return }
-        let image = foreignSource != nil ? StatusIcon.paused : tap.enabled ? StatusIcon.vn : StatusIcon.en
-        var title = "", tip = tap.enabled ? "VNKey: đang gõ tiếng Việt" : "VNKey: đang gõ tiếng Anh"
+        // Mỗi trạng thái một biểu tượng cùng kiểu (ô bo góc tô đặc), không kèm chữ hay emoji.
+        var image = tap.enabled ? StatusIcon.vn : StatusIcon.en
+        var tip = tap.enabled ? "VNKey: đang gõ tiếng Việt" : "VNKey: đang gõ tiếng Anh"
         if !tap.isRunning {
-            title = " ⚠︎"; tip = "VNKey: chưa có quyền Trợ năng"
+            image = StatusIcon.warning; tip = "VNKey: chưa có quyền Trợ năng"
         } else if let source = foreignSource {
-            tip = "VNKey: tạm ngưng vì bàn phím hệ thống đang là “\(source)”"
+            image = StatusIcon.paused; tip = "VNKey: tạm ngưng vì bàn phím hệ thống đang là “\(source)”"
         } else if IsSecureEventInputEnabled() {
-            title = " 🔒"; tip = "VNKey: tạm ngưng vì đang ở ô nhập bảo mật"
+            image = StatusIcon.locked; tip = "VNKey: tạm ngưng vì đang ở ô nhập bảo mật"
         }
         if button.image !== image { button.image = image }
-
-        if button.title != title {
-            button.title = title
-            button.imagePosition = title.isEmpty ? .imageOnly : .imageLeft
+        if !button.title.isEmpty || button.imagePosition != .imageOnly {
+            button.title = ""
+            button.imagePosition = .imageOnly
         }
         if button.toolTip != tip {
             button.toolTip = tip
