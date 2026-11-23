@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         defaults.register(defaults: Key.registered)
+        // Tắt biểu tượng macOS tự gắn vào mục menu (bánh răng ở "Cài đặt…").
+        defaults.register(defaults: ["NSMenuEnableActionImages": false])
         // Chế độ chụp giao diện: vẽ các cửa sổ ra PNG rồi thoát, KHÔNG khởi động event tap
         // (một bản VNKey khác có thể đang chạy; hai tap cùng lúc sẽ xử lý phím hai lần).
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
@@ -71,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             refreshTitle()
         }
         refreshTitle()
-        if CommandLine.arguments.contains("--settings") { openSettings() }
+        if CommandLine.arguments.contains("--settings") { showVNKeySettings() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -81,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Mở lại app khi đang chạy (từ Finder/Spotlight) = mở cửa sổ cài đặt.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        openSettings()
+        showVNKeySettings()
         return false
     }
 
@@ -215,7 +217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(i)
         }
         menu.addItem(.separator())
-        let settings = item("Cài đặt…", #selector(openSettings))
+        // macOS tự gắn biểu tượng (bánh răng) cho các mục menu quen thuộc; menu này chỉ dùng chữ.
+        let settings = item("Cài đặt…", #selector(showVNKeySettings))
         settings.keyEquivalent = ","
         menu.addItem(settings)
         menu.addItem(.separator())
@@ -251,7 +254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         defaults.set(sender.representedObject as? String, forKey: Key.method)
     }
 
-    @objc private func openSettings() {
+    @objc private func showVNKeySettings() {
         if settings == nil { settings = SettingsController() }
         NSApp.activate(ignoringOtherApps: true)
         settings?.window.makeKeyAndOrderFront(nil)

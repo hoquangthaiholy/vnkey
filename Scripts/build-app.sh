@@ -7,7 +7,7 @@ swift build -c release --product VNKey
 APP=build/VNKey.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-# Biểu tượng app: tạo lại bằng `swift Scripts/make-icon.swift` khi muốn đổi thiết kế.
+# Biểu tượng app: thay Resources/AppIcon.svg rồi chạy `swift Scripts/make-icon.swift`.
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp .build/release/VNKey "$APP/Contents/MacOS/VNKey"
 cat > "$APP/Contents/Info.plist" <<'EOF'

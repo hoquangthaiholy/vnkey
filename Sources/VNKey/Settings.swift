@@ -256,6 +256,7 @@ private final class Card: NSView {
 /// chiều cao mới (mép trên đứng yên).
 private final class SettingsTabs: NSTabViewController {
     static let duration: TimeInterval = 0.22
+    static let windowTitle = "Cài đặt VNKey"
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -278,7 +279,7 @@ private final class SettingsTabs: NSTabViewController {
         let content = NSRect(origin: .zero, size: NSSize(width: SettingsController.width, height: height))
         var frame = window.frameRect(forContentRect: content)
         frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)  // giữ mép trên
-        window.title = tabView.selectedTabViewItem?.label ?? "VNKey"
+        window.title = SettingsTabs.windowTitle  // thẻ đang chọn đã hiện trên thanh công cụ
         // Tôn trọng "Giảm chuyển động" của hệ thống.
         guard animated, window.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             window.setFrame(frame, display: true)
@@ -325,6 +326,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
         }
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.toolbarStyle = .preference
+        window.titleVisibility = .visible
+        window.title = SettingsTabs.windowTitle
         window.isReleasedWhenClosed = false
         window.delegate = self
         tabs.fitWindow(animated: false)

@@ -23,7 +23,7 @@ description: Sửa và cải thiện giao diện của VNKey — menu thanh tr�
 | Menu thanh trạng thái | `Sources/VNKey/main.swift` (`menuNeedsUpdate`) | Chỉ có: cảnh báo (nếu có), Gõ tiếng Việt, Kiểu gõ, Cài đặt…, Thoát |
 | Cửa sổ Cài đặt | `Sources/VNKey/Settings.swift` | Thanh thẻ kiểu macOS (`NSTabViewController`, `.toolbar`), cửa sổ tự cao theo từng thẻ |
 | Nhãn cạnh con trỏ | `Sources/VNKey/HUD.swift` | `HUDPill` 32×20: nền `controlAccentColor` (màu nhấn người dùng chọn cho macOS), chữ trắng; `NSPanel` không kích hoạt, vị trí lấy qua AX |
-| Biểu tượng app | `Scripts/make-icon.swift` → `Resources/AppIcon.icns` | |
+| Biểu tượng app | `Resources/AppIcon.svg` → `Scripts/make-icon.swift` → `Resources/AppIcon.icns` | Hình gốc là tệp SVG; script đặt nó vào khuôn 824/1024 và cắt bo góc kiểu macOS |
 | Khoá cài đặt | `Sources/VNKey/Shared.swift` (`Key`) | Mặc định trong `Key.registered` |
 
 ## Cách sắp xếp chức năng
@@ -90,7 +90,7 @@ Cho người dùng xem trên màn hình thật:
 ./Scripts/run.sh --settings
 ```
 
-Biểu tượng app: sửa `Scripts/make-icon.swift`, chạy `swift Scripts/make-icon.swift`, xem
+Biểu tượng app: thay `Resources/AppIcon.svg`, chạy `swift Scripts/make-icon.swift`, xem
 `build/AppIcon.iconset/icon_512x512.png`, rồi commit `Resources/AppIcon.icns`.
 
 ## Hướng cải thiện đã biết

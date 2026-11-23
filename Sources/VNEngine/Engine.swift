@@ -120,13 +120,12 @@ public final class Engine {
                 fed = Character(ch.uppercased())
             }
         }
-        if ch.isASCII, ch.isLetter || ch.isNumber, comp.feed(fed) {
-            let new = comp.shown
-            let out = diff(from: screen, to: new, typed: ch)
-            screen = new
-            return out
-        }
-        return breakWord(ch)
+        if ch.isASCII, ch.isLetter, var fresh = recomposed(), fresh.feed(fed) { comp = fresh }
+        else if !(ch.isASCII && (ch.isLetter || ch.isNumber) && comp.feed(fed)) { return breakWord(ch) }
+        let new = comp.shown
+        let out = diff(from: screen, to: new, typed: ch)
+        screen = new
+        return out
     }
 
     private func breakWord(_ ch: Character) -> Output {
@@ -190,6 +189,18 @@ public final class Engine {
         screen.removeLast()
         if comp.isEmpty { screen = "" }
         return .pass
+    }
+
+    /// Từ đang nguyên văn vì một phím gõ nhầm ("thii", "vieejk") và người dùng đã xoá bớt: khi họ gõ chữ
+    /// kế tiếp, phần còn lại được hiểu như vừa gõ mới, để gõ tiếp tiếng Việt mà không phải xoá về tận
+    /// khoảng trắng. Chỉ làm lúc có phím mới (không làm lúc xoá): xoá lùi không được đụng tới màn hình, và
+    /// một từ đã hiểu lại mà màn hình còn là phím thô ("vieej") sẽ lệch nếu bị xoá tiếp.
+    private func recomposed() -> Composer? {
+        guard comp.retry, comp.isLiteral, !comp.codeLiteral, !comp.noRecompose,
+            comp.raw.allSatisfy({ $0.isASCII && $0.isLetter }),
+            let fresh = Composer.replay(comp.raw, config), !fresh.isLiteral
+        else { return nil }
+        return fresh
     }
 
     private static let toneMarks: Set<Unicode.Scalar> = ["\u{301}", "\u{300}", "\u{309}", "\u{303}", "\u{323}"]

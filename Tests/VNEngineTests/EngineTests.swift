@@ -269,6 +269,24 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
 /// dời dấu thanh sang nguyên âm trước ("tiế" -> "tí"), buộc app nuốt phím xoá rồi tự phát phím xoá + chữ
 /// trong lúc phím thật đang lặp; màn hình và engine lệch nhau từ đó.
 @Suite struct BackspaceIsPlain {
+    /// Gõ nhầm một phím làm từ thành nguyên văn; xoá phím nhầm đi thì phải gõ tiếp tiếng Việt được,
+    /// không bắt người dùng xoá về tận khoảng trắng.
+    @Test func leavesLiteralWhenTypoIsDeleted() {
+        #expect(run("thii<chs ") == "thích ")
+        #expect(run("thii<<<<tois ") == "tói ")
+        #expect(run("vieejk<t ") == "việt ")
+        #expect(run("tieesg<<ngs ") == "tiếng ")
+        #expect(run("slide<<<<<tooi ") == "tôi ")
+        // Xoá tiếp sau phím nhầm: màn hình vẫn khớp với engine.
+        #expect(run("vieejk<<<<eetj ") == "việt ")
+        // Đã chủ động gõ lặp để huỷ dấu thì không hiểu lại.
+        #expect(run("assk<k ") == "ask ")
+        // Xoá chưa hết phần sai thì vẫn nguyên văn.
+        #expect(run("slide<<<s") == "sls")
+        // Quay lại từ trước rồi gõ nhầm, xoá, gõ tiếp.
+        #expect(run("thich <<<i<chs ") == "thích ")
+    }
+
     static let words = [
         "tieengs", "vieetj", "dduwowcj", "hoanf", "nguwowif", "quyeets", "thuyr", "khuyur", "muoons", "giuwax",
         "DDAAY", "toio", "ruwowuj", "oong", "uyr", "hoaf", "user", "string", "ddc", "ass", "ww",

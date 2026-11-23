@@ -66,6 +66,11 @@ struct Composer {
     var lateBar = false
     /// Từ nằm trong ngữ cảnh code (sau @ # / . _ hoặc chữ số): không biến đổi.
     var codeLiteral = false
+    /// Từ nguyên văn mà chữ trên màn hình KHÔNG phải chuỗi phím gốc (người dùng đã gõ lặp để huỷ dấu):
+    /// xoá lùi không được gõ lại nó từ đầu, nếu không "as" (từ "ass") lại thành "á".
+    var noRecompose = false
+    /// Từ nguyên văn vừa bị xoá lùi: phím chữ kế tiếp sẽ thử hiểu lại phần còn lại như vừa gõ mới.
+    var retry = false
 
     init(_ c: Config) {
         method = c.method; modernTone = c.modernTone; standaloneW = c.standaloneW; teen = c.teenInitials
@@ -134,6 +139,8 @@ struct Composer {
     mutating func backspace(dropTone: Bool = false) {
         if override != nil {
             override!.removeLast()
+            if cancelled { noRecompose = true }
+            retry = true
             if override!.isEmpty { clear() } else { forceLiteral(override!) }
             return
         }
@@ -151,7 +158,7 @@ struct Composer {
 
     private mutating func clear() {
         letters = []; tone = .none; raw = []; owner = []; override = nil
-        cancelled = false; keepComposed = false; lateBar = false
+        cancelled = false; keepComposed = false; lateBar = false; noRecompose = false; retry = false
     }
 
     private mutating func dropKeys(_ pred: (Int) -> Bool) {

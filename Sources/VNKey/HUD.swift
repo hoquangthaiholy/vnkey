@@ -50,7 +50,8 @@ final class HUD {
         panel.level = .statusBar
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // Không đổ bóng: bóng của cửa sổ trong suốt vẽ thành một viền khác màu quanh nhãn.
+        panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         panel.contentView = pill

@@ -1,5 +1,10 @@
-// Vẽ biểu tượng app và đóng thành Resources/AppIcon.icns.  Chạy: swift Scripts/make-icon.swift
+// Dựng Resources/AppIcon.icns từ Resources/AppIcon.svg.  Chạy: swift Scripts/make-icon.swift
 import AppKit
+
+guard let art = NSImage(contentsOfFile: "Resources/AppIcon.svg"), art.isValid else {
+    print("Không đọc được Resources/AppIcon.svg")
+    exit(1)
+}
 
 func render(_ px: Int) -> Data {
     let rep = NSBitmapImageRep(
@@ -22,20 +27,12 @@ func render(_ px: Int) -> Data {
     shape.fill()
     NSGraphicsContext.restoreGraphicsState()
 
-    NSGradient(
-        starting: NSColor(srgbRed: 0.98, green: 0.36, blue: 0.27, alpha: 1),
-        ending: NSColor(srgbRed: 0.78, green: 0.10, blue: 0.20, alpha: 1))!.draw(in: shape, angle: -90)
-
-    // Chữ "ế": một chữ cái mang cả dấu mũ lẫn dấu thanh — đúng việc bộ gõ làm.
-    let font = NSFont.systemFont(ofSize: 600 * s, weight: .bold)
-    let glyphShadow = NSShadow()
-    glyphShadow.shadowColor = NSColor(white: 0, alpha: 0.18)
-    glyphShadow.shadowBlurRadius = 10 * s
-    glyphShadow.shadowOffset = NSSize(width: 0, height: -6 * s)
-    let text = NSAttributedString(
-        string: "ế", attributes: [.font: font, .foregroundColor: NSColor.white, .shadow: glyphShadow])
-    let t = text.size()
-    text.draw(at: NSPoint(x: box.midX - t.width / 2, y: box.midY - t.height / 2 - 30 * s))
+    // Hình vẽ lấy từ Resources/AppIcon.svg, cắt theo khuôn bo góc của macOS.
+    NSGraphicsContext.saveGraphicsState()
+    shape.addClip()
+    NSGraphicsContext.current?.imageInterpolation = .high
+    art.draw(in: box, from: .zero, operation: .sourceOver, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!
 }
