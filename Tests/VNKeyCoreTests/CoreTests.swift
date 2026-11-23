@@ -563,3 +563,55 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(!s.suspended)
     }
 }
+
+@Suite struct Updates {
+    @Test(arguments: [
+        ("0.2.0", "0.1.0", true), ("v0.2.0", "0.1.0", true), ("0.1.1", "0.1.0", true), ("1.0", "0.9.9", true),
+        ("0.10.0", "0.9.0", true), ("0.1.0", "0.1.0", false), ("0.1", "0.1.0", false), ("0.0.9", "0.1.0", false),
+        ("v0.1.0", "0.1.0", false), ("", "0.1.0", false), ("abc", "0.1.0", false), ("0.2.0-beta", "0.1.0", true),
+    ])
+    func comparesVersions(remote: String, local: String, newer: Bool) {
+        #expect(UpdateCheck.isNewer(remote, than: local) == newer)
+    }
+
+    @Test func readsGitHubRelease() throws {
+        let json = #"{"tag_name":"v0.2.0","html_url":"https://github.com/o/r/releases/tag/v0.2.0","name":"Bản 0.2","body":"Sửa lỗi","draft":false,"prerelease":false}"#
+        let r = try #require(UpdateCheck.release(from: Data(json.utf8)))
+        #expect(r.version == "0.2.0")
+        #expect(r.page.absoluteString == "https://github.com/o/r/releases/tag/v0.2.0")
+        #expect(r.notes == "Sửa lỗi")
+    }
+
+    @Test func ignoresDraftsPrereleasesAndGarbage() {
+        #expect(UpdateCheck.release(from: Data(#"{"tag_name":"v0.2.0","html_url":"https://x.test/a","draft":true}"#.utf8)) == nil)
+        #expect(UpdateCheck.release(from: Data(#"{"tag_name":"v0.2.0","html_url":"https://x.test/a","prerelease":true}"#.utf8)) == nil)
+        #expect(UpdateCheck.release(from: Data(#"{"message":"Not Found"}"#.utf8)) == nil)
+        #expect(UpdateCheck.release(from: Data("rác".utf8)) == nil)
+        // Trang tải phải là https: không mở liên kết lạ lấy từ mạng.
+        #expect(UpdateCheck.release(from: Data(#"{"tag_name":"v0.2.0","html_url":"file:///etc/passwd"}"#.utf8)) == nil)
+    }
+
+    @Test func decidesWhatToTellTheUser() {
+        let r = UpdateCheck.Release(version: "0.2.0", page: URL(string: "https://x.test/a")!, notes: "")
+        #expect(UpdateCheck.outcome(status: 200, release: r, local: "0.1.0") == .available(r))
+        #expect(UpdateCheck.outcome(status: 200, release: r, local: "0.2.0") == .upToDate)
+        #expect(UpdateCheck.outcome(status: 404, release: nil, local: "0.1.0") == .noRelease)
+        #expect(UpdateCheck.outcome(status: 403, release: nil, local: "0.1.0") == .failed("GitHub tạm từ chối (mã 403); thử lại sau."))
+        #expect(UpdateCheck.outcome(status: 200, release: nil, local: "0.1.0") == .noRelease)
+    }
+
+    @Test func checksOncePerDay() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(UpdateCheck.isDue(last: nil, now: now))
+        #expect(!UpdateCheck.isDue(last: now.addingTimeInterval(-3600), now: now))
+        #expect(UpdateCheck.isDue(last: now.addingTimeInterval(-90_000), now: now))
+        #expect(UpdateCheck.isDue(last: now.addingTimeInterval(500), now: now))  // đồng hồ bị chỉnh lùi
+    }
+
+    @Test func buildsTheApiAddress() {
+        #expect(UpdateCheck.latestReleaseURL(repository: "chu/ten")?.absoluteString == "https://api.github.com/repos/chu/ten/releases/latest")
+        #expect(UpdateCheck.latestReleaseURL(repository: "") == nil)
+        #expect(UpdateCheck.latestReleaseURL(repository: "sai dang") == nil)
+        #expect(UpdateCheck.latestReleaseURL(repository: "a/b/c") == nil)
+    }
+}

@@ -310,7 +310,7 @@ private final class SettingsTabs: NSTabViewController {
 }
 
 final class SettingsController: NSObject, NSWindowDelegate {
-    static let width: CGFloat = 540
+    static let width: CGFloat = 580
     /// Đánh dấu một view cần giãn hết chiều ngang của thẻ.
     fileprivate static let wide = NSUserInterfaceItemIdentifier("wide")
     fileprivate static let titleID = NSUserInterfaceItemIdentifier("title")
@@ -328,6 +328,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private var loginSwitch: NSSwitch?
     private var removeButton: NSButton?
     private var runningAppsMenu: NSPopUpButton?
+    private var updateTitle: NSTextField?
+    private var updateDetail: NSTextField?
+    private var updateButton: NSButton?
 
     override init() {
         window = NSWindow(contentViewController: tabs)
@@ -336,7 +339,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         for (title, symbol, view) in [
             ("Chung", "gearshape", general()), ("Gõ", "keyboard", typing()), ("Việt & Anh", "character.bubble", mixed()),
             ("Tự sửa", "wand.and.stars", corrections()), ("Gõ tắt", "text.badge.plus", shortcuts()), ("Đã nhớ", "bookmark", remembered()),
-            ("Ứng dụng", "macwindow.on.rectangle", apps()),
+            ("Ứng dụng", "macwindow.on.rectangle", apps()), ("Giới thiệu", "info.circle", about()),
         ] {
             let controller = NSViewController()
             controller.view = view
@@ -353,6 +356,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         window.delegate = self
         tabs.fitWindow(animated: false)
         window.center()
+        Updater.shared.onChange = { [weak self] in self?.showUpdateState() }
     }
 
     /// Số thẻ và cách chọn thẻ, dùng cho chế độ chụp giao diện.
@@ -370,6 +374,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     func reload() {
         tables.forEach { $0.reload() }
+        showUpdateState()
         appList?.reload()
         hotkeyButtons.forEach { $0.refresh() }
         showMethod()
@@ -519,7 +524,6 @@ final class SettingsController: NSObject, NSWindowDelegate {
         logSwitch.controlSize = .small
         logSwitch.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.debugLog)
         logSwitch.setAccessibilityLabel("Ghi nhật ký gỡ lỗi")
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "bản phát triển"
 
         var system: [NSView] = []
         if #available(macOS 13.0, *) { system.append(row("Mở cùng lúc đăng nhập", nil, login)) }
@@ -541,8 +545,96 @@ final class SettingsController: NSObject, NSWindowDelegate {
             Card(rows: [toggle("Hiện nhãn VN/EN cạnh con trỏ khi đổi chế độ", key: Key.showHUD)]),
             title("Hệ thống"),
             Card(rows: system),
-            note("VNKey \(version)"),
         ])
+    }
+
+    /// Thẻ "Giới thiệu": ứng dụng, cập nhật, nhà phát triển.
+    private func about() -> NSView {
+        let icon = NSImageView(image: NSApp.applicationIconImage)
+        icon.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 64).isActive = true
+        let name = NSTextField(labelWithString: "VNKey")
+        name.font = .systemFont(ofSize: 20, weight: .semibold)
+        let version = NSTextField(labelWithString: "Phiên bản \(AppInfo.version)\(AppInfo.build.isEmpty ? "" : " (\(AppInfo.build))")")
+        version.textColor = .secondaryLabelColor
+        version.isSelectable = true
+        let tagline = NSTextField(labelWithString: "Bộ gõ tiếng Việt cho macOS: gõ xen kẽ Việt – Anh, tự sửa lỗi gõ.")
+        tagline.font = .systemFont(ofSize: 11)
+        tagline.textColor = .secondaryLabelColor
+        let text = NSStackView(views: [name, version, tagline])
+        text.orientation = .vertical
+        text.alignment = .leading
+        text.spacing = 2
+        let header = NSStackView(views: [icon, text])
+        header.orientation = .horizontal
+        header.alignment = .centerY
+        header.spacing = 14
+
+        let check = NSButton(title: "Kiểm tra bản mới", target: self, action: #selector(updateAction))
+        updateButton = check
+        let statusRow = row("Cập nhật", " ", check)
+        let fields = SettingsController.labels(in: statusRow)
+        updateTitle = fields.first
+        updateDetail = fields.dropFirst().first
+
+        return page([
+            header,
+            title("Cập nhật"),
+            Card(rows: [
+                statusRow,
+                toggle(
+                    "Tự kiểm tra bản mới mỗi ngày",
+                    "Chỉ hỏi GitHub số phiên bản mới nhất; không gửi gì về bạn hay về việc bạn gõ. VNKey không tự tải hay tự cài.",
+                    key: Key.autoUpdateCheck),
+            ]),
+            title("Nhà phát triển"),
+            Card(rows: [row(AppInfo.developer, "Tác giả")]),
+            note("© 2026 \(AppInfo.developer)"),
+        ])
+    }
+
+    /// Các nhãn chữ bên trong một dòng cài đặt, theo thứ tự (tên, rồi mô tả).
+    private static func labels(in view: NSView) -> [NSTextField] {
+        view.subviews.flatMap { v -> [NSTextField] in
+            if let f = v as? NSTextField { return [f] }
+            return v is NSButton ? [] : labels(in: v)
+        }
+    }
+
+    /// Dòng trạng thái cập nhật theo kết quả lần kiểm tra gần nhất.
+    private func showUpdateState() {
+        guard let name = updateTitle, let detail = updateDetail, let button = updateButton else { return }
+        let when: String = {
+            guard let d = Updater.shared.lastChecked else { return "Chưa kiểm tra lần nào." }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "vi_VN")
+            f.dateStyle = .medium
+            f.timeStyle = .short
+            return "Kiểm tra lần cuối: \(f.string(from: d))."
+        }()
+        button.isEnabled = true
+        button.title = "Kiểm tra bản mới"
+        switch Updater.shared.state {
+        case .idle:
+            name.stringValue = "Cập nhật"; detail.stringValue = when
+        case .checking:
+            name.stringValue = "Đang kiểm tra…"; detail.stringValue = "Hỏi GitHub về bản phát hành mới nhất."
+            button.isEnabled = false
+        case .done(.upToDate):
+            name.stringValue = "Bạn đang dùng bản mới nhất"; detail.stringValue = when
+        case .done(.available(let r)):
+            name.stringValue = "Có bản mới \(r.version)"
+            detail.stringValue = "Bạn đang dùng bản \(AppInfo.version). Bấm để mở trang tải trên GitHub."
+            button.title = "Mở trang tải…"
+        case .done(.noRelease):
+            name.stringValue = "Chưa có bản phát hành nào"; detail.stringValue = "Kho \(AppInfo.repository) chưa đăng bản nào trên GitHub Releases."
+        case .done(.failed(let why)):
+            name.stringValue = "Không kiểm tra được"; detail.stringValue = why
+        }
+    }
+
+    @objc private func updateAction() {
+        if let page = Updater.shared.available?.page { NSWorkspace.shared.open(page) } else { Updater.shared.check() }
     }
 
     private func typing() -> NSView {

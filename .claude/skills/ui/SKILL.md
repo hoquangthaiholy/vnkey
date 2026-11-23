@@ -126,7 +126,7 @@ những cặp đã đủ điều kiện sửa, không phải toàn bộ số đ�
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt có 7 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng. Thẻ nào dài quá ~500pt
+Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng, Giới thiệu. Thẻ nào dài quá ~500pt
 thì tách (người dùng đã phàn nàn thẻ Việt & Anh dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
@@ -145,3 +145,12 @@ công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và m�
 - Tìm vị trí theo thứ tự: vùng chọn → ký tự trước con trỏ → text marker (web, Electron) → khung ô → khung cửa sổ →
   chuột. Ứng dụng Electron chỉ trả lời sau khi được đặt cờ `AXManualAccessibility` (`HUD.focusedElement`).
   Dòng log `HUD vị trí=…` cho biết cách nào đã dùng.
+
+## Giới thiệu và cập nhật
+
+- Thẻ "Giới thiệu": tên, phiên bản, nhà phát triển (`AppInfo` trong `Sources/VNKey/Updater.swift`) và dòng trạng thái
+  cập nhật.
+- Kiểm tra bản mới: `Updater` hỏi GitHub Releases của `AppInfo.repository` (người dùng đã xác nhận tên kho), mỗi
+  ngày một lần nếu bật, hoặc khi bấm nút. Chỉ báo và mở trang tải; KHÔNG tự tải hay cài (app ký bằng chứng chỉ tự
+  tạo). Logic thuần ở `UpdateCheck` (VNKeyCore) có test; yêu cầu mạng không được chạy trong test.
+- Phiên bản của app nằm trong `Scripts/build-app.sh` (`CFBundleShortVersionString`); so sánh với thẻ phát hành.

@@ -93,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ticks += 1
             if ticks % 15 == 0 { tap.flushPerf() }  // tổng kết hiệu năng mỗi 30 giây nếu có gõ
             if ticks % 60 == 0 { UsageStore.saveIfNeeded() }  // lưu thói quen gõ mỗi 2 phút nếu có thay đổi
+            if ticks % 150 == 10 { Updater.shared.checkIfDue() }  // 20 giây sau khi mở, rồi 5 phút xem lại một lần
             let secure = IsSecureEventInputEnabled()
             if secure != lastSecure {
                 lastSecure = secure
@@ -363,6 +364,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(i)
             menu.addItem(.separator())
         }
+        if let release = Updater.shared.available {
+            menu.addItem(item("Có bản mới \(release.version)…", #selector(openUpdatePage), symbol: "arrow.down.circle"))
+            menu.addItem(.separator())
+        }
         let toggle = item("Gõ tiếng Việt", foreignSource == nil ? #selector(toggleEnabled) : nil, on: tap.enabled)
         toggle.attributedTitle = titled("Gõ tiếng Việt", shortcut: tap.toggleHotkey.label)
         menu.addItem(toggle)
@@ -431,6 +436,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settings == nil { settings = SettingsController() }
         NSApp.activate(ignoringOtherApps: true)
         settings?.window.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func openUpdatePage() {
+        if let page = Updater.shared.available?.page { NSWorkspace.shared.open(page) }
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

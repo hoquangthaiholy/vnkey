@@ -13,6 +13,7 @@ enum Key {
     static let debugLog = "debugLog"
     static let learnFromRetype = "learnFromRetype"
     static let followInputSource = "followInputSource", flashFix = "flashFix"
+    static let autoUpdateCheck = "autoUpdateCheck", updateLastCheck = "updateLastCheck"
     static let predict = "predict", predictUnmarked = "predictUnmarked", learnUsage = "learnUsage"
 
     static let registered: [String: Any] = [
@@ -21,7 +22,7 @@ enum Key {
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
         // Đang phát triển: ghi nhật ký đầy đủ theo mặc định (tắt được trong Cài đặt › Chung).
         debugLog: true,
-        learnFromRetype: true, followInputSource: true, flashFix: true, predict: true, predictUnmarked: true, learnUsage: true,
+        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, predict: true, predictUnmarked: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Terminal mặc định bắt đầu ở chế độ Anh; vẫn bật lại được bằng phím tắt.
         excludedApps: [
