@@ -42,12 +42,18 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
     /// Chỉ số trong `rows` của các dòng đang hiện (sau khi lọc).
     private var visible: [Int] = []
     private var editing = false
+    /// Bảng chỉ để xem và xoá dòng: không sửa trong ô, không có nút thêm.
+    private let readOnly: Bool
+    /// Vị trí của nút xoá trong cụm nút (bảng chỉ-đọc chỉ có một nút).
+    private var removeSegment: Int { readOnly ? 0 : 1 }
 
     init(
-        columns: [Column], height: CGFloat, label: String, searchable: Bool, load: @escaping () -> [[String]],
+        columns: [Column], height: CGFloat, label: String, searchable: Bool, readOnly: Bool = false,
+        load: @escaping () -> [[String]],
         save: @escaping ([[String]]) -> (text: String, warning: Bool)
     ) {
         self.columns = columns
+        self.readOnly = readOnly
         self.load = load
         self.save = save
         super.init()
@@ -81,9 +87,14 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
 
         buttons.target = self
         buttons.action = #selector(buttonPressed(_:))
-        buttons.setToolTip("Thêm một dòng", forSegment: 0)
-        buttons.setToolTip("Xoá các dòng đang chọn (phím Delete)", forSegment: 1)
-        buttons.setEnabled(false, forSegment: 1)
+        if readOnly {
+            buttons.segmentCount = 1
+            buttons.setImage(NSImage(systemSymbolName: "minus", accessibilityDescription: "Xoá"), forSegment: 0)
+        } else {
+            buttons.setToolTip("Thêm một dòng", forSegment: 0)
+        }
+        buttons.setToolTip("Xoá các dòng đang chọn (phím Delete)", forSegment: removeSegment)
+        buttons.setEnabled(false, forSegment: removeSegment)
         status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor
         status.lineBreakMode = .byTruncatingTail
@@ -140,13 +151,13 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
             }
         }
         table.reloadData()
-        buttons.setEnabled(!table.selectedRowIndexes.isEmpty, forSegment: 1)
+        buttons.setEnabled(!table.selectedRowIndexes.isEmpty, forSegment: removeSegment)
     }
 
     // MARK: - Thêm / xoá
 
     @objc private func buttonPressed(_ sender: NSSegmentedControl) {
-        if sender.selectedSegment == 0 { add() } else { removeSelected() }
+        if sender.selectedSegment == removeSegment { removeSelected() } else { add() }
     }
 
     private func add() {
@@ -176,7 +187,7 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
     func numberOfRows(in tableView: NSTableView) -> Int { visible.count }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        buttons.setEnabled(!table.selectedRowIndexes.isEmpty, forSegment: 1)
+        buttons.setEnabled(!table.selectedRowIndexes.isEmpty, forSegment: removeSegment)
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -191,7 +202,7 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
                     let f = NSTextField()
                     f.isBordered = false
                     f.drawsBackground = false
-                    f.isEditable = true
+                    f.isEditable = !readOnly
                     f.lineBreakMode = .byTruncatingTail
                     f.cell?.usesSingleLineMode = true
                     f.placeholderString = placeholder

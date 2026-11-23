@@ -298,6 +298,32 @@ final class PredictLexicon: Lexicon {
         #expect(m.count("lỗi") == 0 && m.pairCount("lỗi", after: "lầm") == 0 && m.wordCount == 0)
     }
 
+    /// Danh sách hiện cho người dùng: chỉ những cặp đã đủ điều kiện để VNKey sửa dạng gõ không dấu.
+    @Test func listsPairsThatWillBeFixed() {
+        let m = UsageModel()
+        for _ in 0..<7 { m.record("lỗi", after: "lầm") }
+        for _ in 0..<4 { m.record("loi", after: "lầm") }  // gõ không dấu ít hơn: vẫn sửa
+        for _ in 0..<3 { m.record("đắn", after: "đúng") }
+        for _ in 0..<3 { m.record("dan", after: "đúng") }  // hoà: chưa sửa
+        for _ in 0..<2 { m.record("được", after: "đã") }  // chưa đủ ba lần
+        for _ in 0..<5 { m.record("nay", after: "hôm") }  // từ không dấu: không có gì để sửa
+        for _ in 0..<4 { m.record("việt", after: "bài") }
+        for _ in 0..<3 { m.record("viết", after: "bài") }  // hai dạng có dấu ngang nhau: không rõ
+        #expect(m.learnedPairs() == [UsageModel.LearnedPair(prev: "lầm", word: "lỗi", plain: "loi", count: 7)])
+    }
+
+    @Test func forgettingAPairStopsTheFix() {
+        let m = UsageModel()
+        for _ in 0..<3 { m.record("lỗi", after: "lầm") }
+        m.record("lỗi", after: "xin")
+        m.markSaved()
+        m.forget(prev: "lầm", word: "lỗi")
+        #expect(m.pairCount("lỗi", after: "lầm") == 0)
+        #expect(m.count("lỗi") == 1)  // lần gõ sau "xin" vẫn còn
+        #expect(m.learnedPairs().isEmpty)
+        #expect(m.dirty)
+    }
+
     @Test func pausedModelRecordsNothing() {
         let m = UsageModel()
         m.recording = false

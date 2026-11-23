@@ -120,7 +120,9 @@ mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi
 ## Bảng soạn danh sách
 
 `Sources/VNKey/EntryTable.swift` (`EntryTable`): bảng sửa ngay trong ô, nút +/−, phím Delete, ô tìm kiếm. Dùng cho
-thẻ "Gõ tắt" (hai cột chữ) và thẻ "Đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Định dạng lưu
+thẻ "Gõ tắt" (hai cột chữ) và thẻ "Đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Thẻ "Đã nhớ" còn có
+bảng chỉ-đọc "Cặp từ đã học" (`readOnly: true`: chỉ xem và xoá dòng), lấy từ `UsageModel.learnedPairs()` — chỉ
+những cặp đã đủ điều kiện sửa, không phải toàn bộ số đếm; xoá dòng gọi `UsageModel.forget`. Định dạng lưu
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 

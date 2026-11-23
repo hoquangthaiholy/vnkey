@@ -599,7 +599,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 .text(title: "Chuỗi phím", placeholder: "vd: this", width: nil),
                 .choice(title: "Luôn hiện", options: ["Phím gốc", "Tiếng Việt"], width: 120),
             ],
-            height: 240, label: "Từ đã nhớ", searchable: true,
+            height: 150, label: "Từ đã nhớ", searchable: true,
             load: { [defaults] in
                 ListFormat.learnedRows(
                     raw: defaults.stringArray(forKey: Key.preferRaw) ?? [], vn: defaults.stringArray(forKey: Key.preferVN) ?? [])
@@ -612,10 +612,37 @@ final class SettingsController: NSObject, NSWindowDelegate {
             })
         tables.append(learned)
         learned.view.identifier = SettingsController.wide
+
+        // Các cặp từ VNKey đã học đủ để sửa dạng gõ không dấu. Chỉ xem và xoá: nội dung do việc gõ tạo ra.
+        let pairs = EntryTable(
+            columns: [
+                .text(title: "Khi bạn gõ", placeholder: "", width: 170),
+                .text(title: "VNKey sửa thành", placeholder: "", width: nil),
+                .text(title: "Đã gõ", placeholder: "", width: 60),
+            ],
+            height: 110, label: "Cặp từ đã học", searchable: false, readOnly: true,
+            load: {
+                UsageStore.model.learnedPairs().map { ["\($0.prev) \($0.plain)", "\($0.prev) \($0.word)", "\($0.count) lần"] }
+            },
+            save: { rows in
+                // Dòng nào không còn trong bảng là dòng người dùng vừa xoá: quên cặp đó.
+                let kept = Set(rows.map { $0[1] })
+                for p in UsageStore.model.learnedPairs() where !kept.contains("\(p.prev) \(p.word)") {
+                    UsageStore.model.forget(prev: p.prev, word: p.word)
+                    Log.write("USAGE quên một cặp từ theo yêu cầu người dùng")
+                }
+                UsageStore.saveIfNeeded()
+                return (rows.isEmpty ? "Chưa có cặp nào" : "\(rows.count) cặp", false)
+            })
+        tables.append(pairs)
+        pairs.view.identifier = SettingsController.wide
         return page([
             title("Từ đã nhớ"),
             learned.view,
             note("VNKey thêm vào đây mỗi lần bạn dùng phím “Đổi từ vừa gõ” hoặc gõ lại một từ vừa xoá. “Phím gốc”: từ luôn hiện đúng như đã gõ; “Tiếng Việt”: luôn bỏ dấu. Bấm đúp để sửa; xoá dòng để quên."),
+            title("Cặp từ đã học"),
+            pairs.view,
+            note("Học từ cách bạn gõ: một cặp vào đây khi bạn đã gõ nó có dấu ít nhất ba lần và nhiều hơn dạng không dấu. Xoá dòng để VNKey quên cặp đó."),
         ])
     }
 
