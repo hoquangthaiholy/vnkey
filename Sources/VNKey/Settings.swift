@@ -589,7 +589,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         clear.toolTip = "Xoá bảng đếm từ và cặp từ VNKey đã ghi trên máy này"
         return row(
             "Học cách bạn gõ để chọn theo từ đứng trước",
-            "Đếm các từ và cặp từ bạn hay gõ (không lưu câu), chỉ trên máy này: “đã duojc” → được, “ngành duojc” → dược.",
+            "Đếm các từ và cặp từ bạn hay gõ (không lưu câu), chỉ trên máy này. Gõ “lầm lỗi” vài lần thì “lầm loi” cũng được sửa.",
             clear, s)
     }
 
@@ -648,6 +648,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 toggle(
                     "Đoán cả từ chưa có dấu nào", "duoc, khong → được, không; chỉ khi bạn đang gõ tiếng Việt có dấu.",
                     key: Key.predictUnmarked, dependsOn: Key.predict),
+                toggle("Nháy nhẹ từ vừa được tự sửa", "Một lớp màu thoáng qua trên từ, để bạn thấy VNKey vừa đổi chữ.", key: Key.flashFix),
             ]),
             note("Các mục này cần bật “Tự trả lại từ không phải tiếng Việt” ở thẻ Việt & Anh. Đoán sai thì nhấn phím “Đổi từ vừa gõ” để lấy lại chữ đã gõ."),
             title("Học từ cách bạn gõ"),

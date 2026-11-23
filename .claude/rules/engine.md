@@ -44,9 +44,17 @@ paths:
     dụng hơn. Từ điển macOS khá dễ dãi ("tiêng" được coi là đúng) nên có từ sẽ không được đoán: chấp nhận;
   - không đoán từ tiếng Anh, từ đã nhớ, ngữ cảnh code, từ đã gõ lặp huỷ dấu;
   - từ chưa có dấu nào chỉ đoán khi một trong ba từ vừa gõ có dấu và `englishStreak == 0`, và chỉ bằng tầng 1–2;
-  - chọn theo tầng: cặp (từ trước → từ) người dùng đã gõ (`ContextModel`) → độ thông dụng (`CommonWords` + số
-    lần người dùng gõ) → `Lexicon.rank` (gợi ý của macOS, 5–15 ms, có bộ đệm) → chỉ một ứng viên. Tầng 1–2 đòi
-    hạng nhất ≥ 2 lần hạng nhì; không quyết được thì giữ nguyên.
+  - chọn theo tầng: cặp (từ trước → từ) người dùng đã gõ (`ContextModel`) → `Lexicon.rank` (gợi ý theo câu của
+    macOS, ~8 ms, có bộ đệm; đo ngày 2026-11-23 đúng 11/11 với chữ chưa thành từ: "tiếng viet" → việt, "bài viet"
+    → viết) → độ thông dụng (`CommonWords` + số lần người dùng gõ) → chỉ một ứng viên. Tầng đếm đòi hạng nhất ≥ 2
+    lần hạng nhì; không quyết được thì giữ nguyên.
+  - Chữ không dấu mà từ điển coi là từ đúng ("loi" trong "lầm loi") CHỈ được sửa bằng thói quen của người dùng:
+    họ đã gõ cặp (từ trước → ứng viên) ít nhất 3 lần và nhiều hơn số lần gõ cặp ấy ở dạng không dấu (đòi "chưa
+    từng" thì vài lần người dùng gõ thử đã chặn việc học mãi mãi — lỗi đã gặp thật). Quay lại sửa một từ thì lần
+    ghi nhận của từ đó được rút lại (`ContextModel.unrecord`). Gợi ý của macOS
+    không dùng được ở đây (nó đổi "hôm nay" thành "hôm này"). Vì vậy engine cũng ghi nhận từ không dấu khi đang ở
+    ngữ cảnh tiếng Việt. Người dùng đã chọn cách học này thay cho từ điển từ ghép (2026-11-23).
+  - `Engine.fixedWord` báo từ vừa được tự sửa (đoán dấu, sửa đảo phím) để app nháy nhẹ lên nó (`HUD.flash`).
   Từ đã đoán lưu với `resumable = false`; phím "Đổi từ vừa gõ" trả lại phím gốc và nhớ vào `preferRaw`.
   `UsageModel` (VNEngine, thuần Foundation) là bảng đếm có giới hạn; app lưu nó qua `UsageStore`.
 - Tự học khi gõ lại (`Config.learnFromRetype`): chỉ khi người dùng xoá ĐÚNG từ vừa gõ gần nhất (chưa gõ chữ nào

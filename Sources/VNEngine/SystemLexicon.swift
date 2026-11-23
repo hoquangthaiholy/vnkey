@@ -36,11 +36,22 @@ public final class SystemLexicon: Lexicon {
             let ns = sentence as NSString
             let range = NSRange(location: ns.length - (typed as NSString).length, length: (typed as NSString).length)
             guesses = (checker.guesses(forWordRange: range, in: sentence, language: "vi", inSpellDocumentWithTag: 0) ?? [])
-                .map { $0.lowercased() }
+                .map { SystemLexicon.modernized($0.lowercased()) }
             if ranks.count > 500 { ranks.removeAll() }
             ranks[sentence] = guesses
         }
         return guesses.first { candidates.contains($0) }
+    }
+
+    /// Trình kiểm tra chính tả đôi khi gợi ý cách viết thiếu móc "uợ", "uớ"… ("đuợc"): đưa về "ượ", "ướ" để
+    /// khớp với ứng viên của engine. "qu" + ơ ("quở", "quớ") thì giữ nguyên.
+    static func modernized(_ w: String) -> String {
+        var chars = Array(w.precomposedStringWithCanonicalMapping)  // gợi ý có thể ở dạng tách dấu
+        for i in chars.indices.dropLast() where chars[i] == "u" && "ơớờởỡợ".contains(chars[i + 1]) {
+            if i > 0, chars[i - 1] == "q" { continue }
+            chars[i] = "ư"
+        }
+        return String(chars)
     }
 
     public func isEnglish(_ word: String) -> Bool { known(word, "en") }

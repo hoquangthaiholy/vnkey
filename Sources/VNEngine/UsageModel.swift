@@ -7,6 +7,8 @@ public protocol ContextModel: AnyObject {
     /// Số lần `word` đã được gõ.
     func count(_ word: String) -> Int
     func record(_ word: String, after prev: String?)
+    /// Rút lại một lần `record` (người dùng quay lại sửa từ đó: lần gõ cũ là gõ nhầm, không phải thói quen).
+    func unrecord(_ word: String, after prev: String?)
 }
 
 /// Bảng đếm từ và cặp từ liền nhau mà người dùng đã gõ (chữ thường). Chỉ có số đếm: không lưu câu, không
@@ -38,6 +40,16 @@ public final class UsageModel: ContextModel {
         dirty = true
         if words.count > wordLimit { words = UsageModel.trim(words, to: wordLimit) }
         if pairs.count > pairLimit { pairs = UsageModel.trim(pairs, to: pairLimit) }
+    }
+
+    public func unrecord(_ word: String, after prev: String?) {
+        func drop(_ d: inout [String: Int], _ key: String) {
+            guard let n = d[key] else { return }
+            d[key] = n > 1 ? n - 1 : nil
+            dirty = true
+        }
+        drop(&words, word)
+        if let prev, !prev.isEmpty { drop(&pairs, UsageModel.key(prev, word)) }
     }
 
     /// Giữ lại khoảng 3/4 giới hạn, ưu tiên mục có số đếm cao (để không phải dọn lại ở mỗi lần ghi).

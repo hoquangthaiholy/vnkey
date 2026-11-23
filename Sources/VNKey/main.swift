@@ -50,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.defaults.set(Array(self.engine.preferVN), forKey: Key.preferVN)
             }
         }
+        tap.onFix = { [unowned self] word in
+            // Đang ở trong callback của event tap, và chữ mới chưa kịp tới ứng dụng: đợi một nhịp rồi mới nháy.
+            guard defaults.bool(forKey: Key.flashFix) else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) { self.hud.flash(word: word) }
+        }
         tap.onToggle = { [unowned self] in
             // Đang ở trong callback của event tap: làm việc nặng (AX, cửa sổ) ở vòng lặp sau.
             DispatchQueue.main.async { self.setEnabled(!self.tap.enabled, announce: true) }

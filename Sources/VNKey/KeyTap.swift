@@ -25,6 +25,8 @@ final class KeyTap {
     var frontApp = ""
     var fixAutocomplete = true
     var onToggle: (() -> Void)?
+    /// VNKey vừa tự sửa một từ (đoán dấu, sửa đảo phím); tham số là từ như đang hiện trên màn hình.
+    var onFix: ((String) -> Void)?
 
     var toggleHotkey = Hotkey.defaultToggle
     var restoreHotkey = Hotkey.defaultRestore
@@ -251,6 +253,7 @@ final class KeyTap {
         defer { if focusMayMove { focusMayHaveChanged(.fieldExit) } }
         if out.isPass { return true }
         send(out, original: event, proxy)
+        if let word = engine.fixedWord { onFix?(word) }
         return false
     }
 

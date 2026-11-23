@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import VNKeyCore
 
 /// Viên nhãn "VN - Telex" / "EN", cùng kiểu với nhãn báo bộ gõ mà macOS hiện cạnh con trỏ soạn thảo: viên
@@ -97,6 +98,85 @@ final class HUD {
                 },
                 completionHandler: { if g == self.generation { self.panel.orderOut(nil) } })
         }
+    }
+
+    // MARK: - Nháy từ vừa được tự sửa
+
+    private lazy var flashPanel: NSPanel = {
+        let p = NSPanel(
+            contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        p.level = .statusBar
+        p.isOpaque = false
+        p.backgroundColor = .clear
+        p.hasShadow = false
+        p.ignoresMouseEvents = true
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        let v = NSView()
+        v.wantsLayer = true
+        v.layer?.cornerRadius = 3
+        p.contentView = v
+        return p
+    }()
+    private var flashGeneration = 0
+
+    /// Phủ một lớp màu nhấn mờ lên từ VNKey vừa tự sửa rồi cho nó tan nhanh, để người dùng thấy chữ vừa đổi.
+    /// (Đã thử nét gạch chân thay cho lớp nền; người dùng chọn quay lại lớp nền.)
+    /// `word` là từ như đang hiện; ngay sau nó là đúng một ký tự ngắt từ rồi tới con trỏ. Ứng dụng không cho
+    /// biết vị trí chữ thì không nháy.
+    func flash(word: String) {
+        guard let rect = wordRect(word) else { return }
+        flashGeneration += 1
+        let g = flashGeneration
+        flashPanel.contentView?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.30).cgColor
+        flashPanel.setFrame(rect.insetBy(dx: -2, dy: -1), display: true)
+        flashPanel.alphaValue = 1
+        flashPanel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup(
+            { ctx in
+                ctx.duration = 0.55
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                self.flashPanel.animator().alphaValue = 0
+            },
+            completionHandler: { if g == self.flashGeneration { self.flashPanel.orderOut(nil) } })
+    }
+
+    /// Khung của từ đứng ngay trước ký tự cuối cùng trước con trỏ (toạ độ Cocoa).
+    private func wordRect(_ word: String) -> NSRect? {
+        let found = focusedElement()
+        guard let element = found.element else {
+            Log.write("FLASH bỏ: \(found.note)")
+            return nil
+        }
+        AXUIElementSetMessagingTimeout(element, 0.15)
+        let length = word.utf16.count
+        var range: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
+            let range, CFGetTypeID(range) == AXValueGetTypeID()
+        {
+            var caret = CFRange(location: 0, length: 0)
+            if AXValueGetValue(range as! AXValue, .cfRange, &caret), caret.location >= length + 1 {
+                var target = CFRange(location: caret.location - 1 - length, length: length)
+                var out: CFTypeRef?
+                if let v = AXValueCreate(.cfRange, &target),
+                    AXUIElementCopyParameterizedAttributeValue(
+                        element, kAXBoundsForRangeParameterizedAttribute as CFString, v, &out) == .success,
+                    let r = HUD.rect(out).flatMap(HUD.cocoa), r.width > 1
+                {
+                    Log.write("FLASH khung của từ (\(length) ký tự)")
+                    return r
+                }
+            }
+        }
+        // Ứng dụng chỉ cho biết vị trí con trỏ (trang web, Electron): ước lượng bề rộng của từ theo chiều cao dòng.
+        let caret = locate()
+        guard caret.kind == .caret, caret.rect.height > 4 else {
+            Log.write("FLASH bỏ: không biết vị trí chữ (\(caret.note))")
+            return nil
+        }
+        let h = caret.rect.height
+        let width = CGFloat(word.count) * h * 0.46, gap = h * 0.24  // gap: ký tự ngắt từ (thường là dấu cách)
+        Log.write("FLASH ước lượng theo con trỏ (\(word.count) chữ)")
+        return NSRect(x: caret.rect.minX - gap - width, y: caret.rect.minY, width: width, height: h)
     }
 
     private static let textRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
