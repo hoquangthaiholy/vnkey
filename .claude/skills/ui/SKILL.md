@@ -124,10 +124,22 @@ thẻ "Gõ tắt" (hai cột chữ) và thẻ "Đã nhớ" (chuỗi phím + cộ
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt có 6 thẻ: Chung, Gõ, Việt & Anh, Gõ tắt, Đã nhớ, Ứng dụng. Kiểu gõ chỉ có Telex và VNI; hai
+Cửa sổ Cài đặt có 7 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng. Thẻ nào dài quá ~500pt
+thì tách (người dùng đã phàn nàn thẻ Việt & Anh dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
 - Khi màn hình ngủ hoặc bị khoá, macOS KHÔNG chạy chuyển động đổi khung cửa sổ. `--snapshot` vì thế chọn thẻ
   không qua chuyển động (`selectTab(_, animated: false)`); đừng kết luận "cửa sổ không co giãn" từ một lần chạy
   lúc màn hình đang khoá.
 
+
+## Nhãn cạnh con trỏ (HUD)
+
+- Hiện PHÍA TRÊN con trỏ soạn thảo (nhãn báo bộ gõ của macOS hiện phía dưới; người dùng yêu cầu tránh chồng nhau),
+  lệch trái 14pt, kiểu giống hệt nhãn của macOS (người dùng đã gửi ảnh mẫu): viên thuốc nền màu nhấn, chữ trắng
+  đậm, không viền, không bóng; nội dung "VN - Telex" / "VN - VNI" / "EN", giữ 1,2 giây.
+- CHỈ hiện khi đang ở trong ô gõ được chữ (vai trò ô nhập, hoặc vùng soạn thảo của trang web); không còn rơi về
+  khung cửa sổ hay vị trí chuột.
+- Tìm vị trí theo thứ tự: vùng chọn → ký tự trước con trỏ → text marker (web, Electron) → khung ô → khung cửa sổ →
+  chuột. Ứng dụng Electron chỉ trả lời sau khi được đặt cờ `AXManualAccessibility` (`HUD.focusedElement`).
+  Dòng log `HUD vị trí=…` cho biết cách nào đã dùng.

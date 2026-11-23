@@ -17,6 +17,10 @@ private func tapCallback(
 final class KeyTap {
     let engine: Engine
     var enabled = true
+    /// Bàn phím hệ thống không phải tiếng Anh: đứng ngoài hoàn toàn cho tới khi người dùng đổi lại.
+    var suspended = false
+    /// Đang thật sự xử lý phím.
+    private var active: Bool { enabled && !suspended }
     /// Bundle ID của app đang ở trước (cập nhật từ AppDelegate).
     var frontApp = ""
     var fixAutocomplete = true
@@ -157,7 +161,7 @@ final class KeyTap {
 
     /// Đổi từ vừa gõ giữa phím gốc <-> tiếng Việt và ghi nhớ.
     private func restoreWord(_ proxy: CGEventTapProxy) {
-        guard enabled else { return }
+        guard active else { return }
         let before = Log.enabled ? state : ""
         let out = engine.toggleLast()
         Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(state)")
@@ -176,7 +180,7 @@ final class KeyTap {
             onToggle?()
             return false
         }
-        if enabled, restoreHotkey.matches(code: Int(code), mods: m) {
+        if active, restoreHotkey.matches(code: Int(code), mods: m) {
             restoreWord(proxy)
             return false
         }
@@ -194,8 +198,8 @@ final class KeyTap {
             reset("phím bổ trợ", .shortcut)
             return true
         }
-        guard enabled else {
-            Log.write("\(tag()) -> bỏ qua (đang ở chế độ EN)")
+        guard active else {
+            Log.write("\(tag()) -> bỏ qua (\(suspended ? "tạm ngưng: bàn phím hệ thống" : "đang ở chế độ EN"))")
             return true
         }
 
@@ -242,6 +246,7 @@ final class KeyTap {
             out = engine.type(ch)
         }
         Log.write("\(tag()) | \(before) -> \(describe(out)) | \(state)")
+        if !engine.note.isEmpty { Log.write("  PREDICT \(engine.note)") }
         // Enter và Tab thường chuyển tiêu điểm sang ô khác: quên ô đã nhớ SAU khi sửa xong từ hiện tại.
         defer { if focusMayMove { focusMayHaveChanged(.fieldExit) } }
         if out.isPass { return true }
@@ -304,7 +309,7 @@ final class KeyTap {
     /// thông tin đã cũ. Lần tra cứu này đo được tới 85 ms ở Safari; làm ở đây thì nó không chặn phím nào.
     /// Phím sửa chữ hiếm khi là phím đầu của một từ, nên tới lúc cần thì kết quả thường đã có.
     private func prefetchFocus() {
-        guard enabled, fixAutocomplete, !lookupPending else { return }
+        guard active, fixAutocomplete, !lookupPending else { return }
         if let c = focusCache, DispatchTime.now().uptimeNanoseconds - c.created <= focusCacheLifetimeNs { return }
         lookupPending = true
         let epoch = focusEpoch, front = frontApp, old = focusCache

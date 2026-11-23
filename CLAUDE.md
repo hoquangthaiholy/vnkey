@@ -23,6 +23,8 @@ Giao tiếp với người dùng, chú thích trong mã, chuỗi giao diện và
   - `Syllable.swift`: luật âm tiết (âm đầu, vần, âm cuối, thanh); `isValid` và `isValidPrefix`.
   - `Composer.swift`: trạng thái của MỘT từ. Giữ chuỗi phím gốc `raw` và `owner` (phím nào tạo chữ nào).
   - `Engine.swift`: ranh giới từ, lịch sử, quyết định khôi phục, học từ, ngữ cảnh. Trả về `Output`.
+  - `Predictor.swift`, `CommonWords.swift`, `UsageModel.swift`: đoán từ gõ thiếu dấu (ứng viên, danh sách từ
+    thông dụng, bảng đếm thói quen gõ của người dùng).
   - `SystemLexicon.swift`: từ điển `en`/`vi` của macOS qua NSSpellChecker (tệp duy nhất dùng AppKit).
 - `Sources/VNKey/` — app: `KeyTap` (event tap, gửi phím), `main` (AppDelegate, menu), `Settings`
   (cửa sổ cài đặt), `Onboarding` (hướng dẫn cấp quyền Trợ năng), `HUD` (nhãn VN/EN), `Shared` (khoá
@@ -73,6 +75,9 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   mất "ịa"). `HeldKeys.carrier` chọn mã phím an toàn.
 - Khi bật nhật ký, sau mỗi lần sửa chữ VNKey đọc lại ô nhập và ghi `VERIFY khớp` / `VERIFY LỆCH`. Tìm
   `VERIFY LỆCH` trước tiên khi người dùng báo chữ ra sai: nó chỉ đúng phím gây lệch.
+
+- Thói quen gõ (bảng đếm từ và cặp từ, không có câu) lưu ở `~/Library/Application Support/VNKey/usage.json`.
+  Coi nó riêng tư như nhật ký: không đọc ra, không dán vào câu trả lời.
 
 ## Commit
 

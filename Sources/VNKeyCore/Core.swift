@@ -332,6 +332,34 @@ public enum ScreenCheck {
     }
 }
 
+/// VNKey làm việc khi bàn phím hệ thống đang chọn là một bố cục gõ ra chữ cái Latin (ABC, U.S., British, Pháp,
+/// Đức, Dvorak…). Nó tạm ngưng với bộ gõ của macOS (Telex/VNI của Apple, Pinyin, Zhuyin, Kana…: đã có bộ gõ
+/// khác xử lý phím) và với bố cục không phải Latin (Nga, Hy Lạp…: phím không ra chữ cái như VNKey tưởng).
+public enum InputSourcePolicy {
+    /// - Parameters:
+    ///   - isKeyboardLayout: là bố cục bàn phím thường, không phải bộ gõ (input method / input mode).
+    ///   - isASCIICapable: macOS đánh dấu nguồn nhập này gõ được chữ cái ASCII.
+    public static func allowsTyping(isKeyboardLayout: Bool, isASCIICapable: Bool) -> Bool {
+        isKeyboardLayout && isASCIICapable
+    }
+}
+
+/// Trạng thái tạm ngưng theo bàn phím hệ thống. Thông báo đổi bàn phím của macOS đôi khi tới trước khi giá trị
+/// "bàn phím hiện tại" kịp đổi, nên app đọc lại vài lần; cấu trúc này cho biết lần đọc nào thật sự làm đổi.
+public struct InputSourceState: Equatable {
+    /// Tên bàn phím hệ thống khiến VNKey tạm ngưng; nil = đang làm việc.
+    public private(set) var foreign: String?
+    public init() {}
+    public var suspended: Bool { foreign != nil }
+
+    /// Ghi nhận một lần đọc; true nếu trạng thái (hoặc tên bàn phím) đổi và giao diện cần cập nhật.
+    public mutating func update(foreign new: String?) -> Bool {
+        guard new != foreign else { return false }
+        foreign = new
+        return true
+    }
+}
+
 /// Khi nào thông tin đã nhớ về ô đang nhận phím (ứng dụng, vai trò, phần tử AX) còn dùng được.
 /// Tra lại là lời gọi đồng bộ sang ứng dụng khác (đo được tới 85 ms), nên chỉ bỏ khi thật cần.
 public enum FocusPolicy {

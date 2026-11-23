@@ -538,3 +538,28 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(ListFormat.learnedRows(raw: ["user"], vn: ["test"]) == [["test", "1"], ["user", "0"]])
     }
 }
+
+@Suite struct InputSources {
+    @Test func latinLayoutsAllowTyping() {
+        // ABC, U.S., British, Pháp, Đức, Dvorak…: bố cục bàn phím gõ ra chữ cái Latin.
+        #expect(InputSourcePolicy.allowsTyping(isKeyboardLayout: true, isASCIICapable: true))
+    }
+
+    @Test func otherSourcesSuspendTyping() {
+        // Bộ gõ của macOS (Telex/VNI của Apple, Pinyin, Zhuyin, Kana): không phải bố cục bàn phím.
+        #expect(!InputSourcePolicy.allowsTyping(isKeyboardLayout: false, isASCIICapable: true))
+        #expect(!InputSourcePolicy.allowsTyping(isKeyboardLayout: false, isASCIICapable: false))
+        // Bố cục không gõ ra chữ Latin (Nga, Hy Lạp, Ả Rập…).
+        #expect(!InputSourcePolicy.allowsTyping(isKeyboardLayout: true, isASCIICapable: false))
+    }
+
+    @Test func staleReadingsAreSettledByTheLatestOne() {
+        var s = InputSourceState()
+        #expect(s.update(foreign: "Telex") == true)  // đổi thật
+        #expect(s.update(foreign: "Telex") == false)  // đọc lại, không đổi
+        #expect(s.update(foreign: "Zhuyin") == true)  // tên khác: vẫn tạm ngưng nhưng phải cập nhật nhãn
+        #expect(s.suspended)
+        #expect(s.update(foreign: nil) == true)
+        #expect(!s.suspended)
+    }
+}

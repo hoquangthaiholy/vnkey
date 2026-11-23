@@ -335,7 +335,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         tabs.tabStyle = .toolbar
         for (title, symbol, view) in [
             ("Chung", "gearshape", general()), ("Gõ", "keyboard", typing()), ("Việt & Anh", "character.bubble", mixed()),
-            ("Gõ tắt", "text.badge.plus", shortcuts()), ("Đã nhớ", "bookmark", remembered()),
+            ("Tự sửa", "wand.and.stars", corrections()), ("Gõ tắt", "text.badge.plus", shortcuts()), ("Đã nhớ", "bookmark", remembered()),
             ("Ứng dụng", "macwindow.on.rectangle", apps()),
         ] {
             let controller = NSViewController()
@@ -524,6 +524,11 @@ final class SettingsController: NSObject, NSWindowDelegate {
         var system: [NSView] = []
         if #available(macOS 13.0, *) { system.append(row("Mở cùng lúc đăng nhập", nil, login)) }
         system.append(
+            toggle(
+                "Tạm ngưng khi đang dùng bộ gõ khác của macOS",
+                "Telex của Apple, tiếng Trung, Nhật… hoặc bàn phím không phải chữ Latin: VNKey đứng ngoài, biểu tượng mờ đi.",
+                key: Key.followInputSource))
+        system.append(
             row("Ghi nhật ký gỡ lỗi", "Lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào máy này để tìm lỗi.", openLog, logSwitch))
         return page([
             title("Phím tắt"),
@@ -573,6 +578,21 @@ final class SettingsController: NSObject, NSWindowDelegate {
         ])
     }
 
+    /// Dòng bật/tắt việc học thói quen gõ, kèm nút xoá những gì đã học.
+    private func learnRow() -> NSView {
+        let s = NSSwitch()
+        s.controlSize = .small
+        s.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.learnUsage)
+        s.setAccessibilityLabel("Học cách bạn gõ")
+        let clear = NSButton(title: "Xoá đã học", target: self, action: #selector(clearUsage))
+        clear.controlSize = .small
+        clear.toolTip = "Xoá bảng đếm từ và cặp từ VNKey đã ghi trên máy này"
+        return row(
+            "Học cách bạn gõ để chọn theo từ đứng trước",
+            "Đếm các từ và cặp từ bạn hay gõ (không lưu câu), chỉ trên máy này: “đã duojc” → được, “ngành duojc” → dược.",
+            clear, s)
+    }
+
     private func remembered() -> NSView {
         let learned = EntryTable(
             columns: [
@@ -607,16 +627,36 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 toggle(
                     "Đoán theo ngữ cảnh", "Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.",
                     key: Key.contextAware, dependsOn: Key.autoRestore),
-                toggle(
-                    "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
-                    key: Key.fixTransposition, dependsOn: Key.autoRestore),
-                toggle(
-                    "Tự nhớ khi bạn gõ lại", "Xoá ngay từ vừa gõ rồi gõ lại y nguyên: VNKey đổi sang dạng còn lại và nhớ cho lần sau.",
-                    key: Key.learnFromRetype, dependsOn: Key.autoRestore),
                 toggle("Giữ nguyên trong ngữ cảnh code", "Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
             ]),
             title("Chữ teen"),
             Card(rows: [toggle("Cho phép f, j, w, z đứng đầu từ", "zậy, jờ, dzô, fải…", key: Key.teen)]),
+        ])
+    }
+
+    /// Thẻ "Tự sửa": mọi việc VNKey tự đổi chữ khi bạn gõ nhầm hoặc thiếu, và việc nó học từ cách bạn gõ.
+    private func corrections() -> NSView {
+        return page([
+            title("Sửa lỗi gõ"),
+            Card(rows: [
+                toggle(
+                    "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
+                    key: Key.fixTransposition, dependsOn: Key.autoRestore),
+                toggle(
+                    "Đoán từ còn thiếu dấu", "duojc, đươc → được. Chỉ đoán khi chữ gõ ra chưa phải một từ tiếng Việt.",
+                    key: Key.predict, dependsOn: Key.autoRestore),
+                toggle(
+                    "Đoán cả từ chưa có dấu nào", "duoc, khong → được, không; chỉ khi bạn đang gõ tiếng Việt có dấu.",
+                    key: Key.predictUnmarked, dependsOn: Key.predict),
+            ]),
+            note("Các mục này cần bật “Tự trả lại từ không phải tiếng Việt” ở thẻ Việt & Anh. Đoán sai thì nhấn phím “Đổi từ vừa gõ” để lấy lại chữ đã gõ."),
+            title("Học từ cách bạn gõ"),
+            Card(rows: [
+                toggle(
+                    "Tự nhớ khi bạn gõ lại", "Xoá ngay từ vừa gõ rồi gõ lại y nguyên: VNKey đổi sang dạng còn lại và nhớ cho lần sau.",
+                    key: Key.learnFromRetype, dependsOn: Key.autoRestore),
+                learnRow(),
+            ]),
         ])
     }
 
@@ -691,6 +731,16 @@ final class SettingsController: NSObject, NSWindowDelegate {
     @objc private func pickMethod(_ sender: NSSegmentedControl) {
         defaults.set(sender.selectedSegment == 1 ? "vni" : "telex", forKey: Key.method)
         showMethod()
+    }
+
+    @objc private func clearUsage() {
+        let alert = NSAlert()
+        alert.messageText = "Xoá mọi thứ VNKey đã học về cách bạn gõ?"
+        alert.informativeText =
+            "Hiện có \(UsageStore.model.wordCount) từ và \(UsageStore.model.pairTotal) cặp từ. Việc đoán từ sẽ chỉ còn dựa vào danh sách từ thông dụng có sẵn cho tới khi học lại."
+        alert.addButton(withTitle: "Xoá")
+        alert.addButton(withTitle: "Huỷ")
+        alert.beginSheetModal(for: window) { r in if r == .alertFirstButtonReturn { UsageStore.clear() } }
     }
 
     @objc private func pickTone(_ sender: NSSegmentedControl) {

@@ -5,7 +5,7 @@ import Testing
 /// Từ điển giả cho test (app thật dùng NSSpellChecker).
 final class FakeLexicon: Lexicon {
     let en: Set<String> = ["fix", "bug", "www", "cu3a", "nghi4a", "now", "how", "string", "window", "class", "meeting", "form", "pass", "as", "ass", "off", "see", "this", "fair", "data", "user", "test", "error"]
-    let vi: Set<String> = ["của", "tôi", "nơ", "hơ", "sê", "tiếng", "việt", "người", "được", "chào", "bạn", "thí", "tét", "á", "là", "sẽ"]
+    let vi: Set<String> = ["của", "tôi", "nơ", "hơ", "sê", "tiếng", "việt", "người", "được", "chào", "bạn", "thí", "tét", "á", "là", "sẽ", "ban"]
     static let shared = FakeLexicon()
     func isEnglish(_ w: String) -> Bool { en.contains(w) }
     func isVietnamese(_ w: String) -> Bool { vi.contains(w) }

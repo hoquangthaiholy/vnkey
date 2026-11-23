@@ -43,10 +43,12 @@ enum Snapshot {
         onboarding.window.orderOut(nil)
 
         // Nhãn cạnh con trỏ, phóng to 6 lần cho dễ nhìn.
-        for text in ["VN", "EN"] {
+        for (text, name) in [("VN", "vn"), ("EN", "en"), ("VN - Telex", "vn-telex")] {
             let pill = HUDPill(text: text)
+            let pillSize = pill.fittingPillSize
+            pill.setFrameSize(pillSize)
             let holder = NSWindow(
-                contentRect: NSRect(origin: NSPoint(x: -4000, y: -4000), size: HUDPill.size), styleMask: .borderless,
+                contentRect: NSRect(origin: NSPoint(x: -4000, y: -4000), size: pillSize), styleMask: .borderless,
                 backing: .buffered, defer: false)
             holder.contentView = pill
             holder.orderFrontRegardless()
@@ -54,7 +56,7 @@ enum Snapshot {
             pill.displayIfNeeded()
             if let rep = pill.bitmapImageRepForCachingDisplay(in: pill.bounds) {
                 pill.cacheDisplay(in: pill.bounds, to: rep)
-                let big = NSImage(size: NSSize(width: HUDPill.size.width * 6 + 48, height: HUDPill.size.height * 6 + 48), flipped: false) { r in
+                let big = NSImage(size: NSSize(width: pillSize.width * 6 + 48, height: pillSize.height * 6 + 48), flipped: false) { r in
                     (dark ? NSColor(white: 0.15, alpha: 1) : NSColor.white).setFill()
                     r.fill()
                     NSGraphicsContext.current?.imageInterpolation = .none
@@ -63,7 +65,7 @@ enum Snapshot {
                 }
                 if let tiff = big.tiffRepresentation, let out = NSBitmapImageRep(data: tiff) {
                     try? out.representation(using: .png, properties: [:])?.write(
-                        to: dir.appendingPathComponent("hud-\(text.lowercased())\(suffix).png"))
+                        to: dir.appendingPathComponent("hud-\(name)\(suffix).png"))
                 }
             }
             holder.orderOut(nil)

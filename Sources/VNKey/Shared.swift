@@ -12,6 +12,8 @@ enum Key {
     static let toggleHotkey = "toggleHotkey", restoreHotkey = "restoreHotkey", excludedApps = "excludedApps"
     static let debugLog = "debugLog"
     static let learnFromRetype = "learnFromRetype"
+    static let followInputSource = "followInputSource"
+    static let predict = "predict", predictUnmarked = "predictUnmarked", learnUsage = "learnUsage"
 
     static let registered: [String: Any] = [
         enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
@@ -19,7 +21,7 @@ enum Key {
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
         // Đang phát triển: ghi nhật ký đầy đủ theo mặc định (tắt được trong Cài đặt › Chung).
         debugLog: true,
-        learnFromRetype: true,
+        learnFromRetype: true, followInputSource: true, predict: true, predictUnmarked: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Terminal mặc định bắt đầu ở chế độ Anh; vẫn bật lại được bằng phím tắt.
         excludedApps: [

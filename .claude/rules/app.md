@@ -32,4 +32,9 @@ paths:
 - Cài đặt lưu trong UserDefaults với khoá trong `Key`; thêm khoá mới thì thêm cả vào `Key.registered`
   và `AppDelegate.applySettings`. Chỉ gán `engine.config` khi nó thật sự đổi (gán là xoá trạng thái gõ).
 - Giao diện AppKit thuần. Ô đánh dấu gắn UserDefaults qua Cocoa Bindings (`SettingsController.check`).
+- VNKey tạm ngưng (`KeyTap.suspended`, biểu tượng `StatusIcon.paused`) khi bàn phím hệ thống là bộ gõ của macOS
+  hoặc bố cục không phải Latin (mọi bố cục Latin đều được gõ, theo yêu cầu người dùng). Thông báo TIS có thể tới
+  trước khi giá trị kịp đổi nên phải đọc lại (`checkInputSource` sau 0,15 s, 0,6 s và mỗi 2 s);
+  luật nằm ở `InputSourcePolicy` (VNKeyCore), theo dõi qua thông báo TIS trong `AppDelegate.inputSourceChanged`.
+  Trong `KeyTap` dùng `active` (= `enabled && !suspended`) chứ không dùng `enabled` để quyết định có xử lý phím.
 - Mọi nhánh mới trong xử lý phím phải có dòng `Log.write`. Dùng `Log.show` cho chuỗi có ký tự điều khiển.

@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settings: SettingsController?
     private var onboarding: OnboardingController?
     private var lastSecure = false
+    private var inputSource = InputSourceState()
+    /// Tên bàn phím hệ thống đang chọn nếu vì nó mà VNKey tạm ngưng; nil = đang làm việc bình thường.
+    private var foreignSource: String? { inputSource.foreign }
     private var ticks = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -37,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "==== VNKey \(info?["CFBundleShortVersionString"] ?? "?") khởi động, macOS \(ProcessInfo.processInfo.operatingSystemVersionString), AX trusted=\(AXIsProcessTrusted())"
         )
         engine.lexicon = lexicon
+        UsageStore.load()
+        engine.context = UsageStore.model
         engine.onLearn = { [unowned self] in
             // Được gọi từ trong callback của event tap: lưu ở vòng lặp sau, vì ghi UserDefaults kéo theo
             // `applySettings` chạy ngay tại chỗ.
@@ -62,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             object: nil)
         NotificationCenter.default.addObserver(
             self, selector: #selector(defaultsChanged), name: UserDefaults.didChangeNotification, object: nil)
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(inputSourceChanged),
+            name: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil)
+        inputSourceChanged()
 
         if !tap.start() {
             // Chưa có quyền Trợ năng: mở cửa sổ hướng dẫn (thay cho hộp thoại hệ thống cụt lủn) và thử lại
@@ -74,9 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let watchdog = Timer(timeInterval: 2, repeats: true) { [unowned self] _ in
             if !tap.isRunning, tap.start() { Log.write("TAP đã khởi động (có quyền Trợ năng)") }
             tap.ensureEnabled()
+            checkInputSource()  // lưới an toàn nếu lỡ một thông báo đổi bàn phím
             onboarding?.update(ready: tap.isRunning)
             ticks += 1
             if ticks % 15 == 0 { tap.flushPerf() }  // tổng kết hiệu năng mỗi 30 giây nếu có gõ
+            if ticks % 60 == 0 { UsageStore.saveIfNeeded() }  // lưu thói quen gõ mỗi 2 phút nếu có thay đổi
             let secure = IsSecureEventInputEnabled()
             if secure != lastSecure {
                 lastSecure = secure
@@ -92,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         tap.flushPerf()
+        UsageStore.saveIfNeeded(wait: true)
         Log.write("==== VNKey thoát")
         Log.flush()
     }
@@ -100,6 +112,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showVNKeySettings()
         return false
+    }
+
+    /// macOS báo bàn phím hệ thống vừa đổi. Đọc ngay, rồi đọc lại sau một nhịp: thông báo đôi khi tới trước khi
+    /// giá trị "bàn phím hiện tại" kịp đổi, và nếu chỉ đọc một lần thì trạng thái kẹt ở bàn phím cũ.
+    @objc private func inputSourceChanged() {
+        checkInputSource()
+        for delay in [0.15, 0.6] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.checkInputSource() }
+        }
+    }
+
+    /// Tạm ngưng nếu bàn phím hệ thống không phải một bố cục chữ Latin. Gọi lại bao nhiêu lần cũng được: chỉ
+    /// khi trạng thái thật sự đổi mới đụng tới engine và giao diện.
+    private func checkInputSource() {
+        var foreign: String?
+        if defaults.bool(forKey: Key.followInputSource), let src = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() {
+            func value<T>(_ key: CFString) -> T? {
+                guard let p = TISGetInputSourceProperty(src, key) else { return nil }
+                return Unmanaged<AnyObject>.fromOpaque(p).takeUnretainedValue() as? T
+            }
+            let type: String = value(kTISPropertyInputSourceType) ?? ""
+            let ascii: Bool = value(kTISPropertyInputSourceIsASCIICapable) ?? false
+            if !InputSourcePolicy.allowsTyping(
+                isKeyboardLayout: type == (kTISTypeKeyboardLayout as String), isASCIICapable: ascii)
+            {
+                foreign = value(kTISPropertyLocalizedName) ?? "bộ gõ khác"
+            }
+        }
+        let wasSuspended = inputSource.suspended
+        guard inputSource.update(foreign: foreign) else { return }
+        tap.suspended = foreign != nil
+        if wasSuspended == inputSource.suspended {  // chỉ đổi tên bàn phím (Telex -> Zhuyin): cập nhật nhãn
+            Log.write("INPUT SOURCE \(foreign ?? "?"): vẫn tạm ngưng")
+            refreshTitle()
+            return
+        }
+        engine.reset()
+        tap.invalidateFocus()
+        Log.write("INPUT SOURCE \(foreign.map { "\($0): tạm ngưng" } ?? "bố cục Latin: hoạt động")")
+        refreshTitle()
+        // Vừa hoạt động lại: nhắc chế độ và kiểu gõ đang dùng, sau một nhịp để việc đổi bàn phím kịp xong.
+        if foreign == nil, tap.isRunning, defaults.bool(forKey: Key.showHUD) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                guard let self, self.foreignSource == nil else { return }
+                self.hud.show(self.modeLabel)
+            }
+        }
+    }
+
+    /// Nhãn hiện cạnh con trỏ mỗi khi chế độ đổi: "VN - Telex" / "VN - VNI"; ở chế độ Anh thì kiểu gõ không có
+    /// nghĩa nên chỉ là "EN".
+    private var modeLabel: String {
+        guard tap.enabled else { return "EN" }
+        return "VN - " + (defaults.string(forKey: Key.method) == "vni" ? "VNI" : "Telex")
     }
 
     /// Chuyển cài đặt của bản cũ sang dạng mới (chạy một lần, không làm gì nếu đã chuyển).
@@ -170,6 +236,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.autoCapitalize = defaults.bool(forKey: Key.autoCapitalize)
         c.tidyPunctuation = defaults.bool(forKey: Key.tidyPunctuation)
         c.learnFromRetype = defaults.bool(forKey: Key.learnFromRetype)
+        c.predict = defaults.bool(forKey: Key.predict)
+        c.predictUnmarked = defaults.bool(forKey: Key.predictUnmarked)
+        UsageStore.model.recording = defaults.bool(forKey: Key.learnUsage)
         c.macros = (defaults.dictionary(forKey: Key.macros) as? [String: String]) ?? [:]
         // Gán config sẽ xoá trạng thái đang gõ: chỉ gán khi thật sự đổi.
         if engine.config != c {
@@ -188,6 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if engine.preferRaw != raw { engine.preferRaw = raw }
         if engine.preferVN != vn { engine.preferVN = vn }
 
+        checkInputSource()  // công tắc "tạm ngưng theo bàn phím hệ thống" có thể vừa đổi
         tap.fixAutocomplete = defaults.bool(forKey: Key.fixBrowser)
         tap.toggleHotkey = Hotkey(string: defaults.string(forKey: Key.toggleHotkey) ?? "") ?? .defaultToggle
         tap.restoreHotkey = Hotkey(string: defaults.string(forKey: Key.restoreHotkey) ?? "") ?? .defaultRestore
@@ -204,6 +274,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func setEnabled(_ on: Bool, announce: Bool) {
+        if foreignSource != nil {  // đang tạm ngưng: phím tắt bật/tắt không có tác dụng
+            Log.write("MODE giữ nguyên: đang tạm ngưng vì bàn phím hệ thống")
+            return
+        }
         tap.enabled = on
         engine.reset()
         tap.invalidateFocus()
@@ -218,20 +292,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         refreshTitle()
-        if announce, defaults.bool(forKey: Key.showHUD) { hud.show(on ? "VN" : "EN") }
+        if announce, defaults.bool(forKey: Key.showHUD) { hud.show(modeLabel) }
     }
 
     /// Thanh menu: biểu tượng V / E (đều là ô tô đặc) theo chế độ, kèm ⚠︎ khi thiếu quyền, 🔒 khi ô bảo mật.
     private func refreshTitle() {
         guard let button = status.button else { return }
-        let image = tap.enabled ? StatusIcon.vn : StatusIcon.en
+        let image = foreignSource != nil ? StatusIcon.paused : tap.enabled ? StatusIcon.vn : StatusIcon.en
         var title = "", tip = tap.enabled ? "VNKey: đang gõ tiếng Việt" : "VNKey: đang gõ tiếng Anh"
         if !tap.isRunning {
             title = " ⚠︎"; tip = "VNKey: chưa có quyền Trợ năng"
+        } else if let source = foreignSource {
+            tip = "VNKey: tạm ngưng vì bàn phím hệ thống đang là “\(source)”"
         } else if IsSecureEventInputEnabled() {
             title = " 🔒"; tip = "VNKey: tạm ngưng vì đang ở ô nhập bảo mật"
         }
         if button.image !== image { button.image = image }
+
         if button.title != title {
             button.title = title
             button.imagePosition = title.isEmpty ? .imageOnly : .imageLeft
@@ -250,13 +327,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tap.frontApp = app?.bundleIdentifier ?? ""
         tap.enabled = state(for: tap.frontApp)
         Log.write("APP \(tap.frontApp) -> \(tap.enabled ? "VN" : "EN")")
+        inputSourceChanged()  // macOS có thể đổi bàn phím theo từng ứng dụng/tài liệu
         refreshTitle()
-        // Chế độ tự đổi theo ứng dụng: báo bằng nhãn, sau một nhịp để ô nhập của ứng dụng mới kịp nhận tiêu điểm.
-        if tap.enabled != before, tap.isRunning, defaults.bool(forKey: Key.showHUD), tap.frontApp != Bundle.main.bundleIdentifier {
+        // Chế độ tự đổi theo ứng dụng: báo bằng nhãn (không báo khi đang tạm ngưng), sau một nhịp để ô nhập của ứng dụng mới kịp nhận tiêu điểm.
+        if tap.enabled != before, tap.isRunning, foreignSource == nil, defaults.bool(forKey: Key.showHUD), tap.frontApp != Bundle.main.bundleIdentifier {
             let app = tap.frontApp, on = tap.enabled
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 guard let self, self.tap.frontApp == app, self.tap.enabled == on else { return }
-                self.hud.show(on ? "VN" : "EN")
+                self.hud.show(modeLabel)
             }
         }
     }
@@ -269,13 +347,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !tap.isRunning {
             menu.addItem(item("Cấp quyền Trợ năng để bắt đầu gõ…", #selector(showOnboarding), symbol: "exclamationmark.triangle"))
             menu.addItem(.separator())
+        } else if let source = foreignSource {
+            let i = item("Tạm ngưng: bàn phím hệ thống là “\(source)”", nil, symbol: "keyboard")
+            i.isEnabled = false
+            menu.addItem(i)
+            menu.addItem(.separator())
         } else if IsSecureEventInputEnabled() {
             let i = item("Tạm ngưng: đang ở ô nhập bảo mật", nil, symbol: "lock")
             i.isEnabled = false
             menu.addItem(i)
             menu.addItem(.separator())
         }
-        let toggle = item("Gõ tiếng Việt", #selector(toggleEnabled), on: tap.enabled)
+        let toggle = item("Gõ tiếng Việt", foreignSource == nil ? #selector(toggleEnabled) : nil, on: tap.enabled)
         toggle.attributedTitle = titled("Gõ tiếng Việt", shortcut: tap.toggleHotkey.label)
         menu.addItem(toggle)
         // Chỉ để nhắc phím tắt: thao tác này cần con trỏ đang ở ngay sau từ, nên không bấm từ menu được.

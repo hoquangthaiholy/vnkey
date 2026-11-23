@@ -37,6 +37,18 @@ paths:
   (phím [ ] { } thành ơ ư Ơ Ư, mặc định tắt). Phím ngoặc chỉ là phím chữ khi từ chưa nguyên văn và không ở ngữ
   cảnh code; không ghép được vào âm tiết thì nó ngắt từ như dấu câu thường. Bộ `TelexOptions` giữ các luật này.
   Người dùng đã từ chối thêm kiểu gõ "Telex đơn giản 1/2" của OpenKey (2026-11-23): hai công tắc là đủ.
+- Đoán từ gõ thiếu dấu (`Engine.predict`, `Predictor`, `Config.predict` / `predictUnmarked`): chạy trong
+  `breakWord` sau `transpositionFix`. Nguyên tắc không được phá:
+  - chỉ THÊM dấu (đ, mũ/móc, thanh), không đổi chữ cái, không bỏ dấu đã gõ;
+  - KHÔNG BAO GIỜ thay một chữ mà từ điển coi là từ tiếng Việt đúng ("dược", "ngươi", "ban"), dù có từ thông
+    dụng hơn. Từ điển macOS khá dễ dãi ("tiêng" được coi là đúng) nên có từ sẽ không được đoán: chấp nhận;
+  - không đoán từ tiếng Anh, từ đã nhớ, ngữ cảnh code, từ đã gõ lặp huỷ dấu;
+  - từ chưa có dấu nào chỉ đoán khi một trong ba từ vừa gõ có dấu và `englishStreak == 0`, và chỉ bằng tầng 1–2;
+  - chọn theo tầng: cặp (từ trước → từ) người dùng đã gõ (`ContextModel`) → độ thông dụng (`CommonWords` + số
+    lần người dùng gõ) → `Lexicon.rank` (gợi ý của macOS, 5–15 ms, có bộ đệm) → chỉ một ứng viên. Tầng 1–2 đòi
+    hạng nhất ≥ 2 lần hạng nhì; không quyết được thì giữ nguyên.
+  Từ đã đoán lưu với `resumable = false`; phím "Đổi từ vừa gõ" trả lại phím gốc và nhớ vào `preferRaw`.
+  `UsageModel` (VNEngine, thuần Foundation) là bảng đếm có giới hạn; app lưu nó qua `UsageStore`.
 - Tự học khi gõ lại (`Config.learnFromRetype`): chỉ khi người dùng xoá ĐÚNG từ vừa gõ gần nhất (chưa gõ chữ nào
   khác sau nó, `freshBreak`), xoá HẾT từ đó mà không xoá lan sang chữ đứng trước, rồi gõ lại đúng chuỗi phím
   (phân biệt hoa/thường). Điều kiện lỏng hơn sẽ học nhầm khi người dùng chỉ giữ phím xoá rồi gõ lại. Việc nhớ

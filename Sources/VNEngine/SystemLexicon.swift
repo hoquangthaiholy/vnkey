@@ -22,6 +22,27 @@ public final class SystemLexicon: Lexicon {
         return ok
     }
 
+    private var ranks: [String: [String]] = [:]
+
+    /// Gợi ý của trình kiểm tra chính tả cho `typed` đặt trong câu (nó có dùng các từ đứng trước). Mỗi lần hỏi
+    /// mất khoảng 5–15 ms nên kết quả được nhớ lại; engine chỉ hỏi khi các cách chọn khác không quyết được.
+    public func rank(_ candidates: [String], after context: [String], typed: String) -> String? {
+        guard hasVietnamese else { return nil }
+        let sentence = (context + [typed]).joined(separator: " ")
+        let guesses: [String]
+        if let hit = ranks[sentence] {
+            guesses = hit
+        } else {
+            let ns = sentence as NSString
+            let range = NSRange(location: ns.length - (typed as NSString).length, length: (typed as NSString).length)
+            guesses = (checker.guesses(forWordRange: range, in: sentence, language: "vi", inSpellDocumentWithTag: 0) ?? [])
+                .map { $0.lowercased() }
+            if ranks.count > 500 { ranks.removeAll() }
+            ranks[sentence] = guesses
+        }
+        return guesses.first { candidates.contains($0) }
+    }
+
     public func isEnglish(_ word: String) -> Bool { known(word, "en") }
     /// Không có từ điển Việt thì coi như hợp lệ (không tự khôi phục từ mơ hồ).
     public func isVietnamese(_ word: String) -> Bool { hasVietnamese ? known(word, "vi") : true }

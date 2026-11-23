@@ -33,6 +33,10 @@ public struct Config: Sendable, Equatable {
     public var tidyPunctuation = false
     /// Xoá ngay từ vừa gõ rồi gõ lại đúng chuỗi phím đó: đổi sang dạng còn lại (phím gốc ↔ tiếng Việt) và nhớ.
     public var learnFromRetype = true
+    /// Đoán từ định gõ khi từ có dấu nhưng chưa thành từ tiếng Việt đúng (duojc, đươc -> được). Cần từ điển.
+    public var predict = true
+    /// Đoán cả từ chưa có dấu nào (duoc, khong), chỉ khi một trong ba từ vừa gõ là tiếng Việt có dấu.
+    public var predictUnmarked = true
     public init() {}
 }
 
@@ -40,6 +44,13 @@ public struct Config: Sendable, Equatable {
 public protocol Lexicon: AnyObject {
     func isEnglish(_ word: String) -> Bool
     func isVietnamese(_ word: String) -> Bool
+    /// Trong các ứng viên (chữ thường), từ nào hợp nhất với chữ đang hiện `typed` đứng sau các từ `context`;
+    /// nil nếu không có ý kiến. Có thể chậm (vài ms): engine chỉ hỏi khi các cách chọn khác không quyết được.
+    func rank(_ candidates: [String], after context: [String], typed: String) -> String?
+}
+
+extension Lexicon {
+    public func rank(_ candidates: [String], after context: [String], typed: String) -> String? { nil }
 }
 
 /// Việc cần làm trên màn hình sau một phím.
@@ -62,6 +73,10 @@ public struct Output: Equatable, Sendable {
 public final class Engine {
     public var config: Config { didSet { reset() } }
     public weak var lexicon: Lexicon?
+    /// Thói quen gõ của người dùng, để chọn từ theo ngữ cảnh khi đoán. Không có thì chỉ dùng danh sách dựng sẵn.
+    public var context: ContextModel?
+    /// Ghi chú về lần đoán từ ở phím vừa xử lý (cho nhật ký); rỗng nếu không đoán.
+    public private(set) var note = ""
 
     /// Từ người dùng muốn giữ nguyên phím gốc / giữ tiếng Việt (khoá = phím gốc viết thường).
     public var preferRaw: Set<String> = []
@@ -139,6 +154,7 @@ public final class Engine {
     // MARK: - Gõ
 
     public func type(_ ch: Character) -> Output {
+        note = ""
         var fed = ch
         if comp.isEmpty, ch.isASCII, ch.isLetter {  // bắt đầu một từ mới
             comp = Composer(config)
@@ -197,13 +213,22 @@ public final class Engine {
         // Gõ lại đúng từ vừa xoá: nhớ dạng còn lại TRƯỚC khi phân xử, để lần gõ này đã ra dạng đó.
         if let p = pending, p.typed == typed { learn(raw: typed, wantRaw: p.wantRaw) }
         if let fixed = transpositionFix() { comp = fixed }
+        let glued = config.codeAware && config.autoRestore && (ch == "_" || ch == "@")
+        let predicted = glued ? nil : predict()
+        if let predicted { comp = predicted }
         let composed = comp.shown
         // Từ dính liền "_" hoặc "@" phía sau là tên biến / địa chỉ: giữ phím gốc.
-        let gluedCode = config.codeAware && config.autoRestore && (ch == "_" || ch == "@")
-        var final = gluedCode ? comp.rawString : decide()
-        var resumable = true
+        var final = glued ? comp.rawString : decide()
+        // Từ đã đoán không còn khớp từng phím với từng chữ: quay lại sửa thì coi như chữ cố định.
+        var resumable = predicted == nil
         if let m = expansion(for: final) { final = m; resumable = false }
         trackLanguage(final: final, composed: composed)
+        // Ghi nhận từ tiếng Việt người dùng tự gõ đúng (không tính từ do VNKey đoán hay bung ra).
+        if let model = context, predicted == nil, resumable, final == composed, final.contains(where: { !$0.isASCII }),
+            lexicon?.isVietnamese(final.lowercased()) == true
+        {
+            model.record(final.lowercased(), after: previousWord())
+        }
 
         var out = Output.pass
         if final != screen {
@@ -216,7 +241,7 @@ public final class Engine {
                 typed: typed))
         if history.count > historyLimit { history.removeFirst() }
         if hard { history = [] }
-        freshBreak = !hard && resumable && (composed != comp.rawString || typed != comp.rawString)
+        freshBreak = !hard && (resumable || predicted != nil) && (composed != comp.rawString || typed != comp.rawString)
         comp = Composer(config); screen = ""
         return out
     }
@@ -318,6 +343,70 @@ public final class Engine {
             found = c
         }
         return found
+    }
+
+    /// Từ đứng ngay trước từ đang gõ trong cùng một cụm (cách nhau đúng một dấu cách), chữ thường.
+    private func previousWord() -> String? {
+        guard let e = history.last, e.sep == " " else { return nil }
+        return e.final.lowercased()
+    }
+
+    /// Đoán từ định gõ khi từ đang hiện không phải tiếng Việt đúng vì thiếu dấu. Xem `Predictor` về ứng viên;
+    /// việc chọn đi qua bốn tầng, tầng nào quyết được thì dừng: ngữ cảnh người dùng đã gõ -> độ thông dụng ->
+    /// gợi ý của từ điển hệ thống -> chỉ có một ứng viên. Không quyết được thì trả nil (giữ hành vi cũ).
+    private func predict() -> Composer? {
+        guard config.predict, config.autoRestore, let lex = lexicon else { return nil }
+        guard !comp.isLiteral, comp.hasVowel, comp.raw.count >= 2, !comp.cancelled, !comp.keepComposed,
+            !comp.codeLiteral
+        else { return nil }
+        let key = comp.rawString.lowercased(), shown = comp.shown.lowercased()
+        guard !preferRaw.contains(key), !preferVN.contains(key), !Engine.builtinEnglish.contains(key),
+            !(comp.lateBar && Engine.lateBarEnglish.contains(key)), !isEnglish(key), expansion(for: comp.shown) == nil,
+            !lex.isVietnamese(shown)
+        else { return nil }
+
+        let marked = comp.markCount > 0 || comp.tone != .none
+        let prev = previousWord()
+        if !marked {
+            // Từ chưa có dấu nào chỉ được đoán khi rõ là đang gõ tiếng Việt: một trong ba từ vừa gõ có dấu,
+            // và không đang ở giữa một mạch tiếng Anh.
+            guard config.predictUnmarked, englishStreak == 0,
+                history.suffix(3).contains(where: { $0.final.contains(where: { !$0.isASCII }) })
+            else { return nil }
+        }
+        var seen = Set<String>()
+        let options = Predictor.candidates(for: comp, teen: false).compactMap { c -> (word: String, comp: Composer)? in
+            let w = c.shown.lowercased()
+            return seen.insert(w).inserted && lex.isVietnamese(w) ? (w, c) : nil
+        }
+        guard !options.isEmpty else { return nil }
+
+        /// Ứng viên đứng đầu nếu nó hơn hẳn ứng viên thứ hai (ít nhất gấp đôi).
+        func clearWinner(_ score: (String) -> Int, atLeast: Int) -> Int? {
+            let scores = options.map { score($0.word) }
+            guard let best = scores.max(), best >= atLeast else { return nil }
+            let i = scores.firstIndex(of: best)!
+            let second = scores.enumerated().filter { $0.offset != i }.map(\.element).max() ?? 0
+            return best >= 2 * second ? i : nil
+        }
+        var pick: Int?, tier = 0
+        if let model = context, let prev, let i = clearWinner({ model.pairCount($0, after: prev) }, atLeast: 2) {
+            pick = i; tier = 1
+        } else if let i = clearWinner({ (CommonWords.weight[$0] ?? 0) + 10 * (context?.count($0) ?? 0) }, atLeast: 1) {
+            pick = i; tier = 2
+        } else if marked {
+            let before = history.suffix(3).map(\.final)
+            if options.count > 1, let w = lex.rank(options.map(\.word), after: before, typed: comp.shown),
+                let i = options.firstIndex(where: { $0.word == w })
+            {
+                pick = i; tier = 3
+            } else if options.count == 1 {
+                pick = 0; tier = 4
+            }
+        }
+        guard let pick else { return nil }
+        note = "đoán \(comp.shown) -> \(options[pick].comp.shown) (tầng \(tier), \(options.count) ứng viên)"
+        return options[pick].comp
     }
 
     private func trackLanguage(final: String, composed: String) {

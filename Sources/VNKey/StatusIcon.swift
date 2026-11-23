@@ -5,7 +5,16 @@ import AppKit
 enum StatusIcon {
     static let vn = make("V")
     static let en = make("E")
-    static var all: [(String, NSImage)] { [("vn", vn), ("en", en)] }
+    /// Đang tạm ngưng theo bàn phím hệ thống: cùng hình chữ V nhưng mờ hẳn (không còn nghĩa VN hay EN).
+    static let paused: NSImage = {
+        let image = NSImage(size: vn.size, flipped: false) { rect in
+            vn.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 0.32)
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+    static var all: [(String, NSImage)] { [("vn", vn), ("en", en), ("paused", paused)] }
 
     private static func make(_ letter: Character) -> NSImage {
         let size = NSSize(width: 21, height: 16)
