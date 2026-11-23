@@ -31,8 +31,9 @@ and English without switching modes, completes words with missing diacritics, an
 
 ## Cài đặt
 
-1. Tải `VNKey_<phiên bản>_universal.dmg` ở trang [Releases](https://github.com/hoquangthaiholy/vnkey/releases/latest),
-   kéo VNKey vào thư mục Ứng dụng rồi mở.
+1. Tải VNKey ở trang [Releases](https://github.com/hoquangthaiholy/vnkey/releases/latest), kéo vào thư mục Ứng dụng
+   rồi mở. Có hai bản: `VNKey_<phiên bản>_universal.dmg` chạy trên mọi máy Mac (Apple silicon và Intel), và
+   `VNKey_<phiên bản>_arm64.dmg` nhẹ hơn, chỉ dành cho máy Apple silicon.
 2. Làm theo cửa sổ hướng dẫn để bật quyền **Trợ năng** (Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng).
    VNKey cần quyền này để đọc phím bạn gõ và gửi lại chữ đã có dấu.
 3. Biểu tượng **V** / **E** trên thanh menu cho biết đang gõ tiếng Việt hay tiếng Anh. Nhấn `⌃⇧` rồi thả để đổi;

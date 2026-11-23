@@ -21,6 +21,7 @@ Svelte) không còn được phát triển; mã nguồn và các bản phát hà
 - **Cửa sổ "Có gì mới"**: xem nhật ký thay đổi ngay trong app.
 - Cửa sổ hướng dẫn cấp quyền Trợ năng; thẻ Giới thiệu có liên kết tới trang web và mã nguồn.
 - Nhật ký gỡ lỗi mặc định tắt.
+- Bản phát hành có hai gói: `universal` (Apple silicon và Intel) và `arm64` (chỉ Apple silicon, nhẹ hơn).
 
 ### Thay đổi so với 1.x
 - Không còn bản Windows và Linux.

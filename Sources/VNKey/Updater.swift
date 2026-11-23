@@ -184,6 +184,15 @@ enum Installer {
         else {
             return .failure(Failure(message: L("Chữ ký của bản tải về không hợp lệ.", "The download's signature is not valid.")))
         }
+        // Bản tải phải chạy được trên máy này (bản chỉ dành cho Apple silicon không cài lên máy Intel).
+        #if arch(arm64)
+            let native = NSBundleExecutableArchitectureARM64
+        #else
+            let native = NSBundleExecutableArchitectureX86_64
+        #endif
+        guard Bundle(url: fresh)?.executableArchitectures?.contains(NSNumber(value: native)) == true else {
+            return .failure(Failure(message: L("Bản tải về không chạy được trên máy này.", "The download cannot run on this Mac.")))
+        }
         let plist = NSDictionary(contentsOf: fresh.appendingPathComponent("Contents/Info.plist"))
         let candidate: UpdateCheck.Identity = (
             plist?["CFBundleIdentifier"] as? String ?? "", team(of: code), plist?["CFBundleShortVersionString"] as? String ?? ""

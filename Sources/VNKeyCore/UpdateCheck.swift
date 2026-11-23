@@ -63,14 +63,19 @@ public enum UpdateCheck {
         let version = tag.hasPrefix("v") || tag.hasPrefix("V") ? String(tag.dropFirst()) : tag
         var release = Release(version: version, page: page, notes: (o["body"] as? String) ?? "")
         // Tệp để tự cập nhật: ZIP, tải qua https từ chính github.com (liên kết lạ lấy từ mạng thì bỏ qua).
+        // Có nhiều tệp ZIP (universal, arm64) thì lấy bản universal vì nó chạy được trên mọi máy.
+        var universal = false
         for asset in (o["assets"] as? [[String: Any]]) ?? [] {
             guard let name = asset["name"] as? String, name.lowercased().hasSuffix(".zip"),
                 let link = asset["browser_download_url"] as? String, let url = URL(string: link),
                 url.scheme == "https", url.host == "github.com"
             else { continue }
-            release.download = url
-            release.downloadSize = (asset["size"] as? Int) ?? 0
-            break
+            let isUniversal = name.lowercased().contains("universal")
+            if release.download == nil || (isUniversal && !universal) {
+                release.download = url
+                release.downloadSize = (asset["size"] as? Int) ?? 0
+                universal = isUniversal
+            }
         }
         return release
     }

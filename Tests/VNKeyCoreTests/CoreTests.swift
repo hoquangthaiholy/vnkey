@@ -629,6 +629,23 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(r.downloadSize == 830_000)
     }
 
+    /// Bản phát hành có cả tệp universal lẫn tệp riêng cho Apple silicon: tự cập nhật luôn lấy bản universal
+    /// (chạy được trên mọi máy), bất kể thứ tự GitHub trả về.
+    @Test func prefersTheUniversalZip() throws {
+        func asset(_ n: String) -> String {
+            #"{"name":"\#(n)","browser_download_url":"https://github.com/o/r/releases/download/2.1.0/\#(n)","size":5}"#
+        }
+        let names = ["VNKey_2.1.0_arm64.dmg", "VNKey_2.1.0_arm64.zip", "VNKey_2.1.0_universal.dmg", "VNKey_2.1.0_universal.zip"]
+        for order in [names, names.reversed()] {
+            let j = #"{"tag_name":"2.1.0","html_url":"https://github.com/o/r/releases/tag/2.1.0","assets":[\#(order.map(asset).joined(separator: ","))]}"#
+            let r = try #require(UpdateCheck.release(from: Data(j.utf8)))
+            #expect(r.download?.lastPathComponent == "VNKey_2.1.0_universal.zip")
+        }
+        // Chỉ có bản arm64: vẫn dùng được (máy Intel sẽ bị bước kiểm tra kiến trúc lúc cài chặn lại).
+        let only = #"{"tag_name":"2.1.0","html_url":"https://github.com/o/r/releases/tag/2.1.0","assets":[\#(asset("VNKey_2.1.0_arm64.zip"))]}"#
+        #expect(try #require(UpdateCheck.release(from: Data(only.utf8))).download?.lastPathComponent == "VNKey_2.1.0_arm64.zip")
+    }
+
     @Test func refusesAssetsFromElsewhere() throws {
         for bad in [
             "http://github.com/o/r/releases/download/2.1.0/VNKey.zip",  // không phải https

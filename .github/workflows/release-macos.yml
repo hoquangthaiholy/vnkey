@@ -65,46 +65,50 @@ jobs:
           echo "Using signing identity: $IDENTITY"
           echo "VNKEY_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
-      - name: Build and sign (universal)
+      # Hai biến thể: "universal" (Apple silicon + Intel) và "arm64" (chỉ Apple silicon, nhẹ hơn).
+      # Mỗi biến thể được dựng, ký, công chứng, ghim phiếu công chứng rồi đóng thành ZIP và DMG.
+      - name: Build, sign, notarize, package
         env:
           VNKEY_VERSION: ${{ steps.version.outputs.version }}
           VNKEY_BUILD: ${{ github.run_number }}
           VNKEY_BUNDLE_ID: com.hoquangthaiholy.vnkey
-          VNKEY_UNIVERSAL: '1'
-        run: |
-          ./Scripts/build-app.sh
-          codesign --verify --strict --verbose=2 build/VNKey.app
-          lipo -archs build/VNKey.app/Contents/MacOS/VNKey
-
-      - name: Notarize and staple
-        env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          ditto -c -k --keepParent build/VNKey.app build/VNKey-notarize.zip
-          xcrun notarytool submit build/VNKey-notarize.zip \
-            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
-          xcrun stapler staple build/VNKey.app
-          rm build/VNKey-notarize.zip
+          set -euo pipefail
+          mkdir -p dist
+          for VARIANT in universal arm64; do
+            echo "::group::Build $VARIANT"
+            if [ "$VARIANT" = "universal" ]; then export VNKEY_UNIVERSAL=1; else export VNKEY_UNIVERSAL=0; fi
+            ./Scripts/build-app.sh
+            codesign --verify --strict --verbose=2 build/VNKey.app
+            ARCHS=$(lipo -archs build/VNKey.app/Contents/MacOS/VNKey)
+            echo "Architectures: $ARCHS"
+            if [ "$VARIANT" = "arm64" ] && [ "$ARCHS" != "arm64" ]; then
+              echo "::error::arm64 build contains: $ARCHS" >&2; exit 1
+            fi
+            echo "::endgroup::"
 
-      - name: Package
-        id: package
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          ZIP="build/VNKey_${VERSION}_universal.zip"
-          DMG="build/VNKey_${VERSION}_universal.dmg"
-          ditto -c -k --keepParent build/VNKey.app "$ZIP"
-          mkdir -p build/dmg
-          cp -R build/VNKey.app build/dmg/
-          ln -s /Applications build/dmg/Applications
-          hdiutil create -volname "VNKey ${VERSION}" -srcfolder build/dmg -ov -format UDZO "$DMG"
-          codesign --force --timestamp --sign "$VNKEY_SIGN_IDENTITY" "$DMG"
-          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "dmg=$DMG" >> "$GITHUB_OUTPUT"
+            echo "::group::Notarize $VARIANT"
+            ditto -c -k --keepParent build/VNKey.app build/notarize.zip
+            xcrun notarytool submit build/notarize.zip \
+              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            xcrun stapler staple build/VNKey.app
+            rm build/notarize.zip
+            echo "::endgroup::"
+
+            NAME="VNKey_${VNKEY_VERSION}_${VARIANT}"
+            ditto -c -k --keepParent build/VNKey.app "dist/$NAME.zip"
+            rm -rf build/dmg && mkdir -p build/dmg
+            cp -R build/VNKey.app build/dmg/
+            ln -s /Applications build/dmg/Applications
+            hdiutil create -volname "VNKey ${VNKEY_VERSION}" -srcfolder build/dmg -ov -format UDZO "dist/$NAME.dmg"
+            codesign --force --timestamp --sign "$VNKEY_SIGN_IDENTITY" "dist/$NAME.dmg"
+          done
+          ls -l dist
 
       - name: Upload to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ steps.version.outputs.tag }}" "${{ steps.package.outputs.dmg }}" "${{ steps.package.outputs.zip }}" --clobber
+        run: gh release upload "${{ steps.version.outputs.tag }}" dist/*.dmg dist/*.zip --clobber
