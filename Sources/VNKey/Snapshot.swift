@@ -19,9 +19,10 @@ enum Snapshot {
         window.orderFrontRegardless()
         settings.reload()
         for i in 0..<settings.tabCount {
-            settings.selectTab(i, animated: true)
-            // Đợi chuyển động đổi thẻ chạy xong: ảnh phản ánh đúng trạng thái cuối mà người dùng thấy.
-            RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+            // Không dùng chuyển động: khi màn hình đang ngủ hoặc bị khoá, macOS không chạy chuyển động đổi
+            // khung cửa sổ, và mọi thẻ sẽ bị chụp ở chiều cao của thẻ đầu.
+            settings.selectTab(i, animated: false)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
             window.layoutIfNeeded()
             window.displayIfNeeded()
             write(settings.contentView, dark: dark, to: dir.appendingPathComponent("settings-\(i + 1)\(suffix).png"))

@@ -1,6 +1,9 @@
 import Foundation
 
-public enum Method: String, Sendable { case telex, vni }
+public enum Method: String, Sendable, CaseIterable {
+    case telex, vni
+    public var isTelex: Bool { self == .telex }
+}
 public enum Tone: Int, Sendable { case none = 0, sac, huyen, hoi, nga, nang }
 
 enum Mark { case none, hat, breve, horn, bar }
@@ -11,6 +14,8 @@ struct Letter {
     var upper = false
     /// Chữ "ư" sinh ra từ phím w đứng một mình.
     var fromW = false
+    /// Chữ ơ / ư sinh ra từ phím ngoặc vuông (giữ lại phím đã gõ để gõ lặp thì trả về đúng dấu đó).
+    var fromBracket: Character? = nil
 
     var isVowel: Bool {
         switch base {
@@ -99,7 +104,8 @@ struct Composer {
     private var prefixChecked = false
 
     init(_ c: Config) {
-        method = c.method; modernTone = c.modernTone; standaloneW = c.standaloneW; teen = c.teenInitials
+        method = c.method; modernTone = c.modernTone; teen = c.teenInitials
+        standaloneW = c.standaloneW && c.method.isTelex
     }
 
     var isEmpty: Bool { raw.isEmpty }
@@ -128,7 +134,7 @@ struct Composer {
             return false
         }
         normalizeUO()
-        if method == .telex, raw.count >= 3, raw.allSatisfy({ $0 == "w" || $0 == "W" }) {
+        if method.isTelex, raw.count >= 3, raw.allSatisfy({ $0 == "w" || $0 == "W" }) {
             override = rawString  // "www": muốn chữ w thật, không phải "wư"
             return true
         }
@@ -205,6 +211,8 @@ struct Composer {
         switch method {
         case .telex:
             switch k {
+            case "[", "{": return attempt(k, upper, fallbackLetter: false) { $0.doBracket("o", k) }
+            case "]", "}": return attempt(k, upper, fallbackLetter: false) { $0.doBracket("u", k) }
             case "s": return doTone(.sac, k, upper)
             case "f": return doTone(.huyen, k, upper)
             case "r": return doTone(.hoi, k, upper)
@@ -283,7 +291,7 @@ struct Composer {
     }
 
     private mutating func doTone(_ t: Tone, _ k: Character, _ upper: Bool) -> Bool {
-        let isLetterKey = method == .telex
+        let isLetterKey = method.isTelex
         guard let c = cluster() else {
             if isLetterKey { appendLetter(k, upper) }
             return isLetterKey
@@ -332,6 +340,19 @@ struct Composer {
         if letters.count != 1 { lateBar = true }
         letters[0].mark = .bar
         owner.append(0)
+        return .applied
+    }
+
+    /// Phím [ hoặc ] (Telex, khi bật `Config.bracketKeys`): thêm chữ ơ / ư; { } cho chữ hoa. Gõ lặp thì trả lại chính dấu ngoặc.
+    private mutating func doBracket(_ base: Character, _ k: Character) -> Outcome {
+        if let last = letters.last, last.fromBracket == k {
+            letters[letters.count - 1] = Letter(base: k)
+            cancelled = true
+            owner.append(letters.count - 1)
+            return .cancelled
+        }
+        letters.append(Letter(base: base, mark: .horn, upper: k == "{" || k == "}", fromBracket: k))
+        owner.append(letters.count - 1)
         return .applied
     }
 

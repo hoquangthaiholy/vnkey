@@ -515,3 +515,26 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(ListFormat.skippedMacroLines(in: "vn = Việt Nam\nsai dòng\n= thiếu khoá\nthiếu vế =") == 3)
     }
 }
+
+@Suite struct TableRules {
+    @Test func macroRowsAreValidated() {
+        let r = ListFormat.macros(fromRows: [
+            ["VN", " Việt Nam "], ["", ""], ["hn", ""], ["", "thiếu khoá"], ["a b", "có dấu cách"], ["x1", "có số"],
+            ["đc", "được"], ["vn", "Việt Nam 2"],
+        ])
+        #expect(r.macros == ["vn": "Việt Nam 2", "đc": "được"])
+        #expect(r.skipped == 4)
+    }
+
+    @Test func macroRowsRoundTrip() {
+        let m = ["vn": "Việt Nam", "hn": "Hà Nội"]
+        #expect(ListFormat.macros(fromRows: ListFormat.rows(from: m)).macros == m)
+    }
+
+    @Test func learnedRowsSplitIntoTwoLists() {
+        let r = ListFormat.learned(fromRows: [["This", "0"], ["test", "1"], ["", "0"], ["this", "1"], ["user", "0"]])
+        #expect(r.raw == ["user"])
+        #expect(r.vn == ["this", "test"])
+        #expect(ListFormat.learnedRows(raw: ["user"], vn: ["test"]) == [["test", "1"], ["user", "0"]])
+    }
+}

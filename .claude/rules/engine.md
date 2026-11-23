@@ -33,4 +33,12 @@ paths:
   Anh ("did", "dad", "deed"). Muốn "đi", "đa" thì gõ "ddi", "dda".
 - Từ chỉ sai ở chỗ thiếu dấu thanh trước âm cuối c/ch/p/t ("đươc") không bị trả về phím gốc nếu rõ là
   tiếng Việt (không phải từ tiếng Anh; khi không có từ điển thì cần từ hai dấu mũ/móc/đ trở lên).
+- Telex có hai tuỳ chọn trong `Config`: `standaloneW` (w đứng riêng thành ư, mặc định bật) và `bracketKeys`
+  (phím [ ] { } thành ơ ư Ơ Ư, mặc định tắt). Phím ngoặc chỉ là phím chữ khi từ chưa nguyên văn và không ở ngữ
+  cảnh code; không ghép được vào âm tiết thì nó ngắt từ như dấu câu thường. Bộ `TelexOptions` giữ các luật này.
+  Người dùng đã từ chối thêm kiểu gõ "Telex đơn giản 1/2" của OpenKey (2026-11-23): hai công tắc là đủ.
+- Tự học khi gõ lại (`Config.learnFromRetype`): chỉ khi người dùng xoá ĐÚNG từ vừa gõ gần nhất (chưa gõ chữ nào
+  khác sau nó, `freshBreak`), xoá HẾT từ đó mà không xoá lan sang chữ đứng trước, rồi gõ lại đúng chuỗi phím
+  (phân biệt hoa/thường). Điều kiện lỏng hơn sẽ học nhầm khi người dùng chỉ giữ phím xoá rồi gõ lại. Việc nhớ
+  diễn ra TRƯỚC `transpositionFix`/`decide()` trong `breakWord`, nên chính lần gõ lại đã ra dạng mới.
 - Sau khi sửa: `./Scripts/test.sh` và `swift run -c release vnkey-tool bench`.

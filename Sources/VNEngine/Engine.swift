@@ -6,6 +6,13 @@ public struct Config: Sendable, Equatable {
     public var modernTone = false
     /// Telex: phím "w" đứng một mình thành "ư".
     public var standaloneW = true
+    /// Telex: phím [ ] { } gõ ra ơ ư Ơ Ư.
+    public var bracketKeys = false
+
+    /// Phím này (ngoài chữ cái và chữ số) có thể là một phần của từ đang gõ.
+    func isBracketKey(_ ch: Character) -> Bool {
+        bracketKeys && method.isTelex && (ch == "[" || ch == "]" || ch == "{" || ch == "}")
+    }
     /// Cho phép âm đầu teen f, j, w, z, dz (fải, zậy, jờ...).
     public var teenInitials = true
     /// Tự trả lại phím gốc khi từ không phải tiếng Việt.
@@ -24,6 +31,8 @@ public struct Config: Sendable, Equatable {
     public var autoCapitalize = false
     /// Xoá khoảng trắng thừa trước , . ; ! ?
     public var tidyPunctuation = false
+    /// Xoá ngay từ vừa gõ rồi gõ lại đúng chuỗi phím đó: đổi sang dạng còn lại (phím gốc ↔ tiếng Việt) và nhớ.
+    public var learnFromRetype = true
     public init() {}
 }
 
@@ -66,6 +75,14 @@ public final class Engine {
         var final: String
         var sep: String
         var resumable: Bool
+        /// Chuỗi phím đúng như người dùng gõ (khác `raw` khi VNKey đã sửa gõ đảo phím).
+        var typed: String
+    }
+
+    /// Dạng người dùng muốn nếu họ gõ lại từ này: true = giữ phím gốc.
+    private struct Retype {
+        var typed: String
+        var wantRaw: Bool
     }
 
     private var comp: Composer
@@ -78,6 +95,12 @@ public final class Engine {
     private var capBlocked = false
     /// Số từ tiếng Anh liên tiếp vừa gõ.
     private var englishStreak = 0
+    /// Từ gần nhất có hai dạng (phím gốc / tiếng Việt) và từ lúc đó chưa gõ chữ nào khác.
+    private var freshBreak = false
+    /// Người dùng đang xoá lùi chính từ đó.
+    private var watch: Retype?
+    /// Họ đã xoá hết từ đó; nếu gõ lại đúng chuỗi phím thì đổi sang dạng còn lại.
+    private var retype: Retype?
 
     static let codeMarks: Set<Character> = ["@", "#", "/", "\\", ".", "_", ":", "$", "~", "=", "<", "&"]
 
@@ -90,6 +113,11 @@ public final class Engine {
     public func reset() {
         comp = Composer(config); screen = ""; history = []
         sepRun = ""; capBlocked = false; englishStreak = 0
+        forgetRecent()
+    }
+
+    private func forgetRecent() {
+        freshBreak = false; watch = nil; retype = nil
     }
 
     /// Engine đang theo dõi chữ trước con trỏ (từ đang gõ hoặc từ vừa gõ xong).
@@ -120,8 +148,19 @@ public final class Engine {
                 fed = Character(ch.uppercased())
             }
         }
+        // Telex có bật phím ngoặc: [ ] { } là phím chữ (ơ, ư), trừ khi từ đang nguyên văn hoặc ở ngữ cảnh code.
+        var bracket = false
+        if config.isBracketKey(ch), !comp.isLiteral {
+            if comp.isEmpty {
+                let code = config.codeAware && (sepRun.last.map { Engine.codeMarks.contains($0) || $0.isNumber } ?? false)
+                if !code { comp = Composer(config); bracket = true }
+            } else {
+                bracket = true
+            }
+        }
         if ch.isASCII, ch.isLetter, var fresh = recomposed(), fresh.feed(fed) { comp = fresh }
-        else if !(ch.isASCII && (ch.isLetter || ch.isNumber) && comp.feed(fed)) { return breakWord(ch) }
+        else if !(ch.isASCII && (ch.isLetter || ch.isNumber || bracket) && comp.feed(fed)) { return breakWord(ch) }
+        freshBreak = false; watch = nil  // đã gõ chữ khác: từ trước đó không còn là "vừa gõ"
         let new = comp.shown
         let out = diff(from: screen, to: new, typed: ch)
         screen = new
@@ -134,6 +173,8 @@ public final class Engine {
             sepRun = String((sepRun + String(ch)).suffix(8))
             capBlocked = false
         }
+        let pending = retype
+        retype = nil
         guard !comp.isEmpty else {
             comp = Composer(config)
             if config.tidyPunctuation, ",.;!?".contains(ch), sepRun == " ", history.last?.sep == " " {
@@ -145,12 +186,16 @@ public final class Engine {
             // Dãy dấu cách dài (giữ phím cách) thì thôi theo dõi từ trước, để `sep` không lớn mãi.
             if hard || history.isEmpty || history[history.count - 1].sep.count >= Engine.sepLimit {
                 history = []
+                freshBreak = false
             } else {
                 history[history.count - 1].sep.append(ch)
             }
             return .pass
         }
         sepRun = ""
+        let typed = comp.rawString
+        // Gõ lại đúng từ vừa xoá: nhớ dạng còn lại TRƯỚC khi phân xử, để lần gõ này đã ra dạng đó.
+        if let p = pending, p.typed == typed { learn(raw: typed, wantRaw: p.wantRaw) }
         if let fixed = transpositionFix() { comp = fixed }
         let composed = comp.shown
         // Từ dính liền "_" hoặc "@" phía sau là tên biến / địa chỉ: giữ phím gốc.
@@ -166,9 +211,12 @@ public final class Engine {
             out = Output(backspaces: screen.count - p, text: String(final.dropFirst(p)), passKey: true)
         }
         history.append(
-            Entry(comp: comp, raw: comp.rawString, composed: composed, final: final, sep: String(ch), resumable: resumable))
+            Entry(
+                comp: comp, raw: comp.rawString, composed: composed, final: final, sep: String(ch), resumable: resumable,
+                typed: typed))
         if history.count > historyLimit { history.removeFirst() }
         if hard { history = [] }
+        freshBreak = !hard && resumable && (composed != comp.rawString || typed != comp.rawString)
         comp = Composer(config); screen = ""
         return out
     }
@@ -176,6 +224,7 @@ public final class Engine {
     public func backspace() -> Output {
         capBlocked = true
         if comp.isEmpty {
+            retype = nil  // xoá lan sang chữ đứng trước: không còn là "xoá đúng một từ rồi gõ lại"
             if !sepRun.isEmpty { sepRun.removeLast() }
             guard var e = history.popLast() else { return .pass }
             if !e.sep.isEmpty {
@@ -192,7 +241,11 @@ public final class Engine {
         // khác chỗ: "hoà" so với "hòa"), phím kế tiếp hoặc lúc kết thúc từ sẽ sửa.
         comp.backspace(dropTone: screen.last.map(Engine.carriesTone) ?? false)
         if !screen.isEmpty { screen.removeLast() }
-        if comp.isEmpty { screen = "" }
+        if comp.isEmpty {
+            screen = ""
+            retype = watch  // đã xoá hết từ vừa gõ: chờ xem có gõ lại y nguyên không
+            watch = nil
+        }
         return .pass
     }
 
@@ -217,6 +270,12 @@ public final class Engine {
 
     /// Quay lại sửa từ trước đó, giữ nguyên thứ tự phím đã gõ.
     private func resume(_ e: Entry) {
+        if freshBreak, config.learnFromRetype {
+            // Đã sửa đảo phím, hoặc đang hiện tiếng Việt -> gõ lại nghĩa là muốn phím gốc; đang hiện phím gốc
+            // (đã tự trả lại) -> muốn tiếng Việt.
+            watch = Retype(typed: e.typed, wantRaw: e.typed != e.raw || e.final != e.raw)
+        }
+        freshBreak = false
         comp = e.comp
         if !e.resumable || e.final != comp.shown { comp.forceLiteral(e.final) }
         screen = e.final
@@ -274,6 +333,7 @@ public final class Engine {
 
     /// Đổi qua lại giữa phím gốc và tiếng Việt cho từ đang gõ / từ vừa gõ xong, và ghi nhớ lựa chọn.
     public func toggleLast() -> Output {
+        forgetRecent()
         if !comp.isEmpty {
             let raw = comp.rawString
             guard screen != raw else { return .pass }

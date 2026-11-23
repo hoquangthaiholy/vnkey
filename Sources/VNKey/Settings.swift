@@ -6,43 +6,6 @@ import UniformTypeIdentifiers
 
 // Cửa sổ cài đặt viết bằng AppKit thuần: Command Line Tools không kèm plugin macro của SwiftUI.
 
-/// Ô soạn danh sách dạng văn bản (mỗi dòng một mục), lưu ngay khi sửa.
-private final class ListEditor: NSObject, NSTextViewDelegate {
-    let scroll = NSTextView.scrollableTextView()
-    private var textView: NSTextView { scroll.documentView as! NSTextView }
-    private let load: () -> String
-    private let save: (String) -> Void
-    /// Gọi với nội dung hiện tại mỗi khi nạp lại hoặc sửa (để cập nhật dòng trạng thái bên dưới).
-    var onChange: ((String) -> Void)?
-
-    init(height: CGFloat, label: String, load: @escaping () -> String, save: @escaping (String) -> Void) {
-        self.load = load; self.save = save
-        super.init()
-        scroll.borderType = .bezelBorder
-        scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
-        scroll.heightAnchor.constraint(equalToConstant: height).isActive = true
-        textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        textView.isRichText = false
-        textView.isAutomaticQuoteSubstitutionEnabled = false
-        textView.isAutomaticDashSubstitutionEnabled = false
-        textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.allowsUndo = true
-        textView.setAccessibilityLabel(label)
-        textView.delegate = self
-    }
-
-    /// Nạp lại từ UserDefaults, trừ khi người dùng đang gõ trong ô này.
-    func reload() {
-        if textView.window?.firstResponder !== textView { textView.string = load() }
-        onChange?(textView.string)
-    }
-
-    func textDidChange(_ notification: Notification) {
-        save(textView.string)
-        onChange?(textView.string)
-    }
-}
-
 /// Nút ghi phím tắt: bấm rồi nhấn tổ hợp mới.
 private final class HotkeyButton: NSButton {
     private var key = ""
@@ -307,6 +270,9 @@ private final class Card: NSView {
 private final class SettingsTabs: NSTabViewController {
     static let duration: TimeInterval = 0.22
     static let windowTitle = "Cài đặt VNKey"
+    /// Tắt khi chọn thẻ bằng mã mà cần kích thước cuối ngay (chụp giao diện): một chuyển động đang dở sẽ
+    /// tranh chấp với lần đặt khung trực tiếp, nhất là khi màn hình đang ngủ và chuyển động không chạy.
+    var animatesResize = true
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -315,7 +281,7 @@ private final class SettingsTabs: NSTabViewController {
 
     override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         super.tabView(tabView, didSelect: tabViewItem)
-        fitWindow(animated: true)
+        fitWindow(animated: animatesResize)
     }
 
     func fitWindow(animated: Bool) {
@@ -352,13 +318,14 @@ final class SettingsController: NSObject, NSWindowDelegate {
     let window: NSWindow
     private let tabs = SettingsTabs()
     private let defaults = UserDefaults.standard
-    private var editors: [ListEditor] = []
+    private var tables: [EntryTable] = []
     private var appList: AppList?
     private var hotkeyButtons: [HotkeyButton] = []
     private var methodControl: NSSegmentedControl?
+    /// Các công tắc chỉ có nghĩa với Telex: mờ đi khi chọn VNI.
+    private var telexSwitches: [NSSwitch] = []
     private var toneControl: NSSegmentedControl?
     private var loginSwitch: NSSwitch?
-    private var wSwitch: NSSwitch?
     private var removeButton: NSButton?
     private var runningAppsMenu: NSPopUpButton?
 
@@ -368,7 +335,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
         tabs.tabStyle = .toolbar
         for (title, symbol, view) in [
             ("Chung", "gearshape", general()), ("Gõ", "keyboard", typing()), ("Việt & Anh", "character.bubble", mixed()),
-            ("Gõ tắt", "text.badge.plus", shortcuts()), ("Ứng dụng", "macwindow.on.rectangle", apps()),
+            ("Gõ tắt", "text.badge.plus", shortcuts()), ("Đã nhớ", "bookmark", remembered()),
+            ("Ứng dụng", "macwindow.on.rectangle", apps()),
         ] {
             let controller = NSViewController()
             controller.view = view
@@ -390,7 +358,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
     /// Số thẻ và cách chọn thẻ, dùng cho chế độ chụp giao diện.
     var tabCount: Int { tabs.tabViewItems.count }
     func selectTab(_ index: Int, animated: Bool = false) {
-        tabs.selectedTabViewItemIndex = index  // tự gọi fitWindow(animated: true) qua didSelect
+        tabs.animatesResize = animated
+        tabs.selectedTabViewItemIndex = index  // tự gọi fitWindow qua didSelect
+        tabs.animatesResize = true
         if !animated { tabs.fitWindow(animated: false) }
     }
     var contentView: NSView { tabs.view }
@@ -399,12 +369,11 @@ final class SettingsController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) { hotkeyButtons.forEach { $0.stop() } }
 
     func reload() {
-        editors.forEach { $0.reload() }
+        tables.forEach { $0.reload() }
         appList?.reload()
         hotkeyButtons.forEach { $0.refresh() }
-        methodControl?.selectedSegment = defaults.string(forKey: Key.method) == "vni" ? 1 : 0
+        showMethod()
         toneControl?.selectedSegment = defaults.bool(forKey: Key.modernTone) ? 1 : 0
-        wSwitch?.isEnabled = defaults.string(forKey: Key.method) != "vni"  // chỉ Telex có phím w
         if #available(macOS 13.0, *) { loginSwitch?.state = SMAppService.mainApp.status == .enabled ? .on : .off }
     }
 
@@ -517,21 +486,10 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return row(name, detail, s)
     }
 
-    private func editor(
-        height: CGFloat, label: String, load: @escaping () -> String, save: @escaping (String) -> Void,
-        onChange: ((String) -> Void)? = nil
-    ) -> NSView {
-        let e = ListEditor(height: height, label: label, load: load, save: save)
-        e.onChange = onChange
-        editors.append(e)
-        return e.scroll
-    }
-
-    private func listEditor(_ key: String, label: String, height: CGFloat) -> NSView {
-        editor(
-            height: height, label: label,
-            load: { [defaults] in (defaults.stringArray(forKey: key) ?? []).sorted().joined(separator: "\n") },
-            save: { [defaults] text in defaults.set(ListFormat.lines(text.lowercased()), forKey: key) })
+    private func showMethod() {
+        let vni = defaults.string(forKey: Key.method) == "vni"
+        methodControl?.selectedSegment = vni ? 1 : 0
+        telexSwitches.forEach { $0.isEnabled = !vni }
     }
 
     // MARK: - Các thẻ
@@ -587,11 +545,14 @@ final class SettingsController: NSObject, NSWindowDelegate {
             labels: ["Telex", "VNI"], trackingMode: .selectOne, target: self, action: #selector(pickMethod(_:)))
         methodControl = method
         method.setAccessibilityLabel("Kiểu gõ")
-        let w = NSSwitch()
-        w.controlSize = .small
-        w.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.standaloneW)
-        w.setAccessibilityLabel("Phím w đứng riêng thành ư")
-        wSwitch = w
+        func telexSwitch(_ name: String, _ detail: String, _ key: String) -> NSView {
+            let s = NSSwitch()
+            s.controlSize = .small
+            s.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + key)
+            s.setAccessibilityLabel(name)
+            telexSwitches.append(s)
+            return row(name, detail, s)
+        }
         let tone = NSSegmentedControl(
             labels: ["hòa, thủy", "hoà, thuỷ"], trackingMode: .selectOne, target: self, action: #selector(pickTone(_:)))
         toneControl = tone
@@ -600,8 +561,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
             title("Cơ bản"),
             Card(rows: [
                 row("Kiểu gõ", nil, method),
+                telexSwitch("Phím “w” đứng riêng thành “ư”", "Chỉ với Telex. Gõ “ww” để ra chữ w.", Key.standaloneW),
+                telexSwitch("Phím [ ] thành “ơ” “ư”", "Chỉ với Telex. Gõ lặp “[[” để ra dấu ngoặc.", Key.bracketKeys),
                 row("Vị trí dấu thanh", "Ở nguyên âm đầu (cũ) hay nguyên âm sau (mới).", tone),
-                row("Phím “w” đứng riêng thành “ư”", "Chỉ áp dụng cho Telex. Gõ “ww” để ra chữ w.", w),
             ]),
             title("Tự động"),
             Card(rows: [
@@ -611,15 +573,33 @@ final class SettingsController: NSObject, NSWindowDelegate {
         ])
     }
 
-    private func mixed() -> NSView {
-        let lists = NSStackView(views: [
-            column("Luôn giữ phím gốc", listEditor(Key.preferRaw, label: "Từ luôn giữ phím gốc", height: 84)),
-            column("Luôn bỏ dấu tiếng Việt", listEditor(Key.preferVN, label: "Từ luôn bỏ dấu tiếng Việt", height: 84)),
+    private func remembered() -> NSView {
+        let learned = EntryTable(
+            columns: [
+                .text(title: "Chuỗi phím", placeholder: "vd: this", width: nil),
+                .choice(title: "Luôn hiện", options: ["Phím gốc", "Tiếng Việt"], width: 120),
+            ],
+            height: 240, label: "Từ đã nhớ", searchable: true,
+            load: { [defaults] in
+                ListFormat.learnedRows(
+                    raw: defaults.stringArray(forKey: Key.preferRaw) ?? [], vn: defaults.stringArray(forKey: Key.preferVN) ?? [])
+            },
+            save: { [defaults] rows in
+                let r = ListFormat.learned(fromRows: rows)
+                if r.raw != (defaults.stringArray(forKey: Key.preferRaw) ?? []).sorted() { defaults.set(r.raw.sorted(), forKey: Key.preferRaw) }
+                if r.vn != (defaults.stringArray(forKey: Key.preferVN) ?? []).sorted() { defaults.set(r.vn.sorted(), forKey: Key.preferVN) }
+                return ("\(r.raw.count + r.vn.count) từ", false)
+            })
+        tables.append(learned)
+        learned.view.identifier = SettingsController.wide
+        return page([
+            title("Từ đã nhớ"),
+            learned.view,
+            note("VNKey thêm vào đây mỗi lần bạn dùng phím “Đổi từ vừa gõ” hoặc gõ lại một từ vừa xoá. “Phím gốc”: từ luôn hiện đúng như đã gõ; “Tiếng Việt”: luôn bỏ dấu. Bấm đúp để sửa; xoá dòng để quên."),
         ])
-        lists.orientation = .horizontal
-        lists.distribution = .fillEqually
-        lists.spacing = Metrics.rowInset
-        lists.identifier = SettingsController.wide
+    }
+
+    private func mixed() -> NSView {
         return page([
             title("Xen kẽ tiếng Anh"),
             Card(rows: [
@@ -630,48 +610,39 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 toggle(
                     "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
                     key: Key.fixTransposition, dependsOn: Key.autoRestore),
+                toggle(
+                    "Tự nhớ khi bạn gõ lại", "Xoá ngay từ vừa gõ rồi gõ lại y nguyên: VNKey đổi sang dạng còn lại và nhớ cho lần sau.",
+                    key: Key.learnFromRetype, dependsOn: Key.autoRestore),
                 toggle("Giữ nguyên trong ngữ cảnh code", "Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
             ]),
             title("Chữ teen"),
             Card(rows: [toggle("Cho phép f, j, w, z đứng đầu từ", "zậy, jờ, dzô, fải…", key: Key.teen)]),
-            title("Từ đã nhớ"),
-            lists,
-            note("Mỗi lần bạn dùng phím “Đổi từ vừa gõ”, VNKey nhớ lựa chọn đó. Mỗi dòng là một chuỗi phím; xoá dòng để quên."),
         ])
     }
 
-    private func column(_ heading: String, _ body: NSView) -> NSView {
-        let l = NSTextField(labelWithString: heading)
-        l.font = .systemFont(ofSize: 11)
-        l.textColor = .secondaryLabelColor
-        let s = NSStackView(views: [l, body])
-        s.orientation = .vertical
-        s.alignment = .leading
-        s.spacing = 4
-        body.widthAnchor.constraint(equalTo: s.widthAnchor).isActive = true
-        return s
-    }
-
     private func shortcuts() -> NSView {
-        // Dòng trạng thái luôn có mặt (một dòng), để cửa sổ không nhảy chiều cao khi có dòng sai.
-        let state = note(" ")
-        state.maximumNumberOfLines = 1
+        let macros = EntryTable(
+            columns: [
+                .text(title: "Từ tắt", placeholder: "vd: vn", width: 110),
+                .text(title: "Nội dung", placeholder: "vd: Việt Nam", width: nil),
+            ],
+            height: 196, label: "Danh sách gõ tắt", searchable: true,
+            load: { [defaults] in ListFormat.rows(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:]) },
+            save: { [defaults] rows in
+                let r = ListFormat.macros(fromRows: rows)
+                if r.macros != (defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:]) {
+                    defaults.set(r.macros, forKey: Key.macros)
+                }
+                return r.skipped == 0
+                    ? ("\(r.macros.count) mục", false)
+                    : ("\(r.macros.count) mục · \(r.skipped) dòng chưa dùng được: cần đủ hai ô, từ tắt chỉ gồm chữ cái", true)
+            })
+        tables.append(macros)
+        macros.view.identifier = SettingsController.wide
         return page([
             title("Gõ tắt của bạn"),
-            editor(
-                height: 170, label: "Danh sách gõ tắt",
-                load: { [defaults] in
-                    ListFormat.text(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:])
-                },
-                save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) },
-                onChange: { text in
-                    let ok = ListFormat.macros(from: text).count, bad = ListFormat.skippedMacroLines(in: text)
-                    state.stringValue =
-                        bad == 0 ? "\(ok) mục" : "\(ok) mục · \(bad) dòng bị bỏ qua vì không có dạng  từ tắt = nội dung"
-                    state.textColor = bad == 0 ? .secondaryLabelColor : .systemOrange
-                }),
-            state,
-            note("Mỗi dòng một mục dạng  vn = Việt Nam. Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa."),
+            macros.view,
+            note("Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa. Bấm đúp vào ô để sửa."),
             title("Có sẵn"),
             Card(rows: [toggle("Bung viết tắt teen", "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
         ])
@@ -719,7 +690,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     @objc private func pickMethod(_ sender: NSSegmentedControl) {
         defaults.set(sender.selectedSegment == 1 ? "vni" : "telex", forKey: Key.method)
-        wSwitch?.isEnabled = sender.selectedSegment == 0
+        showMethod()
     }
 
     @objc private func pickTone(_ sender: NSSegmentedControl) {

@@ -93,8 +93,10 @@ final class KeyTap {
         perf.reset()
     }
 
+    private var state: String { engine.debugState }
+
     private func reset(_ why: String, _ event: FocusPolicy.Event) {
-        Log.write("RESET \(why) | trước: \(engine.debugState)")
+        Log.write("RESET \(why) | trước: \(state)")
         engine.reset()
         focusMayHaveChanged(event)
     }
@@ -156,9 +158,9 @@ final class KeyTap {
     /// Đổi từ vừa gõ giữa phím gốc <-> tiếng Việt và ghi nhớ.
     private func restoreWord(_ proxy: CGEventTapProxy) {
         guard enabled else { return }
-        let before = Log.enabled ? engine.debugState : ""
+        let before = Log.enabled ? state : ""
         let out = engine.toggleLast()
-        Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(engine.debugState)")
+        Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(state)")
         if !out.isPass { send(out, original: nil, proxy) }
     }
 
@@ -197,7 +199,7 @@ final class KeyTap {
             return true
         }
 
-        let before = Log.enabled ? engine.debugState : ""
+        let before = Log.enabled ? state : ""
         var focusMayMove = false
         let out: Output
         switch classifyKey(code: Int(code), chars: s) {
@@ -239,7 +241,7 @@ final class KeyTap {
             lastBackspaceRoute = nil
             out = engine.type(ch)
         }
-        Log.write("\(tag()) | \(before) -> \(describe(out)) | \(engine.debugState)")
+        Log.write("\(tag()) | \(before) -> \(describe(out)) | \(state)")
         // Enter và Tab thường chuyển tiêu điểm sang ô khác: quên ô đã nhớ SAU khi sửa xong từ hiện tại.
         defer { if focusMayMove { focusMayHaveChanged(.fieldExit) } }
         if out.isPass { return true }

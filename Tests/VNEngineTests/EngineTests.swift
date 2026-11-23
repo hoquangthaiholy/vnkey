@@ -350,3 +350,96 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
         #expect(run("tooi" + String(repeating: " ", count: 100) + "ddi ") == "tôi" + String(repeating: " ", count: 100) + "đi ")
     }
 }
+
+/// Xoá ngay từ VNKey vừa xử lý rồi gõ lại y nguyên: người dùng muốn dạng còn lại; đổi luôn và nhớ.
+@Suite struct LearnFromRetype {
+    @Test func vietnameseWordRetypedBecomesRaw() {
+        let e = Engine(config: Config())
+        #expect(run("this ", lexicon: FakeLexicon.shared, engine: e) == "thí ")
+        #expect(run("this <<<<this ", lexicon: FakeLexicon.shared) == "this ")
+        let e2 = Engine(config: Config())
+        _ = run("this <<<<this ", lexicon: FakeLexicon.shared, engine: e2)
+        #expect(e2.preferRaw.contains("this"))
+        #expect(run("this ", lexicon: FakeLexicon.shared, engine: e2) == "this ")
+    }
+
+    @Test func restoredWordRetypedBecomesVietnamese() {
+        let e = Engine(config: Config())
+        #expect(run("test <<<<<test ", lexicon: FakeLexicon.shared, engine: e) == "tét ")
+        #expect(e.preferVN.contains("test"))
+    }
+
+    @Test func transpositionRetypedIsKept() {
+        let e = Engine(config: Config())
+        #expect(run("tieegns <<<<<<tieegns ", lexicon: FakeLexicon.shared, engine: e) == "tieegns ")
+        #expect(e.preferRaw.contains("tieegns"))
+    }
+
+    @Test func worksAcrossPunctuation() {
+        #expect(run("this, <<<<<this, ", lexicon: FakeLexicon.shared) == "this, ")
+    }
+
+    @Test func doesNotTriggerWithoutExactRetype() {
+        let lex = FakeLexicon.shared
+        // Gõ lại khác chữ hoa/thường, hoặc khác phím: không học.
+        #expect(run("tooi <<<<Tooi ", lexicon: lex) == "Tôi ")
+        // Chỉ xoá một phần rồi gõ lại: đang sửa từ, không học.
+        #expect(run("this <<is ", lexicon: lex) == "thí ")
+        // Xoá lan sang từ trước rồi mới gõ lại: không học.
+        #expect(run("la this <<<<<<a this ", lexicon: lex) == "la thí ")
+        // Từ không phải từ vừa gõ gần nhất (đã gõ từ khác sau nó).
+        let e = Engine(config: Config())
+        #expect(run("this laf <<<<<<<<this ", lexicon: lex, engine: e) == "thí ")
+        #expect(e.preferRaw.isEmpty)
+        // Từ không có dạng nào khác (gõ ra đúng phím gốc).
+        #expect(run("ban <<<<ban ", lexicon: lex) == "ban ")
+    }
+
+    @Test func canBeTurnedOff() {
+        var c = Config(); c.learnFromRetype = false
+        #expect(run("this <<<<this ", c, lexicon: FakeLexicon.shared) == "thí ")
+    }
+}
+
+/// Hai tuỳ chọn của Telex: phím [ ] thành ơ ư (`bracketKeys`) và phím w đứng riêng thành ư (`standaloneW`).
+@Suite struct TelexOptions {
+    func cfg(brackets: Bool = false, w: Bool = true, _ m: Method = .telex) -> Config {
+        var c = Config(); c.method = m; c.bracketKeys = brackets; c.standaloneW = w; return c
+    }
+
+    @Test(arguments: [
+        ("[", "ơ"), ("]", "ư"), ("{", "Ơ"), ("}", "Ư"),
+        ("m[i", "mơi"), ("m[is", "mới"), ("t]", "tư"), ("ch]a", "chưa"), ("ch]as", "chứa"),
+        ("th]", "thư"), ("b[r", "bở"), ("n]]c", "n]c"),
+        ("[[", "["), ("]]", "]"), ("{{", "{"),
+        ("d]]cj", "d]cj"),
+        ("d][cj", "dược"), ("dd][cj", "được"), ("ng][if", "người"),
+    ])
+    func bracketsOn(keys: String, want: String) { #expect(run(keys, cfg(brackets: true)) == want) }
+
+    @Test func bracketsStayPunctuationWhereTheyCannotBeLetters() {
+        let c = cfg(brackets: true)
+        #expect(run("tab[0] ", c) == "tab[0] ")  // sau phụ âm cuối không thể có ơ
+        #expect(run("x = a.b[", c) == "x = a.b[")  // ngữ cảnh code: sau dấu chấm
+        #expect(run("[link] ", c) == "[link] ")  // không thành âm tiết -> trả lại phím gốc
+        #expect(run("tooi [", c).hasSuffix(" ơ"))
+        #expect(run("m[<", c) == "m")  // xoá lùi xoá đúng chữ ơ
+    }
+
+    @Test func bracketsOffByDefault() {
+        #expect(Config().bracketKeys == false)
+        #expect(run("[", Config()) == "[")
+        #expect(run("m[i] ", Config()) == "m[i] ")
+        #expect(run("m[i] ", cfg(brackets: true, .vni)) == "m[i] ")  // VNI không dùng phím ngoặc
+    }
+
+    @Test func standaloneWCanBeTurnedOff() {
+        #expect(run("w", cfg()) == "ư")
+        #expect(run("nhw", cfg()) == "như")
+        #expect(run("w", cfg(w: false)) == "w")
+        #expect(run("nhw", cfg(w: false)) == "nhw")
+        #expect(run("tw ", cfg(w: false)) == "tw ")
+        // Tắt w đứng riêng không ảnh hưởng dấu móc/trăng sau nguyên âm.
+        #expect(run("muaw dduwowcj ", cfg(w: false)) == "mưa được ")
+    }
+}

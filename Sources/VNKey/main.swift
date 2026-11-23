@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         installMainMenu()
+        migrateSettings()
         Log.enabled = defaults.bool(forKey: Key.debugLog)
         let info = Bundle.main.infoDictionary
         Log.write(
@@ -101,6 +102,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return false
     }
 
+    /// Chuyển cài đặt của bản cũ sang dạng mới (chạy một lần, không làm gì nếu đã chuyển).
+    private func migrateSettings() {
+        // Hai kiểu "Telex đơn giản" (có trong một bản thử ngắn) nay là Telex với hai công tắc.
+        switch defaults.string(forKey: Key.method) {
+        case "simpleTelex1":
+            defaults.set("telex", forKey: Key.method)
+            defaults.set(false, forKey: Key.standaloneW)
+            defaults.set(false, forKey: Key.bracketKeys)
+        case "simpleTelex2":
+            defaults.set("telex", forKey: Key.method)
+            defaults.set(true, forKey: Key.standaloneW)
+            defaults.set(false, forKey: Key.bracketKeys)
+        default: break
+        }
+    }
+
     /// App thanh menu không hiện menu chính, nhưng vẫn cần nó để các ô nhập trong Cài đặt nhận ⌘C ⌘V ⌘X ⌘A
     /// ⌘Z, và ⌘W đóng cửa sổ.
     private func installMainMenu() {
@@ -143,6 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.method = Method(rawValue: defaults.string(forKey: Key.method) ?? "") ?? .telex
         c.modernTone = defaults.bool(forKey: Key.modernTone)
         c.standaloneW = defaults.bool(forKey: Key.standaloneW)
+        c.bracketKeys = defaults.bool(forKey: Key.bracketKeys)
         c.teenInitials = defaults.bool(forKey: Key.teen)
         c.autoRestore = defaults.bool(forKey: Key.autoRestore)
         c.expandTeen = defaults.bool(forKey: Key.expandTeen)
@@ -151,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.contextAware = defaults.bool(forKey: Key.contextAware)
         c.autoCapitalize = defaults.bool(forKey: Key.autoCapitalize)
         c.tidyPunctuation = defaults.bool(forKey: Key.tidyPunctuation)
+        c.learnFromRetype = defaults.bool(forKey: Key.learnFromRetype)
         c.macros = (defaults.dictionary(forKey: Key.macros) as? [String: String]) ?? [:]
         // Gán config sẽ xoá trạng thái đang gõ: chỉ gán khi thật sự đổi.
         if engine.config != c {

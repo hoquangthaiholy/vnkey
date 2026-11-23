@@ -5,7 +5,7 @@ import VNKeyCore
 // vnkey-tool type [tuỳ chọn] "<chuỗi phím>"   Gõ lại chuỗi phím qua engine, in kết quả trên màn hình.
 //                                              "<" = Backspace, "~" = phím đổi từ vừa gõ, "\n" "\t" như thường.
 // vnkey-tool bench [tuỳ chọn]                  Đo thời gian xử lý mỗi phím.
-// Tuỳ chọn: --vni  --no-lexicon  --trace  --cap  --tidy  --expand  --modern
+// Tuỳ chọn: --vni  --brackets  --no-w  --no-lexicon  --trace  --cap  --tidy  --expand  --modern
 
 var args = Array(CommandLine.arguments.dropFirst())
 func flag(_ name: String) -> Bool {
@@ -15,6 +15,8 @@ func flag(_ name: String) -> Bool {
 
 var config = Config()
 if flag("--vni") { config.method = .vni }
+if flag("--brackets") { config.bracketKeys = true }
+if flag("--no-w") { config.standaloneW = false }
 if flag("--cap") { config.autoCapitalize = true }
 if flag("--tidy") { config.tidyPunctuation = true }
 if flag("--expand") { config.expandTeen = true }

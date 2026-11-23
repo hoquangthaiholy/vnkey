@@ -255,6 +255,41 @@ public enum ListFormat {
         }.count
     }
 
+    /// Các dòng của bảng gõ tắt -> từ điển gõ tắt. Dòng chưa dùng được bị bỏ qua và được đếm: thiếu từ tắt
+    /// hoặc nội dung, hay từ tắt có ký tự không phải chữ (engine tra theo TỪ vừa gõ xong, mà dấu cách, dấu
+    /// câu, chữ số đều ngắt từ). Từ tắt trùng nhau: dòng sau thắng.
+    public static func macros(fromRows rows: [[String]]) -> (macros: [String: String], skipped: Int) {
+        var d: [String: String] = [:], skipped = 0
+        for r in rows {
+            let key = (r.first ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            let value = (r.count > 1 ? r[1] : "").trimmingCharacters(in: .whitespaces)
+            if key.isEmpty && value.isEmpty { continue }  // dòng mới thêm, chưa điền gì
+            if key.isEmpty || value.isEmpty || !key.allSatisfy(\.isLetter) { skipped += 1; continue }
+            d[key] = value
+        }
+        return (d, skipped)
+    }
+
+    public static func rows(from macros: [String: String]) -> [[String]] {
+        macros.sorted { $0.key < $1.key }.map { [$0.key, $0.value] }
+    }
+
+    /// Bảng "từ đã nhớ": mỗi dòng là [chuỗi phím, "0" = giữ phím gốc | "1" = tiếng Việt].
+    public static func learned(fromRows rows: [[String]]) -> (raw: [String], vn: [String]) {
+        var choice: [String: Bool] = [:], order: [String] = []
+        for r in rows {
+            let key = (r.first ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            guard !key.isEmpty else { continue }
+            if choice[key] == nil { order.append(key) }
+            choice[key] = r.count > 1 && r[1] == "1"
+        }
+        return (order.filter { choice[$0] == false }, order.filter { choice[$0] == true })
+    }
+
+    public static func learnedRows(raw: [String], vn: [String]) -> [[String]] {
+        (raw.map { [$0, "0"] } + vn.map { [$0, "1"] }).sorted { $0[0] < $1[0] }
+    }
+
     public static func text(from macros: [String: String]) -> String {
         macros.sorted { $0.key < $1.key }.map { "\($0.key) = \($0.value)" }.joined(separator: "\n")
     }

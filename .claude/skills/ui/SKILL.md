@@ -116,3 +116,18 @@ mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi
 - `--snapshot` không được tạo hay ẩn `NSStatusItem`: trạng thái ẩn bị lưu vào cài đặt (`NSStatusItem VisibleCC
   Item-0 = 0`) và biểu tượng của bản đang chạy biến mất. Nếu gặp lại: thoát app, `defaults delete local.vnkey
   "NSStatusItem VisibleCC Item-0"`, mở lại.
+
+## Bảng soạn danh sách
+
+`Sources/VNKey/EntryTable.swift` (`EntryTable`): bảng sửa ngay trong ô, nút +/−, phím Delete, ô tìm kiếm. Dùng cho
+thẻ "Gõ tắt" (hai cột chữ) và thẻ "Đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Định dạng lưu
+trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
+nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
+
+Cửa sổ Cài đặt có 6 thẻ: Chung, Gõ, Việt & Anh, Gõ tắt, Đã nhớ, Ứng dụng. Kiểu gõ chỉ có Telex và VNI; hai
+công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
+
+- Khi màn hình ngủ hoặc bị khoá, macOS KHÔNG chạy chuyển động đổi khung cửa sổ. `--snapshot` vì thế chọn thẻ
+  không qua chuyển động (`selectTab(_, animated: false)`); đừng kết luận "cửa sổ không co giãn" từ một lần chạy
+  lúc màn hình đang khoá.
+
