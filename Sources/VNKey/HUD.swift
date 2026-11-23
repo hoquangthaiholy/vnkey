@@ -78,9 +78,20 @@ final class HUD {
 
     /// Ngay dưới con trỏ soạn thảo nếu ứng dụng cho biết vị trí, không thì cạnh con trỏ chuột.
     private func origin() -> NSPoint {
-        if let r = caretRect() { return NSPoint(x: r.minX, y: r.minY - size.height - 3) }
-        let m = NSEvent.mouseLocation
-        return NSPoint(x: m.x + 10, y: m.y - size.height - 10)
+        var p: NSPoint
+        if let r = caretRect() {
+            p = NSPoint(x: r.minX, y: r.minY - size.height - 3)
+        } else {
+            let m = NSEvent.mouseLocation
+            p = NSPoint(x: m.x + 10, y: m.y - size.height - 10)
+        }
+        // Giữ nhãn nằm trọn trong màn hình chứa nó (con trỏ sát mép dưới/phải thì nhãn không bị cắt).
+        let screen = NSScreen.screens.first { $0.frame.insetBy(dx: -1, dy: -1).contains(p) } ?? NSScreen.main
+        if let v = screen?.visibleFrame {
+            p.x = min(max(p.x, v.minX + 2), v.maxX - size.width - 2)
+            p.y = min(max(p.y, v.minY + 2), v.maxY - size.height - 2)
+        }
+        return p
     }
 
     /// Vị trí con trỏ soạn thảo (toạ độ Cocoa) lấy qua Accessibility; nhiều app Electron không trả về.

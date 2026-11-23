@@ -44,6 +44,20 @@ public struct Hotkey: Equatable {
         return s + keyLabel
     }
 
+    public enum Problem: Equatable {
+        /// Chỉ ⇧ + một phím: sẽ nuốt mất chữ hoa (⇧A) hoặc ký hiệu (⇧1) khi gõ bình thường.
+        case shiftOnly
+        /// Trùng với phím tắt còn lại của VNKey.
+        case duplicate
+    }
+
+    /// Vì sao không nên nhận tổ hợp này làm phím tắt; nil nếu dùng được.
+    public func problem(other: Hotkey?) -> Problem? {
+        if !isModifierOnly, mods == Mods.shift { return .shiftOnly }
+        if let other, other.code == code, other.mods == mods { return .duplicate }
+        return nil
+    }
+
     /// Khớp với một lần nhấn phím thường.
     public func matches(code: Int, mods: UInt) -> Bool {
         !isModifierOnly && self.code == code && self.mods == mods & Mods.all
@@ -232,6 +246,15 @@ public enum ListFormat {
         return d
     }
 
+    /// Số dòng trong ô gõ tắt sẽ bị bỏ qua vì sai định dạng (thiếu dấu =, hoặc trống một vế).
+    public static func skippedMacroLines(in text: String) -> Int {
+        lines(text).filter { l in
+            let p = l.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            return !(p.count == 2 && !p[0].isEmpty && !p[1].isEmpty)
+        }.count
+    }
+
     public static func text(from macros: [String: String]) -> String {
         macros.sorted { $0.key < $1.key }.map { "\($0.key) = \($0.value)" }.joined(separator: "\n")
     }
@@ -260,7 +283,7 @@ public enum ScreenCheck {
     }
 
     /// - Parameters:
-    ///   - value: toàn bộ nội dung ô nhập.
+    ///   - value: nội dung ô nhập, hoặc chỉ đoạn ngay trước con trỏ (khi đó `caret` là độ dài đoạn ấy).
     ///   - caret: vị trí con trỏ tính theo đơn vị UTF-16 (như Accessibility trả về).
     ///   - expected: từ đang gõ theo engine.
     public static func compare(value: String, caret: Int, expected: String) -> Result {
@@ -271,6 +294,44 @@ public enum ScreenCheck {
         let e = expected.precomposedStringWithCanonicalMapping
         if a.hasSuffix(e) { return .match }
         return .mismatch(expected: expected, actual: String(a.suffix(expected.count + 4)))
+    }
+}
+
+/// Khi nào thông tin đã nhớ về ô đang nhận phím (ứng dụng, vai trò, phần tử AX) còn dùng được.
+/// Tra lại là lời gọi đồng bộ sang ứng dụng khác (đo được tới 85 ms), nên chỉ bỏ khi thật cần.
+public enum FocusPolicy {
+    /// Việc vừa xảy ra có thể đã làm tiêu điểm đổi.
+    public enum Event: Equatable {
+        /// Bấm chuột, phím mũi tên / Esc / Home / End: thường vẫn ở trong cùng một ô.
+        case pointer, navigation
+        /// Phím tắt có ⌘/⌃/⌥, Tab, Enter, đổi ứng dụng, đổi chế độ, tap bật lại: ô rất có thể đã khác.
+        case shortcut, fieldExit, appSwitch, system
+    }
+
+    public enum Action: Equatable {
+        /// Giữ thông tin cũ để dùng tạm, làm mới ở luồng nền.
+        case refreshInBackground
+        /// Bỏ hẳn: lần cần tới sẽ tra lại.
+        case drop
+    }
+
+    public static func action(after event: Event) -> Action {
+        switch event {
+        case .pointer, .navigation: return .refreshInBackground
+        case .shortcut, .fieldExit, .appSwitch, .system: return .drop
+        }
+    }
+
+    /// Phím xoá lùi đang lặp (giữ phím) dùng lại câu trả lời của lần nhấn đầu thay vì hỏi vùng chọn mỗi lần.
+    public static func asksSelectionOnBackspace(repeated: Bool, hasPrevious: Bool) -> Bool {
+        !(repeated && hasPrevious)
+    }
+
+    /// Kết quả tra cứu nền về tới nơi: có thay thông tin đang nhớ không.
+    /// - `sameEpoch`: tiêu điểm chưa bị báo đổi từ lúc bắt đầu tra.
+    /// - `haveFresh`: trong lúc chờ đã có một lần tra đồng bộ mới hơn.
+    public static func acceptsBackgroundResult(sameEpoch: Bool, haveFresh: Bool) -> Bool {
+        sameEpoch && !haveFresh
     }
 }
 

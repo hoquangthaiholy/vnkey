@@ -20,8 +20,8 @@ swift run -c release vnkey-tool bench
 swift run -c release vnkey-tool bench --no-lexicon
 ```
 
-- Có từ điển: ~2,9 µs/phím trung bình, chậm nhất ~73 µs.
-- Không từ điển: ~2,2 µs/phím, chậm nhất ~25 µs.
+- Có từ điển: ~2,1 µs/phím trung bình, chậm nhất ~60–120 µs (mẫu đo từ 2026-11-23 có cả xoá lùi và từ dài).
+- Không từ điển: ~1,7 µs/phím.
 
 `bench` thoát với mã lỗi nếu trung bình vượt 50 µs/phím. Chạy lại sau mọi thay đổi trong
 `Sources/VNEngine/` và ghi số mới vào đây nếu nó đổi đáng kể.
@@ -33,7 +33,7 @@ swift run -c release vnkey-tool bench-parts
 ```
 
 - Từ điển: lần gọi đầu ~1 ms, từ chưa gặp ~0,13 ms, từ đã nhớ ~0,1 µs. Chỉ gọi ở ranh giới từ.
-- Ghi log: ~3,8 µs/dòng, chậm nhất dưới 0,1 ms.
+- Ghi log: ~0,2 µs/dòng phía người gọi (chỉ xếp hàng; ghi đĩa ở luồng nền), chậm nhất dưới 0,1 ms.
 
 **Đã loại khỏi diện nghi ngờ** (đừng tối ưu khi chưa có số liệu mới): engine, ghi log đồng bộ, khởi động từ điển.
 

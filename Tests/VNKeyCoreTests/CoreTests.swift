@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import VNEngine
@@ -437,5 +438,80 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(h.isDown(0, at: 1_000_000_000))
         #expect(!h.isDown(0, at: 3_000_000_000))  // lỡ mất sự kiện nhả phím: tự quên sau 2 giây
         #expect(h.carrier(at: 3_000_000_000) == 0)
+    }
+}
+
+@Suite struct FocusPolicies {
+    @Test func pointerAndArrowsKeepTheCache() {
+        #expect(FocusPolicy.action(after: .pointer) == .refreshInBackground)
+        #expect(FocusPolicy.action(after: .navigation) == .refreshInBackground)
+    }
+
+    @Test func leavingTheFieldDropsTheCache() {
+        for e in [FocusPolicy.Event.shortcut, .fieldExit, .appSwitch, .system] {
+            #expect(FocusPolicy.action(after: e) == .drop)
+        }
+    }
+
+    @Test func heldBackspaceAsksOnce() {
+        #expect(FocusPolicy.asksSelectionOnBackspace(repeated: false, hasPrevious: true))
+        #expect(FocusPolicy.asksSelectionOnBackspace(repeated: true, hasPrevious: false))
+        #expect(!FocusPolicy.asksSelectionOnBackspace(repeated: true, hasPrevious: true))
+    }
+
+    @Test func staleBackgroundLookupIsIgnored() {
+        #expect(FocusPolicy.acceptsBackgroundResult(sameEpoch: true, haveFresh: false))
+        #expect(!FocusPolicy.acceptsBackgroundResult(sameEpoch: false, haveFresh: false))
+        #expect(!FocusPolicy.acceptsBackgroundResult(sameEpoch: true, haveFresh: true))
+    }
+
+    @Test func screenCheckWorksOnATailWindow() {
+        // Chỉ đọc đoạn ngay trước con trỏ: caret = độ dài đoạn.
+        let tail = "thanh địa"
+        #expect(ScreenCheck.compare(value: tail, caret: tail.utf16.count, expected: "địa") == .match)
+    }
+}
+
+@Suite struct Logging {
+    @Test func linesAreWrittenInOrderAfterFlush() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("vnkey-test-\(UUID().uuidString).log")
+        let oldURL = Log.url, oldEnabled = Log.enabled
+        defer { Log.flush(); Log.url = oldURL; Log.enabled = oldEnabled; try? FileManager.default.removeItem(at: url) }
+        Log.url = url
+        Log.enabled = true
+        for i in 0..<50 { Log.write("dòng \(i)") }
+        Log.flush()
+        let lines = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")
+        #expect(lines.count == 50)
+        #expect(lines.first?.hasSuffix("dòng 0") == true)
+        #expect(lines.last?.hasSuffix("dòng 49") == true)
+    }
+
+    @Test func disabledLogDoesNotBuildTheLine() {
+        let oldEnabled = Log.enabled
+        defer { Log.enabled = oldEnabled }
+        Log.enabled = false
+        var built = false
+        Log.write({ built = true; return "x" }())
+        #expect(!built)
+    }
+}
+
+@Suite struct SettingsRules {
+    @Test func shiftPlusKeyIsNotAHotkey() {
+        #expect(Hotkey(code: 0, mods: Mods.shift, keyLabel: "A").problem(other: nil) == .shiftOnly)
+        #expect(Hotkey(code: 0, mods: Mods.shift | Mods.control, keyLabel: "A").problem(other: nil) == nil)
+        #expect(Hotkey.defaultToggle.problem(other: .defaultRestore) == nil)
+    }
+
+    @Test func twoHotkeysMustDiffer() {
+        #expect(Hotkey.defaultToggle.problem(other: .defaultToggle) == .duplicate)
+        let z = Hotkey(code: 6, mods: Mods.control | Mods.option, keyLabel: "z")
+        #expect(z.problem(other: .defaultRestore) == .duplicate)  // nhãn khác nhau vẫn là cùng một phím
+    }
+
+    @Test func malformedMacroLinesAreCounted() {
+        #expect(ListFormat.skippedMacroLines(in: "vn = Việt Nam\n\nhn=Hà Nội") == 0)
+        #expect(ListFormat.skippedMacroLines(in: "vn = Việt Nam\nsai dòng\n= thiếu khoá\nthiếu vế =") == 3)
     }
 }

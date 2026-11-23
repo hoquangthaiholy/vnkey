@@ -12,8 +12,10 @@ private final class ListEditor: NSObject, NSTextViewDelegate {
     private var textView: NSTextView { scroll.documentView as! NSTextView }
     private let load: () -> String
     private let save: (String) -> Void
+    /// Gọi với nội dung hiện tại mỗi khi nạp lại hoặc sửa (để cập nhật dòng trạng thái bên dưới).
+    var onChange: ((String) -> Void)?
 
-    init(height: CGFloat, load: @escaping () -> String, save: @escaping (String) -> Void) {
+    init(height: CGFloat, label: String, load: @escaping () -> String, save: @escaping (String) -> Void) {
         self.load = load; self.save = save
         super.init()
         scroll.borderType = .bezelBorder
@@ -24,26 +26,36 @@ private final class ListEditor: NSObject, NSTextViewDelegate {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.allowsUndo = true
+        textView.setAccessibilityLabel(label)
         textView.delegate = self
     }
 
     /// Nạp lại từ UserDefaults, trừ khi người dùng đang gõ trong ô này.
     func reload() {
         if textView.window?.firstResponder !== textView { textView.string = load() }
+        onChange?(textView.string)
     }
 
-    func textDidChange(_ notification: Notification) { save(textView.string) }
+    func textDidChange(_ notification: Notification) {
+        save(textView.string)
+        onChange?(textView.string)
+    }
 }
 
 /// Nút ghi phím tắt: bấm rồi nhấn tổ hợp mới.
 private final class HotkeyButton: NSButton {
     private var key = ""
+    /// Khoá của phím tắt còn lại, để không nhận hai phím tắt trùng nhau.
+    private var otherKey = ""
     private var monitor: Any?
     private var peak: UInt = 0
 
-    convenience init(key: String) {
+    convenience init(key: String, otherKey: String, label: String) {
         self.init(title: "", target: nil, action: #selector(toggle))
         self.key = key
+        self.otherKey = otherKey
+        setAccessibilityLabel("Phím tắt: " + label)
         target = self
         widthAnchor.constraint(equalToConstant: 150).isActive = true
         refresh()
@@ -54,6 +66,17 @@ private final class HotkeyButton: NSButton {
     }
 
     func set(_ h: Hotkey) {
+        let other = Hotkey(string: UserDefaults.standard.string(forKey: otherKey) ?? "")
+        if let problem = h.problem(other: other) {
+            // Không nhận: báo lý do ngay trên nút rồi trở về phím tắt cũ.
+            stop()
+            NSSound.beep()
+            title = problem == .duplicate ? "Trùng phím tắt kia" : "Cần thêm ⌃, ⌥ hoặc ⌘"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+                if self?.monitor == nil { self?.refresh() }
+            }
+            return
+        }
         UserDefaults.standard.set(h.string, forKey: key)
         stop()
     }
@@ -92,10 +115,19 @@ private final class HotkeyButton: NSButton {
 }
 
 /// Danh sách ứng dụng (lưu bằng bundle ID) hiện kèm biểu tượng và tên.
+private final class AppTable: NSTableView {
+    var onDelete: (() -> Void)?
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 51 || event.keyCode == 117 { onDelete?() } else { super.keyDown(with: event) }
+    }
+}
+
 private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     let scroll = NSScrollView()
-    private let table = NSTableView()
+    private let table = AppTable()
     private let key: String
+    /// Gọi khi số dòng đang chọn đổi (để bật/tắt nút Xoá).
+    var onSelection: ((Int) -> Void)?
     private var items: [(id: String, name: String?, icon: NSImage)] = []
 
     init(key: String) {
@@ -111,6 +143,8 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
         table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         table.dataSource = self
         table.delegate = self
+        table.onDelete = { [unowned self] in removeSelected() }
+        table.setAccessibilityLabel("Ứng dụng bắt đầu ở chế độ Anh")
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.borderType = .bezelBorder
@@ -138,6 +172,22 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
             }
         }
         table.reloadData()
+        onSelection?(table.selectedRowIndexes.count)
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) { onSelection?(table.selectedRowIndexes.count) }
+
+    func add(_ ids: [String]) {
+        var list = UserDefaults.standard.stringArray(forKey: key) ?? []
+        for id in ids where !list.contains(id) { list.append(id) }
+        UserDefaults.standard.set(list, forKey: key)
+        reload()
+    }
+
+    /// Bỏ danh sách đã sửa: giá trị mặc định đã đăng ký (các ứng dụng terminal) có hiệu lực trở lại.
+    func restoreDefaults() {
+        UserDefaults.standard.removeObject(forKey: key)
+        reload()
     }
 
     func removeSelected() {
@@ -308,6 +358,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private var methodControl: NSSegmentedControl?
     private var toneControl: NSSegmentedControl?
     private var loginSwitch: NSSwitch?
+    private var wSwitch: NSSwitch?
+    private var removeButton: NSButton?
+    private var runningAppsMenu: NSPopUpButton?
 
     override init() {
         window = NSWindow(contentViewController: tabs)
@@ -351,6 +404,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         hotkeyButtons.forEach { $0.refresh() }
         methodControl?.selectedSegment = defaults.string(forKey: Key.method) == "vni" ? 1 : 0
         toneControl?.selectedSegment = defaults.bool(forKey: Key.modernTone) ? 1 : 0
+        wSwitch?.isEnabled = defaults.string(forKey: Key.method) != "vni"  // chỉ Telex có phím w
         if #available(macOS 13.0, *) { loginSwitch?.state = SMAppService.mainApp.status == .enabled ? .on : .off }
     }
 
@@ -463,15 +517,19 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return row(name, detail, s)
     }
 
-    private func editor(height: CGFloat, load: @escaping () -> String, save: @escaping (String) -> Void) -> NSView {
-        let e = ListEditor(height: height, load: load, save: save)
+    private func editor(
+        height: CGFloat, label: String, load: @escaping () -> String, save: @escaping (String) -> Void,
+        onChange: ((String) -> Void)? = nil
+    ) -> NSView {
+        let e = ListEditor(height: height, label: label, load: load, save: save)
+        e.onChange = onChange
         editors.append(e)
         return e.scroll
     }
 
-    private func listEditor(_ key: String, height: CGFloat) -> NSView {
+    private func listEditor(_ key: String, label: String, height: CGFloat) -> NSView {
         editor(
-            height: height,
+            height: height, label: label,
             load: { [defaults] in (defaults.stringArray(forKey: key) ?? []).sorted().joined(separator: "\n") },
             save: { [defaults] text in defaults.set(ListFormat.lines(text.lowercased()), forKey: key) })
     }
@@ -480,7 +538,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     private func general() -> NSView {
         func hotkey(_ name: String, _ detail: String?, _ key: String) -> NSView {
-            let b = HotkeyButton(key: key)
+            let b = HotkeyButton(
+                key: key, otherKey: key == Key.toggleHotkey ? Key.restoreHotkey : Key.toggleHotkey, label: name)
             hotkeyButtons.append(b)
             let reset = NSButton(
                 image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: "Về mặc định")!,
@@ -494,12 +553,14 @@ final class SettingsController: NSObject, NSWindowDelegate {
         login.controlSize = .small
         login.target = self
         login.action = #selector(toggleLogin(_:))
+        login.setAccessibilityLabel("Mở cùng lúc đăng nhập")
         loginSwitch = login
         let openLog = NSButton(title: "Mở tệp", target: self, action: #selector(openLog))
         openLog.controlSize = .small
         let logSwitch = NSSwitch()
         logSwitch.controlSize = .small
         logSwitch.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.debugLog)
+        logSwitch.setAccessibilityLabel("Ghi nhật ký gỡ lỗi")
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "bản phát triển"
 
         var system: [NSView] = []
@@ -525,15 +586,22 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let method = NSSegmentedControl(
             labels: ["Telex", "VNI"], trackingMode: .selectOne, target: self, action: #selector(pickMethod(_:)))
         methodControl = method
+        method.setAccessibilityLabel("Kiểu gõ")
+        let w = NSSwitch()
+        w.controlSize = .small
+        w.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.standaloneW)
+        w.setAccessibilityLabel("Phím w đứng riêng thành ư")
+        wSwitch = w
         let tone = NSSegmentedControl(
             labels: ["hòa, thủy", "hoà, thuỷ"], trackingMode: .selectOne, target: self, action: #selector(pickTone(_:)))
         toneControl = tone
+        tone.setAccessibilityLabel("Vị trí dấu thanh")
         return page([
             title("Cơ bản"),
             Card(rows: [
                 row("Kiểu gõ", nil, method),
                 row("Vị trí dấu thanh", "Ở nguyên âm đầu (cũ) hay nguyên âm sau (mới).", tone),
-                toggle("Phím “w” đứng riêng thành “ư”", "Chỉ áp dụng cho Telex. Gõ “ww” để ra chữ w.", key: Key.standaloneW),
+                row("Phím “w” đứng riêng thành “ư”", "Chỉ áp dụng cho Telex. Gõ “ww” để ra chữ w.", w),
             ]),
             title("Tự động"),
             Card(rows: [
@@ -545,8 +613,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     private func mixed() -> NSView {
         let lists = NSStackView(views: [
-            column("Luôn giữ phím gốc", listEditor(Key.preferRaw, height: 84)),
-            column("Luôn bỏ dấu tiếng Việt", listEditor(Key.preferVN, height: 84)),
+            column("Luôn giữ phím gốc", listEditor(Key.preferRaw, label: "Từ luôn giữ phím gốc", height: 84)),
+            column("Luôn bỏ dấu tiếng Việt", listEditor(Key.preferVN, label: "Từ luôn bỏ dấu tiếng Việt", height: 84)),
         ])
         lists.orientation = .horizontal
         lists.distribution = .fillEqually
@@ -562,7 +630,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 toggle(
                     "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
                     key: Key.fixTransposition, dependsOn: Key.autoRestore),
-                toggle("Giữ nguyên trong ngữ cảnh code", "Sau @ # / . _ hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
+                toggle("Giữ nguyên trong ngữ cảnh code", "Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
             ]),
             title("Chữ teen"),
             Card(rows: [toggle("Cho phép f, j, w, z đứng đầu từ", "zậy, jờ, dzô, fải…", key: Key.teen)]),
@@ -585,14 +653,24 @@ final class SettingsController: NSObject, NSWindowDelegate {
     }
 
     private func shortcuts() -> NSView {
-        page([
+        // Dòng trạng thái luôn có mặt (một dòng), để cửa sổ không nhảy chiều cao khi có dòng sai.
+        let state = note(" ")
+        state.maximumNumberOfLines = 1
+        return page([
             title("Gõ tắt của bạn"),
             editor(
-                height: 170,
+                height: 170, label: "Danh sách gõ tắt",
                 load: { [defaults] in
                     ListFormat.text(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:])
                 },
-                save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) }),
+                save: { [defaults] text in defaults.set(ListFormat.macros(from: text), forKey: Key.macros) },
+                onChange: { text in
+                    let ok = ListFormat.macros(from: text).count, bad = ListFormat.skippedMacroLines(in: text)
+                    state.stringValue =
+                        bad == 0 ? "\(ok) mục" : "\(ok) mục · \(bad) dòng bị bỏ qua vì không có dạng  từ tắt = nội dung"
+                    state.textColor = bad == 0 ? .secondaryLabelColor : .systemOrange
+                }),
+            state,
             note("Mỗi dòng một mục dạng  vn = Việt Nam. Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa."),
             title("Có sẵn"),
             Card(rows: [toggle("Bung viết tắt teen", "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
@@ -603,20 +681,37 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let list = AppList(key: Key.excludedApps)
         appList = list
         let add = NSButton(title: "Thêm ứng dụng…", target: self, action: #selector(addApp))
-        let remove = NSButton(title: "Xoá mục đã chọn", target: self, action: #selector(removeApps))
-        let buttons = NSStackView(views: [add, remove])
+        // Nút dạng menu kéo xuống: liệt kê ứng dụng đang mở, dựng lại mỗi lần bấm.
+        let running = NSPopUpButton(frame: .zero, pullsDown: true)
+        running.addItem(withTitle: "Thêm ứng dụng đang mở")
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(fillRunningApps(_:)), name: NSPopUpButton.willPopUpNotification, object: running)
+        runningAppsMenu = running
+        let remove = NSButton(title: "Xoá", target: self, action: #selector(removeApps))
+        remove.isEnabled = false
+        remove.toolTip = "Xoá các ứng dụng đang chọn (phím Delete)"
+        removeButton = remove
+        list.onSelection = { [weak remove] n in remove?.isEnabled = n > 0 }
+        let restore = NSButton(title: "Về mặc định", target: self, action: #selector(restoreApps))
+        restore.toolTip = "Trở lại danh sách ứng dụng terminal ban đầu"
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let buttons = NSStackView(views: [add, running, remove, spacer, restore])
         buttons.orientation = .horizontal
         buttons.spacing = Metrics.controlGap
+        buttons.identifier = SettingsController.wide
         return page([
             title("Theo từng ứng dụng"),
             Card(rows: [
-                toggle("Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", key: Key.perApp),
+                toggle(
+                    "Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", "Mỗi ứng dụng trở lại chế độ bạn chọn lần cuối ở đó.",
+                    key: Key.perApp),
                 toggle("Sửa lặp chữ ở ô có gợi ý", "Thanh địa chỉ trình duyệt, Spotlight.", key: Key.fixBrowser),
             ]),
             title("Bắt đầu ở chế độ Anh"),
             list.scroll,
             buttons,
-            note("Mỗi lần chuyển sang các ứng dụng này VNKey tự tắt bỏ dấu; vẫn bật lại được bằng phím tắt."),
+            note("Mỗi lần chuyển sang các ứng dụng này VNKey tự về chế độ Anh; vẫn bật lại được bằng phím tắt."),
         ])
     }
 
@@ -624,6 +719,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     @objc private func pickMethod(_ sender: NSSegmentedControl) {
         defaults.set(sender.selectedSegment == 1 ? "vni" : "telex", forKey: Key.method)
+        wSwitch?.isEnabled = sender.selectedSegment == 0
     }
 
     @objc private func pickTone(_ sender: NSSegmentedControl) {
@@ -638,7 +734,12 @@ final class SettingsController: NSObject, NSWindowDelegate {
         guard #available(macOS 13.0, *) else { return }
         let service = SMAppService.mainApp
         do { if sender.state == .on { try service.register() } else { try service.unregister() } } catch {
-            NSLog("VNKey: không đổi được mục đăng nhập: \(error)")
+            Log.write("LOGIN ITEM lỗi: \(error.localizedDescription)")
+            let alert = NSAlert()
+            alert.messageText = "Không đổi được thiết lập mở cùng lúc đăng nhập"
+            alert.informativeText =
+                "\(error.localizedDescription)\n\nBạn có thể tự bật trong Cài đặt hệ thống › Cài đặt chung › Mục đăng nhập."
+            alert.beginSheetModal(for: window)
         }
         sender.state = service.status == .enabled ? .on : .off
     }
@@ -647,17 +748,42 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     @objc private func removeApps() { appList?.removeSelected() }
 
+    @objc private func restoreApps() { appList?.restoreDefaults() }
+
+    @objc private func fillRunningApps(_ note: Notification) {
+        guard let button = runningAppsMenu, let menu = button.menu else { return }
+        while menu.items.count > 1 { menu.removeItem(at: 1) }
+        let have = Set(defaults.stringArray(forKey: Key.excludedApps) ?? [])
+        let apps = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && !have.contains($0.bundleIdentifier!) }
+            .sorted { ($0.localizedName ?? "").localizedCaseInsensitiveCompare($1.localizedName ?? "") == .orderedAscending }
+        if apps.isEmpty {
+            let none = NSMenuItem(title: "Không còn ứng dụng nào để thêm", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            menu.addItem(none)
+        }
+        for app in apps {
+            let item = NSMenuItem(title: app.localizedName ?? app.bundleIdentifier!, action: #selector(addRunningApp(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = app.bundleIdentifier
+            if let icon = app.icon?.copy() as? NSImage {
+                icon.size = NSSize(width: 16, height: 16)
+                item.image = icon
+            }
+            menu.addItem(item)
+        }
+    }
+
+    @objc private func addRunningApp(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? String { appList?.add([id]) }
+    }
+
     @objc private func addApp() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
-        var list = defaults.stringArray(forKey: Key.excludedApps) ?? []
-        for url in panel.urls {
-            if let id = Bundle(url: url)?.bundleIdentifier, !list.contains(id) { list.append(id) }
-        }
-        defaults.set(list, forKey: Key.excludedApps)
-        reload()
+        appList?.add(panel.urls.compactMap { Bundle(url: $0)?.bundleIdentifier })
     }
 }

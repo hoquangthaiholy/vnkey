@@ -321,3 +321,32 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
     ])
     func toneGoesWithItsLetter(keys: String, want: String) { #expect(run(keys) == want) }
 }
+
+@Suite struct Glyphs {
+    /// Bảng tra chữ hiển thị phải cho đúng kết quả của cách chuẩn hoá Unicode, với mọi chữ, dấu, thanh, hoa/thường.
+    @Test func tableMatchesNormalization() {
+        let marks: [Mark] = [.none, .hat, .breve, .horn, .bar]
+        for base in "abcdefghijklmnopqrstuvwxyz" {
+            for mark in marks {
+                for upper in [false, true] {
+                    for t in 0...5 {
+                        let tone = Tone(rawValue: t)!
+                        let l = Letter(base: base, mark: mark, upper: upper)
+                        #expect(l.glyph(tone) == Letter.compose(l.plain, tone, upper: upper), "\(base) \(mark) \(tone) \(upper)")
+                    }
+                }
+            }
+        }
+        #expect(Letter(base: "e", mark: .hat, upper: true).glyph(.sac) == "Ế")
+        #expect(Letter(base: "d", mark: .bar, upper: true).glyph(.none) == "Đ")
+    }
+
+    /// Giữ phím cách rất lâu sau một từ: engine thôi theo dõi từ đó chứ không tích luỹ mãi.
+    @Test func longSeparatorRunIsBounded() {
+        let e = Engine(config: Config())
+        for ch in "tooi" { _ = e.type(ch) }
+        for _ in 0..<500 { _ = e.type(" ") }
+        #expect(e.toggleLast().isPass)
+        #expect(run("tooi" + String(repeating: " ", count: 100) + "ddi ") == "tôi" + String(repeating: " ", count: 100) + "đi ")
+    }
+}

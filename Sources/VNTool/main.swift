@@ -64,6 +64,8 @@ case "bench":
         "tooi ddang fix bug cuar user trong file string.swift, sau ddos meeting lucs 3h chieeuf nay. "
         + "Nguwowif dungf Vieetj hay gox xen kex tieengs Anh: this window class error, dduwowcj khoong? "
         + "ko dc ddaau nhes, zaayj thif thooi. tieegns nugowfi @user #test a/b/c foo_bar\n"
+        // Xoá lùi giữa từ, gõ nhầm rồi sửa, quay lại từ trước, và vài từ dài.
+        + "nghieengx<<<eeng truwowngf thii<chs vieejk<t khoong <<<<ng internationalization responsibilities\n"
     let rounds = 200
     let e = makeEngine()
     var screen = ""

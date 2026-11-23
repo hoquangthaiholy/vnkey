@@ -28,6 +28,19 @@ enum Snapshot {
         }
         window.orderOut(nil)
 
+        // Cửa sổ hướng dẫn cấp quyền, ở cả hai trạng thái.
+        let onboarding = OnboardingController()
+        onboarding.window.appearance = NSApp.appearance
+        onboarding.window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+        onboarding.window.orderFrontRegardless()
+        for (ready, name) in [(false, "onboarding-wait"), (true, "onboarding-ready")] {
+            onboarding.update(ready: ready)
+            onboarding.window.layoutIfNeeded()
+            onboarding.window.displayIfNeeded()
+            write(onboarding.contentView, dark: dark, to: dir.appendingPathComponent("\(name)\(suffix).png"))
+        }
+        onboarding.window.orderOut(nil)
+
         // Nhãn cạnh con trỏ, phóng to 6 lần cho dễ nhìn.
         for text in ["VN", "EN"] {
             let pill = HUDPill(text: text)

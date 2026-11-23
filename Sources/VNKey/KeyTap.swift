@@ -26,6 +26,11 @@ final class KeyTap {
     var restoreHotkey = Hotkey.defaultRestore
 
     private var port: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
+    /// Bộ đệm nhận ký tự của phím, dùng lại cho mọi phím (khỏi cấp phát mỗi lần).
+    private var uniBuf = [UniChar](repeating: 0, count: 4)
+    /// Câu trả lời cho lần nhấn xoá lùi gần nhất; phím xoá đang lặp dùng lại nó.
+    private var lastBackspaceRoute: SendPlanner.BackspaceRoute?
     private var modifiers = ModifierTracker()
     private var perf = PerfStats()
     private var held = HeldKeys()
@@ -51,19 +56,34 @@ final class KeyTap {
                 userInfo: Unmanaged.passUnretained(self).toOpaque())
         else { return false }
         port = p
-        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(kCFAllocatorDefault, p, 0), .commonModes)
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, p, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: p, enable: true)
         return true
     }
 
     /// macOS tự tắt tap khi callback chậm hoặc sau khi ngủ máy: gọi định kỳ để bật lại.
     func ensureEnabled() {
-        if let p = port, !CGEvent.tapIsEnabled(tap: p) {
-            CGEvent.tapEnable(tap: p, enable: true)
-            held.clear()
+        guard let p = port, !CGEvent.tapIsEnabled(tap: p) else { return }
+        CGEvent.tapEnable(tap: p, enable: true)
+        held.clear()
+        if CGEvent.tapIsEnabled(tap: p) {
             Log.write("TAP bị hệ thống tắt -> đã bật lại")
-            reset("tap bật lại")
+            reset("tap bật lại", .system)
+        } else {
+            // Không bật lại được (thường là quyền Trợ năng vừa bị thu hồi): bỏ tap này để `isRunning` thành
+            // false, thanh menu hiện cảnh báo và `start()` được thử lại định kỳ.
+            Log.write("TAP không bật lại được -> huỷ, chờ tạo lại")
+            stop()
+            reset("tap hỏng", .system)
         }
+    }
+
+    private func stop() {
+        if let s = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), s, .commonModes) }
+        if let p = port { CFMachPortInvalidate(p) }
+        runLoopSource = nil
+        port = nil
     }
 
     /// Ghi tổng kết hiệu năng của đợt phím vừa qua vào nhật ký.
@@ -73,10 +93,10 @@ final class KeyTap {
         perf.reset()
     }
 
-    private func reset(_ why: String) {
+    private func reset(_ why: String, _ event: FocusPolicy.Event) {
         Log.write("RESET \(why) | trước: \(engine.debugState)")
         engine.reset()
-        invalidateFocus()
+        focusMayHaveChanged(event)
     }
 
     private func describe(_ out: Output) -> String {
@@ -90,7 +110,7 @@ final class KeyTap {
             ensureEnabled()
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             modifiers.interrupted()
-            reset("chuột")
+            reset("chuột", .pointer)
         case .flagsChanged:
             trackModifiers(event.flags, proxy)
         case .keyUp:
@@ -136,14 +156,13 @@ final class KeyTap {
     /// Đổi từ vừa gõ giữa phím gốc <-> tiếng Việt và ghi nhớ.
     private func restoreWord(_ proxy: CGEventTapProxy) {
         guard enabled else { return }
-        let before = engine.debugState
+        let before = Log.enabled ? engine.debugState : ""
         let out = engine.toggleLast()
         Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(engine.debugState)")
         if !out.isPass { send(out, original: nil, proxy) }
     }
 
     private func keyDown(_ proxy: CGEventTapProxy, _ event: CGEvent) -> Bool {
-        if event.getIntegerValueField(.eventSourceUserData) == kMagic { return true }
         modifiers.interrupted()
         if hotkeyRecording { return true }
         let flags = event.flags
@@ -161,9 +180,8 @@ final class KeyTap {
         }
 
         var len = 0
-        var buf = [UniChar](repeating: 0, count: 4)
-        event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &len, unicodeString: &buf)
-        let s = String(utf16CodeUnits: buf, count: len)
+        event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &len, unicodeString: &uniBuf)
+        let s = String(utf16CodeUnits: uniBuf, count: min(len, 4))
         let repeated = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
         func tag() -> String {
             "KEY code=\(code) ch=\(Log.show(s))\(repeated ? " repeat" : "") mods=\(Hotkey(code: -1, mods: m, keyLabel: "").label) app=\(frontApp)"
@@ -171,7 +189,7 @@ final class KeyTap {
 
         if flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate) {
             Log.write("\(tag()) -> bỏ qua (phím tắt)")
-            reset("phím bổ trợ")
+            reset("phím bổ trợ", .shortcut)
             return true
         }
         guard enabled else {
@@ -179,15 +197,22 @@ final class KeyTap {
             return true
         }
 
-        let before = engine.debugState
+        let before = Log.enabled ? engine.debugState : ""
         var focusMayMove = false
         let out: Output
         switch classifyKey(code: Int(code), chars: s) {
         case .backspace:
             var route = SendPlanner.BackspaceRoute.normal
             if fixAutocomplete, engine.isTracking {
-                let f = focus()
-                route = SendPlanner.userBackspace(app: f.app, selection: f.selection, fixAutocomplete: true)
+                // Giữ phím xoá: chỉ hỏi ứng dụng ở lần nhấn đầu, các lần lặp dùng lại câu trả lời.
+                if FocusPolicy.asksSelectionOnBackspace(repeated: repeated, hasPrevious: lastBackspaceRoute != nil) {
+                    let f = focus()
+                    route = SendPlanner.userBackspace(app: f.app, selection: f.selection, fixAutocomplete: true)
+                    // Gợi ý (nếu có) đã được xử lý ở lần nhấn này; các lần lặp sau là xoá thường.
+                    lastBackspaceRoute = .normal
+                } else {
+                    route = lastBackspaceRoute ?? .normal
+                }
             }
             if route == .suggestionOnly {
                 Log.write("\(tag()) -> đi thẳng (chỉ gạt gợi ý, giữ nguyên engine) | \(before)")
@@ -204,17 +229,19 @@ final class KeyTap {
             focusMayMove = true
         case .navigation:
             Log.write("\(tag()) -> bỏ qua (phím điều hướng)")
-            reset("phím điều hướng")
+            reset("phím điều hướng", .navigation)
             return true
         case .unprintable:
             Log.write("\(tag()) -> bỏ qua (không phải ký tự in được)")
-            reset("ký tự lạ")
+            reset("ký tự lạ", .navigation)
             return true
-        case .character(let ch): out = engine.type(ch)
+        case .character(let ch):
+            lastBackspaceRoute = nil
+            out = engine.type(ch)
         }
         Log.write("\(tag()) | \(before) -> \(describe(out)) | \(engine.debugState)")
         // Enter và Tab thường chuyển tiêu điểm sang ô khác: quên ô đã nhớ SAU khi sửa xong từ hiện tại.
-        defer { if focusMayMove { invalidateFocus() } }
+        defer { if focusMayMove { focusMayHaveChanged(.fieldExit) } }
         if out.isPass { return true }
         send(out, original: event, proxy)
         return false
@@ -249,9 +276,26 @@ final class KeyTap {
     private var lookupPending = false
     private let axQueue = DispatchQueue(label: "local.vnkey.ax", qos: .userInteractive)
 
-    func invalidateFocus() {
-        focusCache = nil
+    /// Gọi từ AppDelegate khi đổi ứng dụng hoặc đổi chế độ.
+    func invalidateFocus() { focusMayHaveChanged(.appSwitch) }
+
+    private func focusMayHaveChanged(_ event: FocusPolicy.Event) {
         focusEpoch += 1
+        lastBackspaceRoute = nil
+        switch FocusPolicy.action(after: event) {
+        case .drop:
+            focusCache = nil
+        case .refreshInBackground:
+            // Bấm chuột hay phím mũi tên thường vẫn ở trong cùng ô: dùng tạm thông tin cũ và tra lại ở luồng
+            // nền sau một nhịp ngắn (để ô mới, nếu có, kịp nhận tiêu điểm) thay vì tra đồng bộ ở phím sửa chữ kế.
+            guard focusCache != nil else { return }
+            focusCache!.created = 0
+            let epoch = focusEpoch
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                guard let self, self.focusEpoch == epoch else { return }
+                self.prefetchFocus()
+            }
+        }
     }
 
     /// Tra cứu ô đang nhận phím trên luồng nền ngay khi có phím đầu tiên sau khi tiêu điểm đổi, hoặc khi
@@ -261,7 +305,7 @@ final class KeyTap {
         guard enabled, fixAutocomplete, !lookupPending else { return }
         if let c = focusCache, DispatchTime.now().uptimeNanoseconds - c.created <= focusCacheLifetimeNs { return }
         lookupPending = true
-        let epoch = focusEpoch, front = frontApp
+        let epoch = focusEpoch, front = frontApp, old = focusCache
         axQueue.async { [weak self] in
             let t0 = DispatchTime.now().uptimeNanoseconds
             let c = KeyTap.lookUpFocus(fallbackApp: front)
@@ -269,8 +313,17 @@ final class KeyTap {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.lookupPending = false
-                let current = self.focusEpoch == epoch
-                if current { self.focusCache = c }
+                // Trong lúc chờ có thể đã có một lần tra đồng bộ (phím sửa chữ tới trước): giữ bản đó.
+                let fresh = self.focusCache.map { $0.created > 0 && $0.created != old?.created } ?? false
+                let current = FocusPolicy.acceptsBackgroundResult(sameEpoch: self.focusEpoch == epoch, haveFresh: fresh)
+                if current {
+                    var c = c
+                    // Cùng một ô mà trước đó đã hỏi vùng chọn thất bại thì không hỏi lại.
+                    if let o = self.focusCache, !o.canAskSelection, let a = o.element, let b = c.element, CFEqual(a, b) {
+                        c.canAskSelection = false
+                    }
+                    self.focusCache = c
+                }
                 Log.write(String(format: "FOCUS nền %.2fms app=%@ role=%@%@", ms, c.app, c.role, current ? "" : " (bỏ: tiêu điểm đã đổi)"))
             }
         }
@@ -307,17 +360,22 @@ final class KeyTap {
     /// nhận phím mà không trở thành app ở trước.
     private func focus() -> Focus {
         let t0 = DispatchTime.now().uptimeNanoseconds
+        var askedAX = false
         defer {
-            let dt = DispatchTime.now().uptimeNanoseconds - t0
-            perf.ax(dt); axNsThisKey += dt
+            if askedAX {  // chỉ tính khi thật sự gọi sang ứng dụng khác
+                let dt = DispatchTime.now().uptimeNanoseconds - t0
+                perf.ax(dt); axNsThisKey += dt
+            }
         }
-        var note = "cache"
-        if focusCache == nil {  // tra cứu nền chưa kịp xong: đành tra ngay tại đây
+        var note = focusCache?.created == 0 ? "cache(cũ)" : "cache"
+        if focusCache == nil {  // tra cứu nền chưa kịp xong: đành tra ngay tại đây để không gửi sai kiểu
             focusCache = KeyTap.lookUpFocus(fallbackApp: frontApp)
             note = "lookup"
+            askedAX = true
         }
         var f = Focus(app: focusCache!.app, role: focusCache!.role, selection: nil, note: note)
         guard let el = focusCache!.element, focusCache!.canAskSelection else { return f }
+        askedAX = true
         var range: CFTypeRef?
         let err = AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range)
         if err == .success, let range, CFGetTypeID(range) == AXValueGetTypeID() {
@@ -363,15 +421,30 @@ final class KeyTap {
         guard Log.enabled, !expected.isEmpty, let el = focusCache?.element else { return }
         let seq = keySeq, app = focusCache?.app ?? "?"
         axQueue.asyncAfter(deadline: .now() + 0.12) { [weak self] in
-            var value: CFTypeRef?, range: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &value) == .success,
-                let text = value as? String,
-                AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
+            var range: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
                 let range, CFGetTypeID(range) == AXValueGetTypeID()
             else { return }
             var r = CFRange(location: 0, length: 0)
             guard AXValueGetValue(range as! AXValue, .cfRange, &r) else { return }
-            let result = ScreenCheck.compare(value: text, caret: r.location, expected: expected)
+            // Chỉ cần đoạn ngay trước con trỏ; đọc cả tài liệu dài cho mỗi lần sửa chữ là phí.
+            let start = max(0, r.location - 200)
+            var window = CFRange(location: start, length: r.location - start)
+            var tail: CFTypeRef?
+            let result: ScreenCheck.Result
+            if let w = AXValueCreate(.cfRange, &window),
+                AXUIElementCopyParameterizedAttributeValue(
+                    el, kAXStringForRangeParameterizedAttribute as CFString, w, &tail) == .success,
+                let text = tail as? String
+            {
+                result = ScreenCheck.compare(value: text, caret: text.utf16.count, expected: expected)
+            } else {
+                var value: CFTypeRef?
+                guard AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &value) == .success,
+                    let text = value as? String
+                else { return }
+                result = ScreenCheck.compare(value: text, caret: r.location, expected: expected)
+            }
             DispatchQueue.main.async {
                 guard let self, self.keySeq == seq else { return }
                 switch result {

@@ -16,7 +16,8 @@ public final class SystemLexicon: Lexicon {
         let r = checker.checkSpelling(
             of: word, startingAt: 0, language: lang, wrap: false, inSpellDocumentWithTag: 0, wordCount: nil)
         let ok = r.location == NSNotFound
-        if cache.count > 5000 { cache.removeAll() }
+        // Đầy thì bỏ một nửa (bất kỳ) thay vì xoá sạch, để không phải hỏi lại mọi từ quen cùng lúc.
+        if cache.count > 5000 { for k in Array(cache.keys.prefix(2500)) { cache[k] = nil } }
         cache[key] = ok
         return ok
     }

@@ -142,7 +142,12 @@ public final class Engine {
                 history[history.count - 1].sep.append(ch)
                 return Output(backspaces: 1, text: "", passKey: true)
             }
-            if hard || history.isEmpty { history = [] } else { history[history.count - 1].sep.append(ch) }
+            // Dãy dấu cách dài (giữ phím cách) thì thôi theo dõi từ trước, để `sep` không lớn mãi.
+            if hard || history.isEmpty || history[history.count - 1].sep.count >= Engine.sepLimit {
+                history = []
+            } else {
+                history[history.count - 1].sep.append(ch)
+            }
             return .pass
         }
         sepRun = ""
@@ -186,7 +191,7 @@ public final class Engine {
         // đã làm màn hình và engine lệch nhau. Nếu cách hiển thị chuẩn khác với màn hình (dấu thanh nằm
         // khác chỗ: "hoà" so với "hòa"), phím kế tiếp hoặc lúc kết thúc từ sẽ sửa.
         comp.backspace(dropTone: screen.last.map(Engine.carriesTone) ?? false)
-        screen.removeLast()
+        if !screen.isEmpty { screen.removeLast() }
         if comp.isEmpty { screen = "" }
         return .pass
     }
@@ -234,7 +239,8 @@ public final class Engine {
     private func transpositionFix() -> Composer? {
         guard config.fixTransposition, config.autoRestore, let lex = lexicon else { return nil }
         let raw = comp.raw
-        guard (3...12).contains(raw.count), !comp.cancelled, !comp.keepComposed, !comp.codeLiteral else { return nil }
+        // Quá 10 phím thì không thử: mỗi cách đảo là một lần gõ lại cả từ và một lần hỏi từ điển.
+        guard (3...10).contains(raw.count), !comp.cancelled, !comp.keepComposed, !comp.codeLiteral else { return nil }
         if !comp.isLiteral, comp.hasVowel,
             Syl.isValid(comp.plainChars, tone: comp.tone, teen: config.teenInitials)
         { return nil }
@@ -371,8 +377,10 @@ public final class Engine {
         return n
     }
 
+    static let sepLimit = 32
+
     private func diff(from old: String, to new: String, typed: Character) -> Output {
-        if new == old + String(typed) { return .pass }
+        if new.last == typed, new.dropLast() == old { return .pass }
         let p = commonPrefix(old, new)
         return Output(backspaces: old.count - p, text: String(new.dropFirst(p)), passKey: false)
     }

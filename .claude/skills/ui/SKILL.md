@@ -100,3 +100,19 @@ Biểu tượng app: thay `Resources/AppIcon.svg`, chạy `swift Scripts/make-ic
 - Chế độ tối, cỡ chữ lớn và VoiceOver của cửa sổ Cài đặt chưa được ai xem.
 - Ảnh chụp không thấy thanh thẻ (nằm trên thanh công cụ của cửa sổ), menu thanh trạng thái, lẫn chuyển
   động đổi thẻ (chỉ thấy trạng thái cuối sau khi chuyển động chạy xong).
+
+## Cửa sổ hướng dẫn cấp quyền
+
+`Sources/VNKey/Onboarding.swift` (`OnboardingController`): tự mở khi khởi động mà chưa có quyền Trợ năng, và từ
+mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi 2 giây từ AppDelegate; có quyền thì đổi sang
+"Đã sẵn sàng". `--snapshot` chụp cả hai trạng thái (`onboarding-wait.png`, `onboarding-ready.png`).
+
+## Điều cần nhớ khi thêm điều khiển
+
+- Điều khiển dựng tay (không qua `toggle`) phải tự `setAccessibilityLabel`.
+- Thẻ có nội dung đổi theo dữ liệu (dòng trạng thái của ô gõ tắt) thì giữ chiều cao cố định, vì cửa sổ chỉ
+  tính lại chiều cao khi đổi thẻ.
+- Nhãn VN/EN hiện khi đổi chế độ bằng phím tắt, bằng menu, và khi chế độ tự đổi lúc chuyển ứng dụng.
+- `--snapshot` không được tạo hay ẩn `NSStatusItem`: trạng thái ẩn bị lưu vào cài đặt (`NSStatusItem VisibleCC
+  Item-0 = 0`) và biểu tượng của bản đang chạy biến mất. Nếu gặp lại: thoát app, `defaults delete local.vnkey
+  "NSStatusItem VisibleCC Item-0"`, mở lại.

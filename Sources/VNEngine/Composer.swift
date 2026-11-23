@@ -12,7 +12,12 @@ struct Letter {
     /// Chữ "ư" sinh ra từ phím w đứng một mình.
     var fromW = false
 
-    var isVowel: Bool { "aeiouy".contains(base) }
+    var isVowel: Bool {
+        switch base {
+        case "a", "e", "i", "o", "u", "y": return true
+        default: return false
+        }
+    }
 
     /// Chữ thường có dấu mũ/móc, chưa có thanh.
     var plain: Character {
@@ -28,7 +33,16 @@ struct Letter {
         }
     }
 
-    func glyph(_ tone: Tone) -> String {
+    /// Chữ hiển thị: có dấu mũ/móc, thanh và hoa/thường. Tra bảng dựng sẵn; chỉ ký tự lạ mới phải chuẩn hoá.
+    func glyph(_ tone: Tone) -> Character {
+        let p = plain
+        if tone == .none && !upper { return p }
+        if let row = Letter.glyphs[p] { return row[tone.rawValue + (upper ? 6 : 0)] }
+        return Letter.compose(p, tone, upper: upper)
+    }
+
+    /// Cách dựng chậm (chuẩn hoá Unicode); bảng `glyphs` được sinh từ đây nên hai đường luôn khớp nhau.
+    static func compose(_ plain: Character, _ tone: Tone, upper: Bool) -> Character {
         var s = String(plain)
         switch tone {
         case .none: break
@@ -39,8 +53,18 @@ struct Letter {
         case .nang: s += "\u{323}"
         }
         s = s.precomposedStringWithCanonicalMapping
-        return upper ? s.uppercased() : s
+        if upper { s = s.uppercased() }
+        return s.count == 1 ? s.first! : plain
     }
+
+    /// Chữ thường (đã có mũ/móc) -> 12 dạng: 6 thanh chữ thường rồi 6 thanh chữ hoa.
+    static let glyphs: [Character: [Character]] = {
+        var out: [Character: [Character]] = [:]
+        for p in "abcdefghijklmnopqrstuvwxyzăâêôơưđ" {
+            out[p] = [false, true].flatMap { up in (0...5).map { compose(p, Tone(rawValue: $0)!, upper: up) } }
+        }
+        return out
+    }()
 }
 
 /// Trạng thái soạn của MỘT từ. Giữ nguyên chuỗi phím thô theo thứ tự gõ (`raw`)
@@ -71,6 +95,8 @@ struct Composer {
     var noRecompose = false
     /// Từ nguyên văn vừa bị xoá lùi: phím chữ kế tiếp sẽ thử hiểu lại phần còn lại như vừa gõ mới.
     var retry = false
+    /// `attempt` vừa kiểm tra tiền tố cho đúng trạng thái hiện tại: `feed` không cần kiểm tra lần hai.
+    private var prefixChecked = false
 
     init(_ c: Config) {
         method = c.method; modernTone = c.modernTone; standaloneW = c.standaloneW; teen = c.teenInitials
@@ -96,6 +122,7 @@ struct Composer {
         }
         let saved = self
         raw.append(ch)
+        prefixChecked = false
         guard applyKey(Character(ch.lowercased()), upper: ch.isUppercase) else {
             self = saved
             return false
@@ -105,7 +132,7 @@ struct Composer {
             override = rawString  // "www": muốn chữ w thật, không phải "wư"
             return true
         }
-        if !Syl.isValidPrefix(letters.map(\.base), teen: teen) { enterLiteral() }
+        if !prefixChecked, !Syl.isValidPrefix(letters.map(\.base), teen: teen) { enterLiteral() }
         return true
     }
 
@@ -170,6 +197,9 @@ struct Composer {
     // MARK: - Luật phím
 
     private enum Outcome { case applied, cancelled, none }
+    /// Âm cuối tắc: chỉ đi với thanh sắc hoặc nặng.
+    private static let stopFinals: Set<String> = ["c", "ch", "p", "t"]
+    private static let modernPairs: Set<String> = ["oa", "oe", "uy"]
 
     private mutating func applyKey(_ k: Character, upper: Bool) -> Bool {
         switch method {
@@ -231,7 +261,11 @@ struct Composer {
             self = trial; return true
         case .applied:
             trial.normalizeUO()
-            if Syl.isValidPrefix(trial.letters.map(\.base), teen: teen) { self = trial; return true }
+            if Syl.isValidPrefix(trial.letters.map(\.base), teen: teen) {
+                self = trial
+                prefixChecked = true
+                return true
+            }
         case .none: break
         }
         guard fallbackLetter else { return false }
@@ -259,8 +293,7 @@ struct Composer {
             appendLetter(k, upper)
             return true
         }
-        let fin = String(letters[c.upperBound...].map(\.base))
-        if ["c", "ch", "p", "t"].contains(fin) && t != .sac && t != .nang {
+        if t != .sac, t != .nang, Composer.stopFinals.contains(String(letters[c.upperBound...].map(\.base))) {
             if isLetterKey { appendLetter(k, upper) }
             return isLetterKey
         }
@@ -398,7 +431,7 @@ struct Composer {
         case 2:
             if c.upperBound < letters.count { return idx[1] }  // có âm cuối: toán, quyết
             let pair = String(idx.map { letters[$0].base })
-            if modernTone && ["oa", "oe", "uy"].contains(pair) { return idx[1] }  // hoà, thuỷ
+            if modernTone && Composer.modernPairs.contains(pair) { return idx[1] }  // hoà, thuỷ
             return idx[0]
         default: return idx[1]
         }
@@ -407,7 +440,8 @@ struct Composer {
     func render() -> String {
         let tp = tone == .none ? nil : tonePosition()
         var s = ""
-        for (i, l) in letters.enumerated() { s += l.glyph(i == tp ? tone : .none) }
+        s.reserveCapacity(letters.count * 3)
+        for (i, l) in letters.enumerated() { s.append(l.glyph(i == tp ? tone : .none)) }
         return s
     }
 }
