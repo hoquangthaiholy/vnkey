@@ -20,8 +20,9 @@ enum Key {
         enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
         codeAware: true, fixTransposition: true, contextAware: true, showHUD: true,
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
-        // Đang phát triển: ghi nhật ký đầy đủ theo mặc định (tắt được trong Cài đặt › Chung).
-        debugLog: true,
+        // Nhật ký gỡ lỗi lưu cả nội dung gõ: chỉ bật sẵn ở bản dựng trên máy phát triển (mã định danh
+        // local.vnkey). Bản phát hành mặc định TẮT; người dùng tự bật trong Cài đặt › Chung khi cần báo lỗi.
+        debugLog: Bundle.main.bundleIdentifier == "local.vnkey",
         learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, predict: true, predictUnmarked: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Terminal mặc định bắt đầu ở chế độ Anh; vẫn bật lại được bằng phím tắt.

@@ -49,7 +49,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         let logTitle = NSTextField(labelWithString: "Ghi nhật ký gỡ lỗi")
         let logDetail = NSTextField(
             wrappingLabelWithString:
-                "Bản đang phát triển này lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào một tệp trên máy để tìm lỗi. Không có gì được gửi đi. Tắt ở đây hoặc trong Cài đặt bất cứ lúc nào.")
+                "Khi bật, VNKey lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào một tệp trên máy để tìm lỗi. Không có gì được gửi đi. Bật tắt ở đây hoặc trong Cài đặt bất cứ lúc nào.")
         logDetail.font = .systemFont(ofSize: 11)
         logDetail.textColor = .secondaryLabelColor
         logDetail.preferredMaxLayoutWidth = inner - 60

@@ -1,0 +1,110 @@
+name: Release macOS
+
+# Dựng VNKey (Swift Package), ký bằng Developer ID, công chứng với Apple rồi đính tệp vào bản phát hành.
+# Chạy khi một bản phát hành được công bố trên GitHub, hoặc chạy tay với một thẻ có sẵn.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Thẻ phiên bản cần dựng (vd 2.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$TAG version=$VERSION"
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          sw_vers
+
+      - name: Run tests
+        run: swift test
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+
+      - name: Resolve signing identity
+        run: |
+          IDENTITY=$(security find-identity -v -p codesigning | grep -m1 "Developer ID Application" | sed -E 's/^[^"]*"([^"]*)".*$/\1/')
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No 'Developer ID Application' identity found in keychain" >&2
+            security find-identity -v -p codesigning >&2 || true
+            exit 1
+          fi
+          echo "Using signing identity: $IDENTITY"
+          echo "VNKEY_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build and sign (universal)
+        env:
+          VNKEY_VERSION: ${{ steps.version.outputs.version }}
+          VNKEY_BUILD: ${{ github.run_number }}
+          VNKEY_BUNDLE_ID: com.hoquangthaiholy.vnkey
+          VNKEY_UNIVERSAL: '1'
+        run: |
+          ./Scripts/build-app.sh
+          codesign --verify --strict --verbose=2 build/VNKey.app
+          lipo -archs build/VNKey.app/Contents/MacOS/VNKey
+
+      - name: Notarize and staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent build/VNKey.app build/VNKey-notarize.zip
+          xcrun notarytool submit build/VNKey-notarize.zip \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple build/VNKey.app
+          rm build/VNKey-notarize.zip
+
+      - name: Package
+        id: package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ZIP="build/VNKey_${VERSION}_universal.zip"
+          DMG="build/VNKey_${VERSION}_universal.dmg"
+          ditto -c -k --keepParent build/VNKey.app "$ZIP"
+          mkdir -p build/dmg
+          cp -R build/VNKey.app build/dmg/
+          ln -s /Applications build/dmg/Applications
+          hdiutil create -volname "VNKey ${VERSION}" -srcfolder build/dmg -ov -format UDZO "$DMG"
+          codesign --force --timestamp --sign "$VNKEY_SIGN_IDENTITY" "$DMG"
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "dmg=$DMG" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.version.outputs.tag }}" "${{ steps.package.outputs.dmg }}" "${{ steps.package.outputs.zip }}" --clobber

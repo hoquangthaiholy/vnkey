@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="site-title">VNKey - Bộ gõ tiếng Việt thông minh cho macOS</title>
+    <meta id="site-description" name="description"
+        content="VNKey là bộ gõ tiếng Việt cho macOS, viết thuần Swift, gọn nhẹ và mã nguồn mở: gõ xen kẽ Việt – Anh không cần chuyển chế độ, tự đoán từ gõ thiếu dấu, không gạch chân.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/img/AppIcon.png">
+    <link rel="icon" type="image/svg+xml" href="assets/img/Logo.svg">
+    <link rel="apple-touch-icon" href="assets/img/AppIcon.png">
+
+    <!-- SEO / OpenGraph Metadata -->
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="Hồ Quang Thái">
+    <meta name="keywords"
+        content="vnkey, bộ gõ tiếng việt, macOS, telex, vni, gõ xen kẽ việt anh, swift, vietnamese input method, macos underline bug, open source">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/hoquangthaiholy/vnkey">
+    <meta property="og:title" content="VNKey - Bộ gõ tiếng Việt thông minh cho macOS">
+    <meta property="og:description"
+        content="VNKey là bộ gõ tiếng Việt cho macOS, viết thuần Swift, gọn nhẹ và mã nguồn mở: gõ xen kẽ Việt – Anh không cần chuyển chế độ, tự đoán từ gõ thiếu dấu, không gạch chân.">
+    <meta property="og:image" content="assets/img/og_image.jpg">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://github.com/hoquangthaiholy/vnkey">
+    <meta property="twitter:title" content="VNKey - Bộ gõ tiếng Việt thông minh cho macOS">
+    <meta property="twitter:description"
+        content="VNKey là bộ gõ tiếng Việt cho macOS, viết thuần Swift, gọn nhẹ và mã nguồn mở: gõ xen kẽ Việt – Anh không cần chuyển chế độ, tự đoán từ gõ thiếu dấu, không gạch chân.">
+    <meta property="twitter:image" content="assets/img/og_image.jpg">
+
+    <!-- GEO SEO & Geotagging for AI Searching -->
+    <meta name="geo.region" content="VN-HN" />
+    <meta name="geo.placename" content="Hanoi" />
+    <meta name="geo.position" content="21.028511;105.804817" />
+    <meta name="ICBM" content="21.028511, 105.804817" />
+
+    <!-- JSON-LD Structured Data for SoftwareApplication Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "VNKey",
+      "operatingSystem": "macOS",
+      "applicationCategory": "UtilitiesApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "VNKey là bộ gõ tiếng Việt cho macOS, viết thuần Swift, gọn nhẹ và mã nguồn mở: gõ xen kẽ Việt – Anh không cần chuyển chế độ, tự đoán từ gõ thiếu dấu, không gạch chân.",
+      "softwareVersion": "2.0.0",
+      "license": "https://github.com/hoquangthaiholy/vnkey/blob/main/LICENSE",
+      "downloadUrl": "https://github.com/hoquangthaiholy/vnkey/releases/latest",
+      "author": {
+        "@type": "Person",
+        "name": "Hồ Quang Thái"
+      }
+    }
+    </script>
+
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Immediately set the language to avoid flashing
+        const savedLang = localStorage.getItem('vnkey-lang') || 'vi';
+        document.documentElement.setAttribute('lang', savedLang);
+    </script>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="container nav-container">
+            <a href="#" class="logo-wrapper">
+                <img src="assets/img/Logo.svg" alt="VNKey Logo" class="logo-img">
+                <div class="brand-name">VN<span>Key</span></div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features"><span lang="vi">Tính năng</span><span lang="en">Features</span></a></li>
+                <li><a href="#tech-details"><span lang="vi">Cách hoạt động</span><span lang="en">How it works</span></a></li>
+                <li><a href="#qa"><span lang="vi">Hỏi đáp</span><span lang="en">Q&amp;A</span></a></li>
+                <li><a href="#donation"><span lang="vi">Ủng hộ</span><span lang="en">Donate</span></a></li>
+                <li><a href="https://github.com/hoquangthaiholy/vnkey" target="_blank" id="nav-github-link"><span
+                            lang="vi">Mã nguồn</span><span lang="en">Source Code</span></a></li>
+                <li class="lang-switcher">
+                    <button class="lang-btn" data-lang="vi">VI</button>
+                    <span class="lang-divider">|</span>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="parallax-hero-bg"></div>
+        <div class="hero-fade-overlay"></div>
+        <div class="container hero-content">
+            <span class="badge" lang="vi">Phiên bản mới nhất v2.0.0 - Viết lại hoàn toàn cho macOS</span>
+            <span class="badge" lang="en">Latest version v2.0.0 - Rewritten from scratch for macOS</span>
+
+            <h1 class="hero-title" lang="vi">Bộ gõ tiếng Việt<br><span>thông minh cho macOS</span></h1>
+            <h1 class="hero-title" lang="en">Vietnamese Input,<br><span>Smart Typing for macOS</span></h1>
+
+            <p class="hero-description" lang="vi">
+                Bản 2.0 được viết lại hoàn toàn bằng <strong>Swift</strong> thuần, chạy gọn trên thanh menu.
+                VNKey theo dõi <strong>thứ tự phím bạn gõ</strong> để gõ xen kẽ Việt – Anh mà không phải chuyển chế độ,
+                tự đoán từ gõ thiếu dấu, học dần từ cách bạn gõ, và không có lỗi gạch chân khó chịu trên macOS.
+            </p>
+            <p class="hero-description" lang="en">
+                Version 2.0 is a ground-up rewrite in pure <strong>Swift</strong> that lives quietly in your menu bar.
+                VNKey tracks <strong>the order of your keystrokes</strong> so you can mix Vietnamese and English without
+                switching modes, completes words with missing diacritics, learns from how you type, and has no macOS
+                underline bug.
+            </p>
+
+            <div class="hero-actions">
+                <a href="https://github.com/hoquangthaiholy/vnkey/releases/latest" class="btn btn-primary"
+                    id="hero-download-btn">
+                    <span lang="vi">Tải về cho macOS</span>
+                    <span lang="en">Download for macOS</span>
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    <span lang="vi">Tìm hiểu tính năng</span>
+                    <span lang="en">Explore Features</span>
+                </a>
+            </div>
+
+            <!-- <div class="hero-brew-install">
+                <span>
+                    <span lang="vi">Hoặc cài đặt qua Homebrew:</span>
+                    <span lang="en">Or install via Homebrew:</span>
+                </span>
+                <code>brew tap hoquangthaiholy/vnkey && brew install vnkey</code>
+            </div> -->
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" lang="vi">Tính năng nổi bật</h2>
+                <h2 class="section-title" lang="en">Key Features</h2>
+                <p class="section-desc" lang="vi">Những gì VNKey 2.0 làm được khi bạn gõ văn bản, nhắn tin và lập trình mỗi
+                    ngày.</p>
+                <p class="section-desc" lang="en">What VNKey 2.0 does for your everyday writing, chatting, and coding.</p>
+            </div>
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon mac-fix">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                            <path d="M9 10l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Không gạch chân, không lặp chữ</h3>
+                    <h3 lang="en">No Underline, No Duplicates</h3>
+                    <p lang="vi">Chữ được sửa bằng kỹ thuật xoá lùi thay vì vùng soạn thảo tạm, nên không có gạch chân. Thanh địa chỉ trình duyệt và Spotlight có cách xử lý riêng để gợi ý tự điền không làm lặp chữ.</p>
+                    <p lang="en">Text is corrected with a backspace technique instead of a marked-text region, so nothing gets underlined. Browser address bars and Spotlight get special handling so autocomplete suggestions never duplicate characters.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon spellcheck">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <path d="M8 11l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Gõ xen kẽ Việt – Anh</h3>
+                    <h3 lang="en">Mix Vietnamese and English</h3>
+                    <p lang="vi">Gõ “user”, “string”, “data” giữa câu tiếng Việt mà không cần chuyển chế độ: từ không phải tiếng Việt được trả lại đúng như bạn đã gõ, có tham khảo từ điển của macOS và ngữ cảnh câu.</p>
+                    <p lang="en">Type “user”, “string”, or “data” in the middle of a Vietnamese sentence without switching modes: non-Vietnamese words are restored exactly as typed, using the macOS dictionaries and sentence context.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon coding">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Tối ưu cho lập trình</h3>
+                    <h3 lang="en">Made for Coding</h3>
+                    <p lang="vi">Giữ nguyên chữ sau @ # / . _ và chữ số (email, đường dẫn, tên biến), từ dính liền “_”. Các ứng dụng terminal bắt đầu ở chế độ Anh, và mỗi ứng dụng nhớ chế độ riêng.</p>
+                    <p lang="en">Leaves text untouched after @ # / . _ and digits (emails, paths, identifiers) and in words joined by “_”. Terminal apps start in English mode, and every app remembers its own mode.</p>
+                </div>
+                <!-- Feature 4 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Đoán từ gõ thiếu dấu</h3>
+                    <h3 lang="en">Completes Missing Diacritics</h3>
+                    <p lang="vi">Gõ “duojc” hay “đươc” vẫn ra “được”; “tiếng viet” ra “việt” còn “bài viet” ra “viết”. VNKey chỉ thêm dấu, không bao giờ thay một từ đã đúng, và nháy nhẹ từ vừa được sửa.</p>
+                    <p lang="en">Typing “duojc” or “đươc” still gives “được”; “tiếng viet” becomes “việt” while “bài viet” becomes “viết”. VNKey only adds marks, never replaces a word that is already correct, and briefly flashes the word it fixed.</p>
+                </div>
+                <!-- Feature 5 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon macro">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Gõ tắt</h3>
+                    <h3 lang="en">Text Expansion</h3>
+                    <p lang="vi">Bảng gõ tắt có tìm kiếm: gõ từ tắt rồi dấu cách để bung ra, viết hoa chữ đầu thì kết quả cũng viết hoa. Có sẵn bộ viết tắt teen (ko → không, dc → được) bật tắt tuỳ ý.</p>
+                    <p lang="en">A searchable shortcut table: type the shortcut and a space to expand it, and a capitalized shortcut gives a capitalized result. An optional built-in set expands common chat abbreviations (ko → không, dc → được).</p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon app-mode">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                            <path d="M14 9l3 3-3 3"></path>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Nhớ chế độ theo ứng dụng</h3>
+                    <h3 lang="en">App-Specific Modes</h3>
+                    <p lang="vi">Mỗi ứng dụng trở lại chế độ Việt/Anh bạn chọn lần cuối ở đó. Khi bạn chuyển sang bộ gõ khác của macOS (tiếng Trung, Nhật…), VNKey tự đứng ngoài và biểu tượng mờ đi.</p>
+                    <p lang="en">Each app returns to the Vietnamese/English mode you last used there. When you switch to another macOS input method (Chinese, Japanese…), VNKey steps aside and dims its icon.</p>
+                </div>
+                <!-- Feature 7 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon caps-lock" style="color: #a855f7;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Học từ cách bạn gõ</h3>
+                    <h3 lang="en">Learns How You Type</h3>
+                    <p lang="vi">Nhớ những từ bạn muốn giữ nguyên, và đếm các cặp từ bạn hay gõ để chọn đúng theo từ đứng trước (“lầm loi” → “lầm lỗi”). Mọi thứ đã học xem và xoá được trong Cài đặt.</p>
+                    <p lang="en">Remembers the words you want left alone, and counts the word pairs you type to pick the right word from the one before it (“lầm loi” → “lầm lỗi”). Everything it learned can be viewed and deleted in Settings.</p>
+                </div>
+                <!-- Feature 8 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon paste-workaround" style="color: #eab308;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                            <line x1="8" y1="11" x2="16" y2="11"></line>
+                            <line x1="8" y1="16" x2="16" y2="16"></line>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Gõ tự do, sửa gõ đảo phím</h3>
+                    <h3 lang="en">Free Key Order, Fixes Swapped Keys</h3>
+                    <p lang="vi">Phím dấu gõ lúc nào cũng được sau chữ nó bổ nghĩa: “dduwowcj”, “duojwcd” đều ra “được”. Lỡ gõ đảo hai phím liền nhau (“tieegns”) thì VNKey tự sửa thành “tiếng”.</p>
+                    <p lang="en">Tone and mark keys may come at any point after their letter: “dduwowcj” and “duojwcd” both give “được”. If two adjacent keys get swapped (“tieegns”), VNKey fixes it to “tiếng”.</p>
+                </div>
+                <!-- Feature 9 -->
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon late-accent" style="color: #10b981;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </div>
+                    <h3 lang="vi">Nhẹ và riêng tư</h3>
+                    <h3 lang="en">Light and Private</h3>
+                    <p lang="vi">Ứng dụng thanh menu viết thuần Swift, chỉ khoảng 2 MB. Những gì VNKey học chỉ nằm trên máy bạn; nó chỉ kết nối mạng để hỏi GitHub xem có bản mới hay không.</p>
+                    <p lang="en">A pure-Swift menu bar app of about 2 MB. What VNKey learns stays on your Mac; the only network request it makes is asking GitHub whether a new version exists.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Deep Dive Tech Explanations -->
+    <section id="tech-details" class="deep-dive">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" lang="vi">Cách VNKey hoạt động</h2>
+                <h2 class="section-title" lang="en">How VNKey Works</h2>
+                <p class="section-desc" lang="vi">Bốn ý chính đằng sau bản viết lại 2.0.</p>
+                <p class="section-desc" lang="en">The four ideas behind the 2.0 rewrite.</p>
+            </div>
+
+            <div class="deep-dive-item">
+                <div class="deep-dive-text">
+                    <h3 lang="vi">Theo dõi thứ tự phím, sửa bằng xoá lùi</h3>
+                    <h3 lang="en">Keystroke Tracking and Backspace Correction</h3>
+                    <p lang="vi">
+                        VNKey chặn phím toàn hệ thống, ghi nhớ từng phím của từ đang gõ và phím nào tạo ra chữ nào. Khi cần đổi chữ, nó gửi đúng số phím xoá lùi rồi chèn chữ mới, nên không có vùng soạn thảo tạm và không có gạch chân. Vì giữ nguyên chuỗi phím gốc, VNKey luôn trả lại được đúng những gì bạn gõ.
+                    </p>
+                    <p lang="en">
+                        VNKey taps keys system-wide and remembers every key of the current word and which key produced which letter. To change text it sends exactly the right number of backspaces and inserts the new text, so there is no marked-text region and no underline. Because the original key sequence is kept, VNKey can always give back precisely what you typed.
+                    </p>
+                    <div class="deep-dive-tech-tags" lang="vi">
+                        <span class="tech-tag">Telex và VNI</span>
+                        <span class="tech-tag">Chặn sự kiện phím</span>
+                        <span class="tech-tag">Giả lập phím xoá lùi</span>
+                    </div>
+                    <div class="deep-dive-tech-tags" lang="en">
+                        <span class="tech-tag">Telex and VNI</span>
+                        <span class="tech-tag">Event tap</span>
+                        <span class="tech-tag">Backspace emulation</span>
+                    </div>
+                </div>
+                <div class="deep-dive-visual">
+                    <img src="assets/img/shot_typing.png" alt="Thẻ Gõ trong Cài đặt VNKey" class="feature-screenshot shadowed">
+                </div>
+            </div>
+
+            <div class="deep-dive-item">
+                <div class="deep-dive-text">
+                    <h3 lang="vi">Việt và Anh trong cùng một câu</h3>
+                    <h3 lang="en">Vietnamese and English in One Sentence</h3>
+                    <p lang="vi">
+                        Khi bạn kết thúc một từ, VNKey quyết định giữ tiếng Việt hay trả lại phím gốc dựa trên luật cấu tạo âm tiết, từ điển Việt và Anh có sẵn của macOS, và các từ bạn vừa gõ. Sau @ # / . _ hoặc chữ số, nó coi là code và không đụng tới. Nhấn ⌃⌥Z bất cứ lúc nào để đổi từ vừa gõ; VNKey sẽ nhớ lựa chọn đó.
+                    </p>
+                    <p lang="en">
+                        When you finish a word, VNKey decides between keeping the Vietnamese form and restoring the raw keys using syllable rules, the Vietnamese and English dictionaries built into macOS, and the words you just typed. After @ # / . _ or a digit it treats the text as code and leaves it alone. Press ⌃⌥Z at any time to flip the last word; VNKey remembers that choice.
+                    </p>
+                    <div class="deep-dive-tech-tags" lang="vi">
+                        <span class="tech-tag">Luật âm tiết</span>
+                        <span class="tech-tag">Từ điển của macOS</span>
+                        <span class="tech-tag">Ngữ cảnh code</span>
+                    </div>
+                    <div class="deep-dive-tech-tags" lang="en">
+                        <span class="tech-tag">Syllable rules</span>
+                        <span class="tech-tag">macOS dictionaries</span>
+                        <span class="tech-tag">Code context</span>
+                    </div>
+                </div>
+                <div class="deep-dive-visual">
+                    <img src="assets/img/shot_mixed.png" alt="Thẻ Việt &amp; Anh trong Cài đặt VNKey" class="feature-screenshot">
+                </div>
+            </div>
+
+            <div class="deep-dive-item">
+                <div class="deep-dive-text">
+                    <h3 lang="vi">Đoán từ và học từ chính bạn</h3>
+                    <h3 lang="en">Prediction That Learns From You</h3>
+                    <p lang="vi">
+                        Với một từ gõ thiếu dấu, VNKey sinh các ứng viên chỉ bằng cách thêm dấu, rồi chọn theo thứ tự: cặp từ chính bạn đã gõ, gợi ý theo câu của từ điển macOS, độ thông dụng. Không chắc thì để nguyên. Bảng đếm từ và cặp từ chỉ lưu trên máy, không chứa câu bạn gõ, và xoá được bất cứ lúc nào.
+                    </p>
+                    <p lang="en">
+                        For a word with missing marks, VNKey generates candidates only by adding diacritics, then picks in order: word pairs you have typed yourself, the macOS dictionary's in-sentence suggestion, then how common the word is. When unsure it changes nothing. The word and word-pair counts stay on your Mac, contain no sentences, and can be deleted at any time.
+                    </p>
+                    <div class="deep-dive-tech-tags" lang="vi">
+                        <span class="tech-tag">Chỉ thêm dấu</span>
+                        <span class="tech-tag">Chọn theo từ đứng trước</span>
+                        <span class="tech-tag">Dữ liệu trên máy</span>
+                    </div>
+                    <div class="deep-dive-tech-tags" lang="en">
+                        <span class="tech-tag">Adds marks only</span>
+                        <span class="tech-tag">Previous-word context</span>
+                        <span class="tech-tag">On-device data</span>
+                    </div>
+                </div>
+                <div class="deep-dive-visual">
+                    <img src="assets/img/shot_autofix.png" alt="Thẻ Tự sửa trong Cài đặt VNKey" class="feature-screenshot shadowed">
+                </div>
+            </div>
+
+            <div class="deep-dive-item">
+                <div class="deep-dive-text">
+                    <h3 lang="vi">Mẹo riêng cho từng ứng dụng</h3>
+                    <h3 lang="en">Per-App Handling</h3>
+                    <p lang="vi">
+                        Mỗi ứng dụng nhận phím theo cách riêng, nên VNKey chọn cách gửi phím theo ô đang nhập: thanh địa chỉ trình duyệt, Spotlight và ô văn bản thường được xử lý khác nhau. Nó cũng nhớ chế độ Việt/Anh cho từng ứng dụng, và bạn chọn được những ứng dụng luôn bắt đầu ở chế độ Anh.
+                    </p>
+                    <p lang="en">
+                        Every app receives keys a little differently, so VNKey picks how to send text based on the focused field: browser address bars, Spotlight, and ordinary text fields are each handled differently. It also remembers the Vietnamese/English mode per app, and you choose which apps always start in English.
+                    </p>
+                    <div class="deep-dive-tech-tags" lang="vi">
+                        <span class="tech-tag">Theo ô đang nhập</span>
+                        <span class="tech-tag">Nhớ chế độ theo ứng dụng</span>
+                        <span class="tech-tag">Danh sách bắt đầu ở chế độ Anh</span>
+                    </div>
+                    <div class="deep-dive-tech-tags" lang="en">
+                        <span class="tech-tag">Focused-field aware</span>
+                        <span class="tech-tag">Per-app mode</span>
+                        <span class="tech-tag">Start-in-English list</span>
+                    </div>
+                </div>
+                <div class="deep-dive-visual">
+                    <img src="assets/img/shot_apps.png" alt="Thẻ Ứng dụng trong Cài đặt VNKey" class="feature-screenshot">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Q&A Section -->
+    <section id="qa" class="qa-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" lang="vi">Hỏi đáp &amp; Hướng dẫn</h2>
+                <h2 class="section-title" lang="en">Q&amp;A &amp; Guide</h2>
+                <p class="section-desc" lang="vi">Cài đặt, cách VNKey quyết định, và những gì nó lưu trên máy bạn.</p>
+                <p class="section-desc" lang="en">Installing, how VNKey decides, and what it keeps on your Mac.</p>
+            </div>
+
+            <div class="qa-list">
+                <!-- Q1 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">VNKey 2.0 chạy trên hệ điều hành nào?</span>
+                        <span lang="en">Which operating systems does VNKey 2.0 run on?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">VNKey 2.0 chỉ dành cho <strong>macOS 12 trở lên</strong>, chạy trên cả máy Apple silicon và Intel. Bản 1.x đa nền tảng (macOS, Windows, Linux) không còn được phát triển; các bản cũ vẫn tải được ở trang <a href="https://github.com/hoquangthaiholy/vnkey/releases" target="_blank">Releases</a>.</p>
+                        <p lang="en">VNKey 2.0 is for <strong>macOS 12 and later</strong> only, on both Apple silicon and Intel Macs. The cross-platform 1.x line (macOS, Windows, Linux) is no longer developed; old builds remain available on the <a href="https://github.com/hoquangthaiholy/vnkey/releases" target="_blank">Releases</a> page.</p>
+                    </div>
+                </details>
+
+                <!-- Q2 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Cài đặt và cấp quyền thế nào?</span>
+                        <span lang="en">How do I install it and grant permission?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Tải VNKey ở trang Releases, kéo vào thư mục Ứng dụng rồi mở. Lần đầu, VNKey hiện cửa sổ hướng dẫn bật quyền <strong>Trợ năng</strong> (Cài đặt hệ thống › Quyền riêng tư &amp; Bảo mật › Trợ năng); quyền này cần để đọc phím bạn gõ và gửi lại chữ đã có dấu. Cửa sổ tự báo khi xong. Biểu tượng V hoặc E trên thanh menu cho biết đang gõ tiếng Việt hay tiếng Anh; nhấn <code>⌃⇧</code> rồi thả để đổi.</p>
+                        <p lang="en">Download VNKey from the Releases page, drag it to Applications, and open it. On first launch VNKey shows a guide for enabling <strong>Accessibility</strong> (System Settings › Privacy &amp; Security › Accessibility); it needs this to read the keys you type and send back accented text. The window tells you when it is ready. The V or E icon in the menu bar shows whether you are typing Vietnamese or English; press and release <code>⌃⇧</code> to switch.</p>
+                    </div>
+                </details>
+
+                <!-- Q3 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Vì sao gõ “user”, “data” không bị biến thành tiếng Việt?</span>
+                        <span lang="en">Why don’t “user” and “data” turn into Vietnamese?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Khi bạn kết thúc một từ, VNKey kiểm tra từ đó có phải tiếng Việt hợp lệ không. Nếu không, hoặc nếu chuỗi phím là một từ tiếng Anh quen thuộc, nó trả lại đúng phím bạn đã gõ. Với từ hợp lệ ở cả hai ngôn ngữ (như <code>this</code> / <code>thí</code>), VNKey mặc định giữ tiếng Việt; nhấn <code>⌃⌥Z</code> để đổi và nó sẽ nhớ cho lần sau. Xoá từ rồi gõ lại y nguyên cũng có tác dụng tương tự.</p>
+                        <p lang="en">When you finish a word, VNKey checks whether it is valid Vietnamese. If not, or if the key sequence is a familiar English word, it restores exactly what you typed. For words valid in both languages (such as <code>this</code> / <code>thí</code>), VNKey keeps Vietnamese by default; press <code>⌃⌥Z</code> to flip it and it will remember next time. Deleting the word and retyping it the same way has the same effect.</p>
+                    </div>
+                </details>
+
+                <!-- Q4 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Đoán từ thiếu dấu có đổi nhầm chữ của tôi không?</span>
+                        <span lang="en">Will diacritic prediction change my text by mistake?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">VNKey chỉ đoán khi chữ bạn gõ <strong>chưa phải</strong> một từ tiếng Việt đúng, và chỉ bằng cách thêm dấu: <code>ban</code>, <code>to</code>, <code>hôm nay</code> không bao giờ bị đụng tới. Từ chưa có dấu nào chỉ được đoán khi bạn đang gõ tiếng Việt có dấu. Mỗi lần sửa, từ đó nháy nhẹ để bạn thấy. Nếu đoán sai, nhấn <code>⌃⌥Z</code> để lấy lại chữ đã gõ; VNKey sẽ không đoán từ đó nữa. Tắt được toàn bộ ở thẻ Tự sửa.</p>
+                        <p lang="en">VNKey only predicts when what you typed is <strong>not yet</strong> a correct Vietnamese word, and only by adding marks: <code>ban</code>, <code>to</code>, and <code>hôm nay</code> are never touched. A word with no marks at all is only predicted while you are typing accented Vietnamese. Each fix briefly flashes the word so you notice. If a guess is wrong, press <code>⌃⌥Z</code> to get your keys back; VNKey will stop predicting that word. Everything can be turned off in the Auto-fix tab.</p>
+                    </div>
+                </details>
+
+                <!-- Q5 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">VNKey lưu những gì về tôi?</span>
+                        <span lang="en">What does VNKey store about me?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Chỉ trên máy bạn: cài đặt, bảng gõ tắt, các từ bạn bảo nó nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có câu, không có thứ tự thời gian). Bảng đếm xem được ở thẻ Đã nhớ và xoá được bằng một nút. VNKey không gửi gì về việc bạn gõ đi đâu cả; yêu cầu mạng duy nhất là hỏi GitHub số phiên bản mới nhất, và tắt được. macOS không cho bộ gõ thấy phím trong ô mật khẩu.</p>
+                        <p lang="en">Only on your Mac: your settings, your shortcut table, the words you told it to remember, and a table counting the words and word pairs you type (no sentences, no timeline). You can view the counts in the Remembered tab and delete them with one button. VNKey sends nothing about your typing anywhere; its single network request asks GitHub for the latest version number, and you can turn that off. macOS does not let input tools see keys typed in password fields.</p>
+                    </div>
+                </details>
+
+                <!-- Q6 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Cấu hình và dùng Gõ tắt thế nào?</span>
+                        <span lang="en">How do I set up and use text expansion?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Mở Cài đặt › Gõ tắt, bấm <code>+</code> rồi điền từ tắt và nội dung (ví dụ <code>vn</code> → <code>Việt Nam</code>). Khi gõ, nhập từ tắt rồi nhấn dấu cách hoặc dấu câu. Viết hoa chữ đầu của từ tắt (<code>Vn</code>) thì kết quả cũng viết hoa. Từ tắt chỉ gồm chữ cái. Bộ viết tắt teen có sẵn (ko, dc, ntn…) bật ở cùng thẻ.</p>
+                        <p lang="en">Open Settings › Shortcuts, click <code>+</code>, and fill in the shortcut and its text (for example <code>vn</code> → <code>Việt Nam</code>). While typing, enter the shortcut and press space or punctuation. Capitalizing the shortcut (<code>Vn</code>) capitalizes the result. Shortcuts consist of letters only. The built-in chat abbreviations (ko, dc, ntn…) are enabled in the same tab.</p>
+                    </div>
+                </details>
+
+                <!-- Q7 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Dùng chung với bộ gõ khác của macOS được không?</span>
+                        <span lang="en">Can I use it alongside other macOS input methods?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Được. Khi bạn chuyển bàn phím hệ thống sang một bộ gõ của macOS (Telex của Apple, tiếng Trung, Nhật…) hoặc một bố cục không phải chữ Latin, VNKey tự tạm ngưng và biểu tượng trên thanh menu mờ đi. Quay lại bàn phím Latin (ABC, U.S., Pháp, Đức…) thì nó hoạt động lại và hiện nhãn chế độ đang dùng cạnh con trỏ.</p>
+                        <p lang="en">Yes. When you switch the system keyboard to a macOS input method (Apple’s Telex, Chinese, Japanese…) or a non-Latin layout, VNKey pauses itself and dims its menu bar icon. Switch back to a Latin keyboard (ABC, U.S., French, German…) and it resumes, showing the current mode in a small label next to the caret.</p>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Donation Section -->
+    <section id="donation" class="donation-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" lang="vi">Ủng hộ dự án</h2>
+                <h2 class="section-title" lang="en">Support the Project</h2>
+                <p class="section-desc" lang="vi">VNKey là hoàn toàn miễn phí và mã nguồn mở. Mọi sự ủng hộ của bạn sẽ
+                    giúp duy trì và phát triển dự án tốt hơn.</p>
+                <p class="section-desc" lang="en">VNKey is completely free and open-source. Your support helps maintain
+                    and develop the project further.</p>
+            </div>
+            <div class="donation-grid">
+                <!-- MoMo Card -->
+                <div class="donation-card glass-panel">
+                    <div>
+                        <h3 lang="vi">Ví MoMo</h3>
+                        <h3 lang="en">MoMo Wallet</h3>
+                        <p lang="vi">Quét mã QR bằng ứng dụng MoMo để ủng hộ trực tiếp.</p>
+                        <p lang="en">Scan the QR code with the MoMo app to donate directly.</p>
+                    </div>
+                    <img src="assets/img/momo_donation.jpg" alt="MoMo QR Code" class="momo-qr">
+                    <span class="badge" style="margin-bottom: 0;">Hồ Quang Thái</span>
+                </div>
+                <!-- PayPal Card -->
+                <div class="donation-card glass-panel">
+                    <div>
+                        <h3 lang="vi">PayPal</h3>
+                        <h3 lang="en">PayPal</h3>
+                        <p lang="vi">Ủng hộ qua tài khoản PayPal quốc tế nhanh chóng.</p>
+                        <p lang="en">Donate quickly using your international PayPal account.</p>
+                    </div>
+                    <div style="margin: 2rem 0;">
+                        <svg class="feature-icon" style="margin: 0 auto; width: 60px; height: 60px; font-size: 2rem;"
+                            viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M20.007 8.424c.007-.076.012-.152.012-.228 0-3.328-2.607-6.033-5.83-6.033h-7.14c-.696 0-1.296.48-1.428 1.156l-3.238 16.482c-.083.428.25.823.685.823h4.636l-.004.024 1.139-5.79.034-.207a1.442 1.442 0 0 1 1.417-1.158h1.22c3.738 0 6.643-2.186 7.497-5.099zm-4.397.026c-.463 1.579-1.996 2.766-3.834 2.766h-1.638l1.09-5.55h1.638c1.838 0 3.371 1.187 3.834 2.766.113.385.122.77.108 1.155-.027.327-.087.643-.198.863z" />
+                        </svg>
+                    </div>
+                    <a href="https://paypal.me/hqthai" target="_blank" class="btn btn-primary"
+                        style="width: 100%; justify-content: center;">
+                        <span lang="vi">Đóng góp qua PayPal</span>
+                        <span lang="en">Donate with PayPal</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <a href="#" class="logo-wrapper">
+                    <img src="assets/img/Logo.svg" alt="VNKey Logo" class="logo-img">
+                    <div class="brand-name">VN<span>Key</span></div>
+                </a>
+                <div class="copyright">
+                    <span lang="vi">&copy; 2026 VNKey Project. Phát triển bởi <strong>Hồ Quang Thái</strong> và cộng
+                        đồng mã nguồn mở.</span>
+                    <span lang="en">&copy; 2026 VNKey Project. Developed by <strong>Ho Quang Thai</strong> and the
+                        open-source community.</span>
+                </div>
+                <ul class="footer-links">
+                    <li><a href="https://github.com/hoquangthaiholy/vnkey" target="_blank">Github</a></li>
+                    <li>
+                        <a href="https://github.com/hoquangthaiholy/vnkey/issues" target="_blank">
+                            <span lang="vi">Báo lỗi</span>
+                            <span lang="en">Report issues</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.34/dist/lenis.min.js"></script>
+    <script>
+        // Language Switcher Javascript Logic
+        const siteTitles = {
+            vi: "VNKey - Bộ gõ tiếng Việt thông minh cho macOS",
+            en: "VNKey - Smart Vietnamese Input Method for macOS"
+        };
+        const siteDescriptions = {
+            vi: "VNKey là bộ gõ tiếng Việt cho macOS, viết thuần Swift, gọn nhẹ và mã nguồn mở: gõ xen kẽ Việt – Anh không cần chuyển chế độ, tự đoán từ gõ thiếu dấu, không gạch chân.",
+            en: "VNKey is a lightweight, open-source Vietnamese input method for macOS written in pure Swift: mix Vietnamese and English without switching modes, auto-complete missing diacritics, no underline."
+        };
+
+        function setLanguage(lang) {
+            document.documentElement.setAttribute('lang', lang);
+            localStorage.setItem('vnkey-lang', lang);
+
+            // Update page metadata
+            document.title = siteTitles[lang];
+            const metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc) {
+                metaDesc.setAttribute('content', siteDescriptions[lang]);
+            }
+
+            // Update OpenGraph & Twitter metadata
+            const ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.setAttribute('content', siteTitles[lang]);
+            const ogDesc = document.querySelector('meta[property="og:description"]');
+            if (ogDesc) ogDesc.setAttribute('content', siteDescriptions[lang]);
+
+            const twTitle = document.querySelector('meta[property="twitter:title"]');
+            if (twTitle) twTitle.setAttribute('content', siteTitles[lang]);
+            const twDesc = document.querySelector('meta[property="twitter:description"]');
+            if (twDesc) twDesc.setAttribute('content', siteDescriptions[lang]);
+
+            // Sync active state of language switcher buttons
+            document.querySelectorAll('.lang-switcher .lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize language
+        const initialLang = localStorage.getItem('vnkey-lang') || 'vi';
+        setLanguage(initialLang);
+
+        // Bind events to language buttons
+        document.querySelectorAll('.lang-switcher .lang-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const targetLang = e.target.getAttribute('data-lang');
+                setLanguage(targetLang);
+            });
+        });
+
+        // Initialize Lenis for smooth scrolling
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            smoothWheel: true
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // Simple scroll indicator & Parallax effect
+        const nav = document.getElementById('navbar');
+        const heroBg = document.querySelector('.parallax-hero-bg');
+
+        lenis.on('scroll', (e) => {
+            if (e.scroll > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+
+            // Parallax effect for hero keyboard drafting background
+            if (heroBg && e.scroll < window.innerHeight) {
+                heroBg.style.transform = `translateY(${e.scroll * 0.15}px)`;
+            }
+        });
+
+        // Intercept anchor link clicks for Lenis smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    lenis.scrollTo(target);
+                }
+            });
+        });
+
+    </script>
+</body>
+
+</html>
