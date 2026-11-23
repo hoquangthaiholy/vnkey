@@ -8,8 +8,12 @@ public enum UpdateCheck {
         /// Trang của bản phát hành trên GitHub (luôn là https).
         public var page: URL
         public var notes: String
-        public init(version: String, page: URL, notes: String) {
+        /// Tệp ZIP chứa VNKey.app của bản này (để tự cập nhật); nil nếu bản phát hành không đính tệp hợp lệ.
+        public var download: URL?
+        public var downloadSize: Int
+        public init(version: String, page: URL, notes: String, download: URL? = nil, downloadSize: Int = 0) {
             self.version = version; self.page = page; self.notes = notes
+            self.download = download; self.downloadSize = downloadSize
         }
     }
 
@@ -57,7 +61,18 @@ public enum UpdateCheck {
             (o["draft"] as? Bool) != true, (o["prerelease"] as? Bool) != true
         else { return nil }
         let version = tag.hasPrefix("v") || tag.hasPrefix("V") ? String(tag.dropFirst()) : tag
-        return Release(version: version, page: page, notes: (o["body"] as? String) ?? "")
+        var release = Release(version: version, page: page, notes: (o["body"] as? String) ?? "")
+        // Tệp để tự cập nhật: ZIP, tải qua https từ chính github.com (liên kết lạ lấy từ mạng thì bỏ qua).
+        for asset in (o["assets"] as? [[String: Any]]) ?? [] {
+            guard let name = asset["name"] as? String, name.lowercased().hasSuffix(".zip"),
+                let link = asset["browser_download_url"] as? String, let url = URL(string: link),
+                url.scheme == "https", url.host == "github.com"
+            else { continue }
+            release.download = url
+            release.downloadSize = (asset["size"] as? Int) ?? 0
+            break
+        }
+        return release
     }
 
     public static func outcome(status: Int, release: Release?, local: String) -> Outcome {
@@ -70,10 +85,57 @@ public enum UpdateCheck {
         }
     }
 
+    public typealias Identity = (bundleID: String, team: String?, version: String)
+
+    /// Bản vừa tải có được phép thay bản đang chạy không; trả về lý do từ chối, nil nếu được.
+    /// Chỉ nhận khi cả hai được ký bởi CÙNG một nhóm Developer ID, cùng mã định danh, và bản tải mới hơn.
+    /// Bản dựng trên máy (không có Team ID) không bao giờ tự cài: nó không có gì để đối chiếu chữ ký.
+    public static func mayInstall(candidate: Identity, running: Identity) -> String? {
+        guard let team = running.team, !team.isEmpty else { return "bản đang chạy không được ký bằng Developer ID" }
+        guard candidate.team == team else { return "bản tải về không do cùng nhà phát triển ký" }
+        guard candidate.bundleID == running.bundleID else { return "bản tải về là một ứng dụng khác" }
+        guard isNewer(candidate.version, than: running.version) else { return "bản tải về không mới hơn bản đang chạy" }
+        return nil
+    }
+
     /// Đã tới lúc tự kiểm tra chưa: mỗi ngày một lần.
     public static func isDue(last: Date?, now: Date) -> Bool {
         guard let last else { return true }
         let gap = now.timeIntervalSince(last)
         return gap < 0 || gap >= 86_400
+    }
+}
+
+/// Đọc CHANGELOG.md (đóng gói kèm app) thành từng phiên bản để hiện trong cửa sổ "Có gì mới".
+public enum Changelog {
+    public struct Section: Equatable {
+        public var version: String
+        public var date: String
+        /// Nội dung Markdown của phiên bản, không gồm dòng tiêu đề.
+        public var body: String
+    }
+
+    /// Mỗi phiên bản bắt đầu bằng dòng "## [2.0.0] - 2026-11-24"; mọi thứ trước dòng đầu tiên như vậy bị bỏ.
+    public static func sections(from text: String) -> [Section] {
+        var out: [Section] = [], lines: [Substring] = []
+        var current: (version: String, date: String)?
+        func flush() {
+            guard let c = current else { return }
+            let body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            out.append(Section(version: c.version, date: c.date, body: body))
+        }
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.hasPrefix("## ["), let close = line.firstIndex(of: "]") {
+                flush()
+                lines = []
+                let version = String(line[line.index(line.startIndex, offsetBy: 4)..<close])
+                let rest = line[line.index(after: close)...].trimmingCharacters(in: CharacterSet(charactersIn: " -"))
+                current = (version, rest)
+            } else if current != nil {
+                lines.append(line)
+            }
+        }
+        flush()
+        return out
     }
 }

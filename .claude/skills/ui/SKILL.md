@@ -154,3 +154,14 @@ công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và m�
   ngày một lần nếu bật, hoặc khi bấm nút. Chỉ báo và mở trang tải; KHÔNG tự tải hay cài (app ký bằng chứng chỉ tự
   tạo). Logic thuần ở `UpdateCheck` (VNKeyCore) có test; yêu cầu mạng không được chạy trong test.
 - Phiên bản của app nằm trong `Scripts/build-app.sh` (`CFBundleShortVersionString`); so sánh với thẻ phát hành.
+
+## Hai ngôn ngữ, cập nhật, nhật ký thay đổi
+
+- Giao diện song ngữ qua `L(vi, en)`; ngôn ngữ chọn ở Cài đặt › Chung (`Key.language`: auto/vi/en). Đổi ngôn ngữ thì
+  AppDelegate dựng lại cửa sổ Cài đặt. Chụp thử bản tiếng Anh: `VNKey --snapshot <thư mục> --en`. Tên thẻ tiếng Anh
+  phải ngắn (8 thẻ trên thanh công cụ).
+- Tự cập nhật (`Updater.installUpdate`, `Installer`): tải ZIP của bản phát hành từ github.com, kiểm tra chữ ký phải
+  do Apple cấp và cùng Team ID với bản đang chạy (`UpdateCheck.mayInstall`), cất bản cũ rồi mới đưa bản mới vào, mở
+  lại. Bản dựng trên máy (không có Team ID) không bao giờ tự cài. CHƯA kiểm chứng trọn vẹn trên bản phát hành thật.
+- Cửa sổ "Có gì mới" (`ChangelogWindow`) đọc `CHANGELOG.md` đóng gói kèm app (`build-app.sh` chép vào Resources).
+

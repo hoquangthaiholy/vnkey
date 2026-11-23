@@ -4,7 +4,9 @@ Bộ gõ tiếng Việt cho macOS (kiểu OpenKey): app thanh menu chặn phím 
 đưa qua engine, rồi phát lại "xoá lùi + văn bản". Ưu tiên: gõ xen kẽ Việt/Anh/teen, khôi phục từ
 gõ sai dựa trên thứ tự phím, và trải nghiệm gõ.
 
-Giao tiếp với người dùng, chú thích trong mã, chuỗi giao diện và commit message đều bằng tiếng Việt.
+Giao tiếp với người dùng, chú thích trong mã và commit message bằng tiếng Việt. Chuỗi giao diện có HAI bản: viết
+`L("tiếng Việt", "English")` ngay tại chỗ dùng (xem `Shared.swift`); thêm chuỗi mới thì phải có cả hai. Nhật ký
+(`Log.write`) chỉ tiếng Việt.
 
 ## Lệnh
 
@@ -51,7 +53,8 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
    test, phần nào mới chỉ biên dịch.
 3. **Chẩn đoán bằng nhật ký, không đoán.** Lỗi Spotlight "toôi" tốn bốn vòng đoán; một dòng log đã
    chỉ ra nguyên nhân. Thiếu thông tin thì thêm dòng log rồi nhờ người dùng thử lại.
-4. **Nhật ký chứa nguyên văn nội dung gõ.** Chỉ đọc đoạn cần thiết quanh thời điểm lỗi, không dán
+4. **Nhật ký chứa nguyên văn nội dung gõ và mặc định TẮT.** Cần log để chẩn đoán thì nhờ người dùng bật ở
+   Cài đặt › Chung › "Ghi nhật ký gỡ lỗi" rồi thử lại. Chỉ đọc đoạn cần thiết quanh thời điểm lỗi, không dán
    nội dung người dùng gõ vào câu trả lời, commit hay dịch vụ bên ngoài.
 5. **Không dùng SwiftUI.** Máy chỉ có Command Line Tools, thiếu plugin `SwiftUIMacros`, nên
    `@State`/`@AppStorage` không biên dịch được. Giao diện viết bằng AppKit.

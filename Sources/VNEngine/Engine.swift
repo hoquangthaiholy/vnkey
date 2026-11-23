@@ -77,8 +77,9 @@ public final class Engine {
     public var context: ContextModel?
     /// Ghi chú về lần đoán từ ở phím vừa xử lý (cho nhật ký); rỗng nếu không đoán.
     public private(set) var note = ""
-    /// Từ vừa được VNKey tự sửa ở phím vừa xử lý (đoán dấu hoặc sửa gõ đảo phím), đúng như đang hiện trên màn
-    /// hình; nil nếu phím vừa rồi không tự sửa gì. App dùng để nháy nhẹ lên từ đó.
+    /// Chữ vừa được VNKey tự sửa ở phím vừa xử lý (đoán dấu hoặc sửa gõ đảo phím), đúng như đang hiện trên màn
+    /// hình: một từ, hoặc cả cụm hai từ kèm dấu cách khi sửa cả từ đứng trước. nil nếu không tự sửa gì. App dùng
+    /// để nháy nhẹ lên đoạn chữ đó.
     public private(set) var fixedWord: String?
 
     /// Từ người dùng muốn giữ nguyên phím gốc / giữ tiếng Việt (khoá = phím gốc viết thường).
@@ -220,7 +221,9 @@ public final class Engine {
         if let p = pending, p.typed == typed { learn(raw: typed, wantRaw: p.wantRaw) }
         if let fixed = transpositionFix() { comp = fixed }
         let glued = config.codeAware && config.autoRestore && (ch == "_" || ch == "@")
-        let predicted = glued ? nil : predict()
+        // Cả cụm hai từ gõ không dấu ("lam loi"): nếu người dùng hay gõ "lầm lỗi" thì sửa luôn cả từ đứng trước.
+        let phrase = glued ? nil : phraseFix()
+        let predicted = phrase?.comp ?? (glued ? nil : predict())
         if let predicted { comp = predicted }
         let composed = comp.shown
         // Từ dính liền "_" hoặc "@" phía sau là tên biến / địa chỉ: giữ phím gốc.
@@ -230,12 +233,11 @@ public final class Engine {
         if let m = expansion(for: final) { final = m; resumable = false }
         trackLanguage(final: final, composed: composed)
         if predicted != nil || typed != comp.rawString, final == composed { fixedWord = final }
-        // Ghi nhận từ tiếng Việt người dùng tự gõ (không tính từ do VNKey đoán, sửa hay bung ra). Từ không dấu
-        // ("nay" trong "hôm nay") chỉ được ghi khi rõ là đang gõ tiếng Việt; nhờ đó VNKey biết người dùng có
-        // thật sự gõ cặp từ ấy ở dạng không dấu hay không.
+        // Ghi nhận từ người dùng tự gõ mà từ điển coi là tiếng Việt (không tính từ do VNKey đoán, sửa hay bung ra),
+        // kể cả từ không dấu ("nay" trong "hôm nay", "to do"): số lần gõ dạng không dấu là bằng chứng duy nhất
+        // cho biết người dùng có thật sự viết cặp từ ấy như vậy, để không bị "sửa" nhầm.
         var recorded: (word: String, prev: String?)?
         if let model = context, predicted == nil, resumable, typed == comp.rawString, final == composed,
-            final.contains(where: { !$0.isASCII }) || inVietnameseContext,
             lexicon?.isVietnamese(final.lowercased()) == true
         {
             recorded = (final.lowercased(), previousWord())
@@ -243,7 +245,17 @@ public final class Engine {
         }
 
         var out = Output.pass
-        if final != screen {
+        if let phrase, let last = history.indices.last {
+            // Xoá cả từ đứng trước, dấu cách và từ đang gõ rồi gõ lại cụm có dấu.
+            let e = history[last]
+            out = Output(backspaces: e.final.count + e.sep.count + screen.count, text: phrase.prev + e.sep + final, passKey: true)
+            fixedWord = phrase.prev + e.sep + final  // app nháy cả hai từ vừa được thay
+            if let r = e.recorded { context?.unrecord(r.word, after: r.prev) }  // lần gõ không dấu đó là gõ thiếu dấu
+            history[last].final = phrase.prev
+            history[last].composed = phrase.prev
+            history[last].resumable = false
+            history[last].recorded = nil
+        } else if final != screen {
             let p = commonPrefix(screen, final)
             out = Output(backspaces: screen.count - p, text: String(final.dropFirst(p)), passKey: true)
         }
@@ -363,6 +375,41 @@ public final class Engine {
     private func previousWord() -> String? {
         guard let e = history.last, e.sep == " " else { return nil }
         return e.final.lowercased()
+    }
+
+    /// Từ đang gõ và từ ngay trước nó đều không dấu, nhưng người dùng hay gõ đúng cụm đó có dấu: trả về từ đang
+    /// gõ đã thêm dấu và chữ thay cho từ đứng trước. Bằng chứng duy nhất là thói quen của chính người dùng
+    /// (`ContextModel.phrase`), nên không cần quanh đó có từ nào có dấu; chỉ không làm giữa một mạch tiếng Anh.
+    private func phraseFix() -> (comp: Composer, prev: String)? {
+        guard config.predict, config.predictUnmarked, config.autoRestore, let model = context, lexicon != nil,
+            englishStreak == 0, !comp.isLiteral, comp.hasVowel, !comp.cancelled, !comp.keepComposed, !comp.codeLiteral,
+            comp.markCount == 0, comp.tone == .none, expansion(for: comp.shown) == nil
+        else { return nil }
+        let key = comp.rawString.lowercased()
+        guard !preferRaw.contains(key), !preferVN.contains(key), let e = history.last, e.sep == " ", e.resumable,
+            e.typed == e.raw, e.final == e.raw, !e.final.isEmpty, e.final.allSatisfy({ $0.isASCII && $0.isLetter }),
+            !preferRaw.contains(e.raw.lowercased())
+        else { return nil }
+        let plainPrev = e.final.lowercased(), plainWord = comp.shown.lowercased()
+        guard let hit = model.phrase(plainPrev: plainPrev, plainWord: plainWord), hit.prev != plainPrev else { return nil }
+        // Từ đang gõ: lấy đúng ứng viên có dấu (hoặc giữ nguyên nếu cụm đã học chỉ khác ở từ đứng trước).
+        var fixed = comp
+        if hit.word != plainWord {
+            guard let c = Predictor.candidates(for: comp, teen: false).first(where: { $0.shown.lowercased() == hit.word }) else {
+                return nil
+            }
+            fixed = c
+        }
+        fixed.keepComposed = true
+        // Từ đứng trước: giữ kiểu viết hoa người dùng đã gõ.
+        var prev = hit.prev
+        if e.final.count > 1, e.final == e.final.uppercased() {
+            prev = prev.uppercased()
+        } else if let f = e.final.first, f.isUppercase {
+            prev = prev.prefix(1).uppercased() + prev.dropFirst()
+        }
+        note = "đoán cụm \(e.final) \(comp.shown) -> \(prev) \(fixed.shown) (\(hit.count) lần đã gõ)"
+        return (fixed, prev)
     }
 
     /// Một trong ba từ vừa gõ là tiếng Việt có dấu, và không đang ở giữa một mạch tiếng Anh.

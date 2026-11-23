@@ -54,6 +54,11 @@ paths:
     ghi nhận của từ đó được rút lại (`ContextModel.unrecord`). Gợi ý của macOS
     không dùng được ở đây (nó đổi "hôm nay" thành "hôm này"). Vì vậy engine cũng ghi nhận từ không dấu khi đang ở
     ngữ cảnh tiếng Việt. Người dùng đã chọn cách học này thay cho từ điển từ ghép (2026-11-23).
+  - Cả cụm hai từ không dấu ("lam loi" → "lầm lỗi") sửa bằng `Engine.phraseFix` + `ContextModel.phrase`: cụm có
+    dấu đã được gõ ≥ 3 lần, ≥ 2 lần cụm có dấu khác cùng khớp, và nhiều hơn chính cụm không dấu đó. Không cần
+    quanh đó có từ có dấu, nhưng không làm giữa một mạch tiếng Anh. Lần sửa này xoá và gõ lại cả từ đứng trước.
+    Vì vậy mọi từ không dấu mà từ điển coi là tiếng Việt đều được ghi nhận (kể cả "to do" trong câu tiếng Anh):
+    đó là thứ ngăn việc sửa nhầm.
   - `Engine.fixedWord` báo từ vừa được tự sửa (đoán dấu, sửa đảo phím) để app nháy nhẹ lên nó (`HUD.flash`).
   Từ đã đoán lưu với `resumable = false`; phím "Đổi từ vừa gõ" trả lại phím gốc và nhớ vào `preferRaw`.
   `UsageModel` (VNEngine, thuần Foundation) là bảng đếm có giới hạn; app lưu nó qua `UsageStore`.

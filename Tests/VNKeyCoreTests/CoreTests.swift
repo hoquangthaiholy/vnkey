@@ -615,3 +615,72 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(UpdateCheck.latestReleaseURL(repository: "a/b/c") == nil)
     }
 }
+
+@Suite struct AutoUpdates {
+    static let json = #"""
+        {"tag_name":"2.1.0","html_url":"https://github.com/o/r/releases/tag/2.1.0","body":"Mới","assets":[
+          {"name":"VNKey_2.1.0_universal.dmg","browser_download_url":"https://github.com/o/r/releases/download/2.1.0/VNKey_2.1.0_universal.dmg","size":1200000},
+          {"name":"VNKey_2.1.0_universal.zip","browser_download_url":"https://github.com/o/r/releases/download/2.1.0/VNKey_2.1.0_universal.zip","size":830000}]}
+        """#
+
+    @Test func findsTheZipAsset() throws {
+        let r = try #require(UpdateCheck.release(from: Data(AutoUpdates.json.utf8)))
+        #expect(r.download?.absoluteString == "https://github.com/o/r/releases/download/2.1.0/VNKey_2.1.0_universal.zip")
+        #expect(r.downloadSize == 830_000)
+    }
+
+    @Test func refusesAssetsFromElsewhere() throws {
+        for bad in [
+            "http://github.com/o/r/releases/download/2.1.0/VNKey.zip",  // không phải https
+            "https://evil.test/VNKey.zip",  // không phải GitHub
+            "https://github.com.evil.test/VNKey.zip",
+        ] {
+            let j = #"{"tag_name":"2.1.0","html_url":"https://github.com/o/r/releases/tag/2.1.0","assets":[{"name":"VNKey_2.1.0_universal.zip","browser_download_url":"\#(bad)","size":1}]}"#
+            let r = try #require(UpdateCheck.release(from: Data(j.utf8)))
+            #expect(r.download == nil, "\(bad)")
+        }
+        // Bản phát hành không có tệp ZIP: vẫn báo được, chỉ không tự cài được.
+        let none = try #require(UpdateCheck.release(from: Data(#"{"tag_name":"2.1.0","html_url":"https://github.com/o/r/releases/tag/2.1.0"}"#.utf8)))
+        #expect(none.download == nil)
+    }
+
+    @Test func decidesWhetherTheDownloadMayReplaceTheApp() {
+        // Chỉ cài khi: cùng mã định danh, cùng nhóm ký (Team ID), và phiên bản thật sự mới hơn bản đang chạy.
+        func ok(_ id: String, _ team: String?, _ v: String) -> Bool {
+            UpdateCheck.mayInstall(
+                candidate: (bundleID: id, team: team, version: v), running: (bundleID: "com.x.vnkey", team: "TEAM1", version: "2.0.0")) == nil
+        }
+        #expect(ok("com.x.vnkey", "TEAM1", "2.1.0"))
+        #expect(!ok("com.other.app", "TEAM1", "2.1.0"))
+        #expect(!ok("com.x.vnkey", "TEAM2", "2.1.0"))
+        #expect(!ok("com.x.vnkey", nil, "2.1.0"))
+        #expect(!ok("com.x.vnkey", "TEAM1", "2.0.0"))
+        #expect(!ok("com.x.vnkey", "TEAM1", "1.9.0"))
+        // Bản đang chạy không ký bằng Developer ID (bản dựng trên máy): không bao giờ tự cài.
+        #expect(UpdateCheck.mayInstall(
+            candidate: (bundleID: "local.vnkey", team: "TEAM1", version: "2.1.0"),
+            running: (bundleID: "local.vnkey", team: nil, version: "2.0.0")) != nil)
+    }
+
+    @Test func readsChangelogSections() {
+        let text = """
+            # Nhật ký thay đổi (CHANGELOG)
+
+            ## [2.0.0] - 2026-11-24
+            Bản viết lại.
+
+            ### Thêm mới
+            - **Engine mới**: theo dõi phím.
+
+            ## [1.0.2] - 2026-07-05
+            ### Thêm mới
+            - Cơ chế hủy dấu.
+            """
+        let s = Changelog.sections(from: text)
+        #expect(s.map(\.version) == ["2.0.0", "1.0.2"])
+        #expect(s[0].date == "2026-11-24")
+        #expect(s[0].body.contains("Engine mới") && !s[0].body.contains("1.0.2"))
+        #expect(s[1].body.hasPrefix("### Thêm mới"))
+        #expect(Changelog.sections(from: "không có gì").isEmpty)
+    }
+}

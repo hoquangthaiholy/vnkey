@@ -30,8 +30,8 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
     private let status = NSTextField(labelWithString: "")
     private let buttons = NSSegmentedControl(
         images: [
-            NSImage(systemSymbolName: "plus", accessibilityDescription: "Thêm")!,
-            NSImage(systemSymbolName: "minus", accessibilityDescription: "Xoá")!,
+            NSImage(systemSymbolName: "plus", accessibilityDescription: L("Thêm", "Add"))!,
+            NSImage(systemSymbolName: "minus", accessibilityDescription: L("Xoá", "Delete"))!,
         ], trackingMode: .momentary, target: nil, action: nil)
 
     private let columns: [Column]
@@ -89,11 +89,11 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
         buttons.action = #selector(buttonPressed(_:))
         if readOnly {
             buttons.segmentCount = 1
-            buttons.setImage(NSImage(systemSymbolName: "minus", accessibilityDescription: "Xoá"), forSegment: 0)
+            buttons.setImage(NSImage(systemSymbolName: "minus", accessibilityDescription: L("Xoá", "Delete")), forSegment: 0)
         } else {
-            buttons.setToolTip("Thêm một dòng", forSegment: 0)
+            buttons.setToolTip(L("Thêm một dòng", "Add a row"), forSegment: 0)
         }
-        buttons.setToolTip("Xoá các dòng đang chọn (phím Delete)", forSegment: removeSegment)
+        buttons.setToolTip(L("Xoá các dòng đang chọn (phím Delete)", "Delete the selected rows (Delete key)"), forSegment: removeSegment)
         buttons.setEnabled(false, forSegment: removeSegment)
         status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor
@@ -107,7 +107,7 @@ final class EntryTable: NSObject, NSTableViewDataSource, NSTableViewDelegate, NS
         view.alignment = .leading
         view.spacing = 6
         if searchable {
-            search.placeholderString = "Tìm"
+            search.placeholderString = L("Tìm", "Search")
             search.controlSize = .small
             search.delegate = self
             search.sendsSearchStringImmediately = true

@@ -250,8 +250,8 @@
                     </div>
                     <h3 lang="vi">Học từ cách bạn gõ</h3>
                     <h3 lang="en">Learns How You Type</h3>
-                    <p lang="vi">Nhớ những từ bạn muốn giữ nguyên, và đếm các cặp từ bạn hay gõ để chọn đúng theo từ đứng trước (“lầm loi” → “lầm lỗi”). Mọi thứ đã học xem và xoá được trong Cài đặt.</p>
-                    <p lang="en">Remembers the words you want left alone, and counts the word pairs you type to pick the right word from the one before it (“lầm loi” → “lầm lỗi”). Everything it learned can be viewed and deleted in Settings.</p>
+                    <p lang="vi">Nhớ những từ bạn muốn giữ nguyên, và đếm các cặp từ bạn hay gõ: gõ “lầm lỗi” vài lần thì “lam loi” không dấu cũng ra “lầm lỗi”. Mọi thứ đã học xem và xoá được trong Cài đặt.</p>
+                    <p lang="en">Remembers the words you want left alone, and counts the word pairs you type: type “lầm lỗi” a few times and a bare “lam loi” becomes “lầm lỗi” too. Everything it learned can be viewed and deleted in Settings.</p>
                 </div>
                 <!-- Feature 8 -->
                 <div class="feature-card glass-panel">
@@ -278,10 +278,10 @@
                             <polyline points="12 5 19 12 12 19"></polyline>
                         </svg>
                     </div>
-                    <h3 lang="vi">Nhẹ và riêng tư</h3>
-                    <h3 lang="en">Light and Private</h3>
-                    <p lang="vi">Ứng dụng thanh menu viết thuần Swift, chỉ khoảng 2 MB. Những gì VNKey học chỉ nằm trên máy bạn; nó chỉ kết nối mạng để hỏi GitHub xem có bản mới hay không.</p>
-                    <p lang="en">A pure-Swift menu bar app of about 2 MB. What VNKey learns stays on your Mac; the only network request it makes is asking GitHub whether a new version exists.</p>
+                    <h3 lang="vi">Nhẹ, riêng tư, tự cập nhật</h3>
+                    <h3 lang="en">Light, Private, Self-Updating</h3>
+                    <p lang="vi">Ứng dụng thanh menu viết thuần Swift, chỉ khoảng 2 MB, giao diện tiếng Việt và tiếng Anh. Những gì VNKey học chỉ nằm trên máy bạn; nó chỉ kết nối mạng để kiểm tra và tải bản mới từ GitHub, và chỉ cài khi bạn bấm.</p>
+                    <p lang="en">A pure-Swift menu bar app of about 2 MB, with a Vietnamese and an English interface. What VNKey learns stays on your Mac; it goes online only to check for and download new versions from GitHub, and installs only when you click.</p>
                 </div>
             </div>
         </div>
@@ -354,10 +354,10 @@
                     <h3 lang="vi">Đoán từ và học từ chính bạn</h3>
                     <h3 lang="en">Prediction That Learns From You</h3>
                     <p lang="vi">
-                        Với một từ gõ thiếu dấu, VNKey sinh các ứng viên chỉ bằng cách thêm dấu, rồi chọn theo thứ tự: cặp từ chính bạn đã gõ, gợi ý theo câu của từ điển macOS, độ thông dụng. Không chắc thì để nguyên. Bảng đếm từ và cặp từ chỉ lưu trên máy, không chứa câu bạn gõ, và xoá được bất cứ lúc nào.
+                        Với một từ gõ thiếu dấu, VNKey sinh các ứng viên chỉ bằng cách thêm dấu, rồi chọn theo thứ tự: cặp từ chính bạn đã gõ, gợi ý theo câu của từ điển macOS, độ thông dụng. Không chắc thì để nguyên. Khi bạn đã gõ một cụm có dấu đủ nhiều, nó sửa được cả hai từ gõ không dấu. Bảng đếm từ và cặp từ chỉ lưu trên máy, không chứa câu bạn gõ, và xoá được bất cứ lúc nào.
                     </p>
                     <p lang="en">
-                        For a word with missing marks, VNKey generates candidates only by adding diacritics, then picks in order: word pairs you have typed yourself, the macOS dictionary's in-sentence suggestion, then how common the word is. When unsure it changes nothing. The word and word-pair counts stay on your Mac, contain no sentences, and can be deleted at any time.
+                        For a word with missing marks, VNKey generates candidates only by adding diacritics, then picks in order: word pairs you have typed yourself, the macOS dictionary's in-sentence suggestion, then how common the word is. When unsure it changes nothing. Once you have typed an accented phrase often enough, it can fix both words typed without marks. The word and word-pair counts stay on your Mac, contain no sentences, and can be deleted at any time.
                     </p>
                     <div class="deep-dive-tech-tags" lang="vi">
                         <span class="tech-tag">Chỉ thêm dấu</span>
@@ -469,8 +469,8 @@
                         <span lang="en">What does VNKey store about me?</span>
                     </summary>
                     <div class="qa-content">
-                        <p lang="vi">Chỉ trên máy bạn: cài đặt, bảng gõ tắt, các từ bạn bảo nó nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có câu, không có thứ tự thời gian). Bảng đếm xem được ở thẻ Đã nhớ và xoá được bằng một nút. VNKey không gửi gì về việc bạn gõ đi đâu cả; yêu cầu mạng duy nhất là hỏi GitHub số phiên bản mới nhất, và tắt được. macOS không cho bộ gõ thấy phím trong ô mật khẩu.</p>
-                        <p lang="en">Only on your Mac: your settings, your shortcut table, the words you told it to remember, and a table counting the words and word pairs you type (no sentences, no timeline). You can view the counts in the Remembered tab and delete them with one button. VNKey sends nothing about your typing anywhere; its single network request asks GitHub for the latest version number, and you can turn that off. macOS does not let input tools see keys typed in password fields.</p>
+                        <p lang="vi">Chỉ trên máy bạn: cài đặt, bảng gõ tắt, các từ bạn bảo nó nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có câu, không có thứ tự thời gian). Bảng đếm xem được ở thẻ Đã nhớ và xoá được bằng một nút. VNKey không gửi gì về việc bạn gõ đi đâu cả; nó chỉ lên mạng để hỏi GitHub số phiên bản mới nhất (tắt được) và tải bản mới khi bạn bấm cập nhật. Nhật ký gỡ lỗi mặc định tắt. macOS không cho bộ gõ thấy phím trong ô mật khẩu.</p>
+                        <p lang="en">Only on your Mac: your settings, your shortcut table, the words you told it to remember, and a table counting the words and word pairs you type (no sentences, no timeline). You can view the counts in the Remembered tab and delete them with one button. VNKey sends nothing about your typing anywhere; it goes online only to ask GitHub for the latest version number (which you can turn off) and to download an update when you click. The debug log is off by default. macOS does not let input tools see keys typed in password fields.</p>
                     </div>
                 </details>
 
@@ -495,6 +495,29 @@
                     <div class="qa-content">
                         <p lang="vi">Được. Khi bạn chuyển bàn phím hệ thống sang một bộ gõ của macOS (Telex của Apple, tiếng Trung, Nhật…) hoặc một bố cục không phải chữ Latin, VNKey tự tạm ngưng và biểu tượng trên thanh menu mờ đi. Quay lại bàn phím Latin (ABC, U.S., Pháp, Đức…) thì nó hoạt động lại và hiện nhãn chế độ đang dùng cạnh con trỏ.</p>
                         <p lang="en">Yes. When you switch the system keyboard to a macOS input method (Apple’s Telex, Chinese, Japanese…) or a non-Latin layout, VNKey pauses itself and dims its menu bar icon. Switch back to a Latin keyboard (ABC, U.S., French, German…) and it resumes, showing the current mode in a small label next to the caret.</p>
+                    </div>
+                </details>
+                <!-- Q8 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">VNKey cập nhật thế nào?</span>
+                        <span lang="en">How does VNKey update?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Mỗi ngày VNKey hỏi GitHub một lần xem có bản mới không. Khi có, thẻ Giới thiệu trong Cài đặt và menu trên thanh trạng thái sẽ báo; bấm <strong>Cập nhật ngay</strong> để VNKey tải bản mới, kiểm tra chữ ký (phải do Apple cấp chứng chỉ và cùng nhà phát triển), tự thay rồi mở lại. Nó không bao giờ tự cài khi bạn chưa bấm. Nút <strong>Có gì mới…</strong> cho xem nhật ký thay đổi ngay trong app.</p>
+                        <p lang="en">Once a day VNKey asks GitHub whether a new version exists. When there is one, the About tab in Settings and the menu bar menu tell you; click <strong>Update Now</strong> and VNKey downloads it, checks its signature (Apple-issued and from the same developer), replaces itself, and reopens. It never installs without your click. The <strong>What’s New…</strong> button shows the release notes inside the app.</p>
+                    </div>
+                </details>
+
+                <!-- Q9 -->
+                <details class="qa-item">
+                    <summary>
+                        <span lang="vi">Đổi ngôn ngữ giao diện ở đâu?</span>
+                        <span lang="en">Where do I change the interface language?</span>
+                    </summary>
+                    <div class="qa-content">
+                        <p lang="vi">Mở Cài đặt › Chung › Ngôn ngữ và chọn <code>Theo hệ thống</code>, <code>Tiếng Việt</code> hoặc <code>English</code>. Mặc định VNKey theo ngôn ngữ của macOS.</p>
+                        <p lang="en">Open Settings › General › Language and choose <code>System</code>, <code>Tiếng Việt</code>, or <code>English</code>. By default VNKey follows the macOS language.</p>
                     </div>
                 </details>
             </div>

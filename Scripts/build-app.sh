@@ -29,6 +29,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Biểu tượng app: thay Resources/AppIcon.svg rồi chạy `swift Scripts/make-icon.swift`.
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp "$BINARY" "$APP/Contents/MacOS/VNKey"
+# Nhật ký thay đổi đi kèm app để hiện trong cửa sổ "Có gì mới" (không cần mạng).
+[ -f CHANGELOG.md ] && cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

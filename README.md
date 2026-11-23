@@ -20,12 +20,14 @@ and English without switching modes, completes words with missing diacritics, an
   trong ngữ cảnh code (sau `@ # / . _`, chữ số).
 - **Đoán từ gõ thiếu dấu:** `duojc`, `đươc` → `được`; `tiếng viet` → `việt`, `bài viet` → `viết`. Chỉ thêm dấu, không
   thay từ đã đúng.
-- **Học từ cách bạn gõ:** nhớ từ bạn muốn giữ nguyên và các cặp từ bạn hay gõ (`lầm loi` → `lầm lỗi`). Dữ liệu chỉ
-  nằm trên máy, xem và xoá được trong Cài đặt.
+- **Học từ cách bạn gõ:** nhớ từ bạn muốn giữ nguyên và các cặp từ bạn hay gõ; gõ `lầm lỗi` vài lần thì `lam loi`
+  không dấu cũng ra `lầm lỗi`. Dữ liệu chỉ nằm trên máy, xem và xoá được trong Cài đặt.
 - **Gõ tự do, sửa gõ đảo phím:** `dduwowcj`, `duojwcd` đều ra `được`; `tieegns` → `tiếng`.
 - **Không gạch chân, không lặp chữ:** sửa chữ bằng kỹ thuật xoá lùi; có xử lý riêng cho thanh địa chỉ trình duyệt
   và Spotlight.
 - **Telex và VNI**, gõ tắt dạng bảng, nhớ chế độ theo ứng dụng, tạm ngưng khi dùng bộ gõ khác của macOS.
+- **Giao diện tiếng Việt và tiếng Anh**; **tự cập nhật** qua GitHub Releases (có kiểm tra chữ ký, chỉ cài khi bạn
+  bấm) và xem nhật ký thay đổi ngay trong app.
 
 ## Cài đặt
 
@@ -40,12 +42,11 @@ Yêu cầu: macOS 12 trở lên, máy Apple silicon hoặc Intel.
 
 ## Quyền riêng tư
 
-- VNKey không gửi gì về việc bạn gõ đi đâu cả. Yêu cầu mạng duy nhất là hỏi GitHub số phiên bản mới nhất (tắt được
-  ở thẻ Giới thiệu).
+- VNKey không gửi gì về việc bạn gõ đi đâu cả. Nó chỉ lên mạng để hỏi GitHub số phiên bản mới nhất (tắt được ở thẻ
+  Giới thiệu) và tải bản mới khi bạn bấm cập nhật.
 - Trên máy bạn, nó lưu: cài đặt, bảng gõ tắt, các từ đã nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có
   câu) tại `~/Library/Application Support/VNKey/usage.json`.
-- Nhật ký gỡ lỗi (`~/Library/Logs/VNKey.log`) lưu cả nội dung gõ và **mặc định tắt** ở bản phát hành; chỉ bật khi
-  cần báo lỗi.
+- Nhật ký gỡ lỗi (`~/Library/Logs/VNKey.log`) lưu cả nội dung gõ và **mặc định tắt**; chỉ bật khi cần báo lỗi.
 
 ## Dựng từ mã nguồn
 

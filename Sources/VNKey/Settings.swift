@@ -18,7 +18,7 @@ private final class HotkeyButton: NSButton {
         self.init(title: "", target: nil, action: #selector(toggle))
         self.key = key
         self.otherKey = otherKey
-        setAccessibilityLabel("Phím tắt: " + label)
+        setAccessibilityLabel(L("Phím tắt: ", "Shortcut: ") + label)
         target = self
         widthAnchor.constraint(equalToConstant: 150).isActive = true
         refresh()
@@ -34,7 +34,7 @@ private final class HotkeyButton: NSButton {
             // Không nhận: báo lý do ngay trên nút rồi trở về phím tắt cũ.
             stop()
             NSSound.beep()
-            title = problem == .duplicate ? "Trùng phím tắt kia" : "Cần thêm ⌃, ⌥ hoặc ⌘"
+            title = problem == .duplicate ? L("Trùng phím tắt kia", "Same as the other shortcut") : L("Cần thêm ⌃, ⌥ hoặc ⌘", "Add ⌃, ⌥ or ⌘")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
                 if self?.monitor == nil { self?.refresh() }
             }
@@ -47,7 +47,7 @@ private final class HotkeyButton: NSButton {
     @objc private func toggle() { monitor == nil ? start() : stop() }
 
     private func start() {
-        title = "Nhấn tổ hợp phím…"
+        title = L("Nhấn tổ hợp phím…", "Press a key combination…")
         hotkeyRecording = true; peak = 0
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [unowned self] e in
             let m = UInt(e.modifierFlags.rawValue) & Hotkey.modMask
@@ -107,7 +107,7 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
         table.dataSource = self
         table.delegate = self
         table.onDelete = { [unowned self] in removeSelected() }
-        table.setAccessibilityLabel("Ứng dụng bắt đầu ở chế độ Anh")
+        table.setAccessibilityLabel(L("Ứng dụng bắt đầu ở chế độ Anh", "Apps that start in English mode"))
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.borderType = .bezelBorder
@@ -173,7 +173,7 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
             attributes: [.foregroundColor: item.name == nil ? NSColor.secondaryLabelColor : NSColor.labelColor])
         text.append(
             NSAttributedString(
-                string: item.name == nil ? "   chưa cài trên máy này" : "   \(item.id)",
+                string: item.name == nil ? L("   chưa cài trên máy này", "   not installed on this Mac") : "   \(item.id)",
                 attributes: [
                     .foregroundColor: NSColor.tertiaryLabelColor,
                     .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
@@ -269,7 +269,7 @@ private final class Card: NSView {
 /// chiều cao mới (mép trên đứng yên).
 private final class SettingsTabs: NSTabViewController {
     static let duration: TimeInterval = 0.22
-    static let windowTitle = "Cài đặt VNKey"
+    static var windowTitle: String { L("Cài đặt VNKey", "VNKey Settings") }
     /// Tắt khi chọn thẻ bằng mã mà cần kích thước cuối ngay (chụp giao diện): một chuyển động đang dở sẽ
     /// tranh chấp với lần đặt khung trực tiếp, nhất là khi màn hình đang ngủ và chuyển động không chạy.
     var animatesResize = true
@@ -337,9 +337,9 @@ final class SettingsController: NSObject, NSWindowDelegate {
         super.init()
         tabs.tabStyle = .toolbar
         for (title, symbol, view) in [
-            ("Chung", "gearshape", general()), ("Gõ", "keyboard", typing()), ("Việt & Anh", "character.bubble", mixed()),
-            ("Tự sửa", "wand.and.stars", corrections()), ("Gõ tắt", "text.badge.plus", shortcuts()), ("Đã nhớ", "bookmark", remembered()),
-            ("Ứng dụng", "macwindow.on.rectangle", apps()), ("Giới thiệu", "info.circle", about()),
+            (L("Chung", "General"), "gearshape", general()), (L("Gõ", "Typing"), "keyboard", typing()), (L("Việt & Anh", "VI & EN"), "character.bubble", mixed()),
+            (L("Tự sửa", "Auto-fix"), "wand.and.stars", corrections()), (L("Gõ tắt", "Shortcuts"), "text.badge.plus", shortcuts()), (L("Đã nhớ", "Memory"), "bookmark", remembered()),
+            (L("Ứng dụng", "Apps"), "macwindow.on.rectangle", apps()), (L("Giới thiệu", "About"), "info.circle", about()),
         ] {
             let controller = NSViewController()
             controller.view = view
@@ -505,10 +505,10 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 key: key, otherKey: key == Key.toggleHotkey ? Key.restoreHotkey : Key.toggleHotkey, label: name)
             hotkeyButtons.append(b)
             let reset = NSButton(
-                image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: "Về mặc định")!,
+                image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: L("Về mặc định", "Reset to default"))!,
                 target: self, action: #selector(resetHotkey(_:)))
             reset.bezelStyle = .circular
-            reset.toolTip = "Về mặc định"
+            reset.toolTip = L("Về mặc định", "Reset to default")
             reset.tag = hotkeyButtons.count - 1
             return row(name, detail, b, reset)
         }
@@ -516,37 +516,59 @@ final class SettingsController: NSObject, NSWindowDelegate {
         login.controlSize = .small
         login.target = self
         login.action = #selector(toggleLogin(_:))
-        login.setAccessibilityLabel("Mở cùng lúc đăng nhập")
+        login.setAccessibilityLabel(L("Mở cùng lúc đăng nhập", "Open at login"))
         loginSwitch = login
-        let openLog = NSButton(title: "Mở tệp", target: self, action: #selector(openLog))
+        let openLog = NSButton(title: L("Mở tệp", "Show file"), target: self, action: #selector(openLog))
         openLog.controlSize = .small
         let logSwitch = NSSwitch()
         logSwitch.controlSize = .small
         logSwitch.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.debugLog)
-        logSwitch.setAccessibilityLabel("Ghi nhật ký gỡ lỗi")
+        logSwitch.setAccessibilityLabel(L("Ghi nhật ký gỡ lỗi", "Write a debug log"))
 
         var system: [NSView] = []
-        if #available(macOS 13.0, *) { system.append(row("Mở cùng lúc đăng nhập", nil, login)) }
+        if #available(macOS 13.0, *) { system.append(row(L("Mở cùng lúc đăng nhập", "Open at login"), nil, login)) }
         system.append(
             toggle(
-                "Tạm ngưng khi đang dùng bộ gõ khác của macOS",
-                "Telex của Apple, tiếng Trung, Nhật… hoặc bàn phím không phải chữ Latin: VNKey đứng ngoài, biểu tượng mờ đi.",
+                L("Tạm ngưng khi đang dùng bộ gõ khác của macOS", "Pause while another macOS input method is active"),
+                L("Telex của Apple, tiếng Trung, Nhật… hoặc bàn phím không phải chữ Latin: VNKey đứng ngoài, biểu tượng mờ đi.", "Apple’s Telex, Chinese, Japanese… or a non-Latin keyboard: VNKey steps aside and its icon dims."),
                 key: Key.followInputSource))
         system.append(
-            row("Ghi nhật ký gỡ lỗi", "Lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào máy này để tìm lỗi.", openLog, logSwitch))
+            row(L("Ghi nhật ký gỡ lỗi", "Write a debug log"), L("Lưu cả nội dung bạn gõ (trừ ô mật khẩu) vào máy này để tìm lỗi.", "Saves everything you type (except password fields) on this Mac for troubleshooting."), openLog, logSwitch))
         return page([
-            title("Phím tắt"),
+            title(L("Phím tắt", "Shortcut keys")),
             Card(rows: [
-                hotkey("Bật/tắt tiếng Việt", nil, Key.toggleHotkey),
-                hotkey("Đổi từ vừa gõ", "Phím gốc ↔ tiếng Việt, và nhớ cho lần sau.", Key.restoreHotkey),
+                hotkey(L("Bật/tắt tiếng Việt", "Toggle Vietnamese"), nil, Key.toggleHotkey),
+                hotkey(L("Đổi từ vừa gõ", "Flip the last word"), L("Phím gốc ↔ tiếng Việt, và nhớ cho lần sau.", "Raw keys ↔ Vietnamese, remembered for next time."), Key.restoreHotkey),
             ]),
-            note("Bấm vào ô phím tắt rồi nhấn tổ hợp mới; Esc để huỷ. Có thể dùng riêng phím bổ trợ như ⌃⇧: nhấn giữ rồi thả."),
-            title("Hiển thị"),
-            Card(rows: [toggle("Hiện nhãn VN/EN cạnh con trỏ khi đổi chế độ", key: Key.showHUD)]),
-            title("Hệ thống"),
+            note(L("Bấm vào ô phím tắt rồi nhấn tổ hợp mới; Esc để huỷ. Có thể dùng riêng phím bổ trợ như ⌃⇧: nhấn giữ rồi thả.", "Click a shortcut field and press the new combination; Esc cancels. Modifier-only shortcuts such as ⌃⇧ work too: hold, then release.")),
+            title(L("Ngôn ngữ", "Language")),
+            Card(rows: [row(L("Ngôn ngữ giao diện", "Interface language"), L("Đổi xong cửa sổ này tự mở lại.", "This window reopens after you change it."), languagePicker())]),
+            title(L("Hiển thị", "Display")),
+            Card(rows: [toggle(L("Hiện nhãn VN/EN cạnh con trỏ khi đổi chế độ", "Show a VN/EN label next to the caret when the mode changes"), key: Key.showHUD)]),
+            title(L("Hệ thống", "System")),
             Card(rows: system),
         ])
     }
+
+    private func languagePicker() -> NSPopUpButton {
+        let pop = NSPopUpButton(frame: .zero, pullsDown: false)
+        pop.addItems(withTitles: [L("Theo hệ thống", "System"), "Tiếng Việt", "English"])
+        pop.selectItem(at: ["auto", "vi", "en"].firstIndex(of: AppLanguage.setting) ?? 0)
+        pop.target = self
+        pop.action = #selector(pickLanguage(_:))
+        pop.setAccessibilityLabel(L("Ngôn ngữ giao diện", "Interface language"))
+        return pop
+    }
+
+    @objc private func pickLanguage(_ sender: NSPopUpButton) {
+        let value = ["auto", "vi", "en"][max(0, sender.indexOfSelectedItem)]
+        guard value != AppLanguage.setting else { return }
+        defaults.set(value, forKey: Key.language)
+        onLanguageChange?()
+    }
+
+    /// Gọi khi người dùng đổi ngôn ngữ: AppDelegate dựng lại cửa sổ này bằng ngôn ngữ mới.
+    var onLanguageChange: (() -> Void)?
 
     /// Thẻ "Giới thiệu": ứng dụng, cập nhật, nhà phát triển.
     private func about() -> NSView {
@@ -555,10 +577,10 @@ final class SettingsController: NSObject, NSWindowDelegate {
         icon.heightAnchor.constraint(equalToConstant: 64).isActive = true
         let name = NSTextField(labelWithString: "VNKey")
         name.font = .systemFont(ofSize: 20, weight: .semibold)
-        let version = NSTextField(labelWithString: "Phiên bản \(AppInfo.version)\(AppInfo.build.isEmpty ? "" : " (\(AppInfo.build))")")
+        let version = NSTextField(labelWithString: L("Phiên bản", "Version") + " \(AppInfo.version)\(AppInfo.build.isEmpty ? "" : " (\(AppInfo.build))")")
         version.textColor = .secondaryLabelColor
         version.isSelectable = true
-        let tagline = NSTextField(labelWithString: "Bộ gõ tiếng Việt cho macOS: gõ xen kẽ Việt – Anh, tự sửa lỗi gõ.")
+        let tagline = NSTextField(labelWithString: L("Bộ gõ tiếng Việt cho macOS: gõ xen kẽ Việt – Anh, tự sửa lỗi gõ.", "A Vietnamese input method for macOS: mix Vietnamese and English, typos fixed for you."))
         tagline.font = .systemFont(ofSize: 11)
         tagline.textColor = .secondaryLabelColor
         let text = NSStackView(views: [name, version, tagline])
@@ -570,26 +592,36 @@ final class SettingsController: NSObject, NSWindowDelegate {
         header.alignment = .centerY
         header.spacing = 14
 
-        let check = NSButton(title: "Kiểm tra bản mới", target: self, action: #selector(updateAction))
+        let check = NSButton(title: "", target: self, action: #selector(updateAction))
         updateButton = check
-        let statusRow = row("Cập nhật", " ", check)
+        let statusRow = row(L("Cập nhật", "Updates"), " ", check)
         let fields = SettingsController.labels(in: statusRow)
         updateTitle = fields.first
         updateDetail = fields.dropFirst().first
 
+        let notes = NSButton(title: L("Có gì mới…", "What’s New…"), target: self, action: #selector(showChangelog))
+        let site = NSButton(title: L("Trang web", "Website"), target: self, action: #selector(openWebsite))
+        let source = NSButton(title: L("Mã nguồn", "Source Code"), target: self, action: #selector(openSource))
+
         return page([
             header,
-            title("Cập nhật"),
+            title(L("Cập nhật", "Updates")),
             Card(rows: [
                 statusRow,
                 toggle(
-                    "Tự kiểm tra bản mới mỗi ngày",
-                    "Chỉ hỏi GitHub số phiên bản mới nhất; không gửi gì về bạn hay về việc bạn gõ. VNKey không tự tải hay tự cài.",
+                    L("Tự kiểm tra bản mới mỗi ngày", "Check for new versions every day"),
+                    L(
+                        "Chỉ hỏi GitHub số phiên bản mới nhất; không gửi gì về bạn hay về việc bạn gõ. Có bản mới thì VNKey báo; bạn bấm mới cài.",
+                        "Only asks GitHub for the latest version number; nothing about you or your typing is sent. VNKey tells you when there is one and installs only when you click."),
                     key: Key.autoUpdateCheck),
+                row(L("Nhật ký thay đổi", "Release notes"), L("Những gì đã đổi qua từng phiên bản.", "What changed in each version."), notes),
             ]),
-            title("Nhà phát triển"),
-            Card(rows: [row(AppInfo.developer, "Tác giả")]),
-            note("© 2026 \(AppInfo.developer)"),
+            title(L("Nhà phát triển", "Developer")),
+            Card(rows: [
+                row(AppInfo.developer, L("Tác giả", "Author")),
+                row("VNKey", AppInfo.website.host ?? "", site, source),
+            ]),
+            note("© 2026 \(AppInfo.developer) · GPL-3.0"),
         ])
     }
 
@@ -601,47 +633,88 @@ final class SettingsController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Dòng trạng thái cập nhật theo kết quả lần kiểm tra gần nhất.
+    /// Dòng trạng thái cập nhật theo kết quả lần kiểm tra gần nhất và tiến độ tự cập nhật.
     private func showUpdateState() {
         guard let name = updateTitle, let detail = updateDetail, let button = updateButton else { return }
         let when: String = {
-            guard let d = Updater.shared.lastChecked else { return "Chưa kiểm tra lần nào." }
+            guard let d = Updater.shared.lastChecked else { return L("Chưa kiểm tra lần nào.", "Never checked.") }
             let f = DateFormatter()
-            f.locale = Locale(identifier: "vi_VN")
+            f.locale = Locale(identifier: AppLanguage.isVietnamese ? "vi_VN" : "en_US")
             f.dateStyle = .medium
             f.timeStyle = .short
-            return "Kiểm tra lần cuối: \(f.string(from: d))."
+            return L("Kiểm tra lần cuối: \(f.string(from: d)).", "Last checked: \(f.string(from: d)).")
         }()
         button.isEnabled = true
-        button.title = "Kiểm tra bản mới"
-        switch Updater.shared.state {
+        button.title = L("Kiểm tra bản mới", "Check Now")
+        let updater = Updater.shared
+        switch updater.state {
         case .idle:
-            name.stringValue = "Cập nhật"; detail.stringValue = when
+            name.stringValue = L("Cập nhật", "Updates"); detail.stringValue = when
         case .checking:
-            name.stringValue = "Đang kiểm tra…"; detail.stringValue = "Hỏi GitHub về bản phát hành mới nhất."
+            name.stringValue = L("Đang kiểm tra…", "Checking…")
+            detail.stringValue = L("Hỏi GitHub về bản phát hành mới nhất.", "Asking GitHub for the latest release.")
             button.isEnabled = false
         case .done(.upToDate):
-            name.stringValue = "Bạn đang dùng bản mới nhất"; detail.stringValue = when
+            name.stringValue = L("Bạn đang dùng bản mới nhất", "You are up to date"); detail.stringValue = when
         case .done(.available(let r)):
-            name.stringValue = "Có bản mới \(r.version)"
-            detail.stringValue = "Bạn đang dùng bản \(AppInfo.version). Bấm để mở trang tải trên GitHub."
-            button.title = "Mở trang tải…"
+            name.stringValue = L("Có bản mới \(r.version)", "Version \(r.version) is available")
+            if updater.canInstall {
+                detail.stringValue = L(
+                    "Bạn đang dùng bản \(AppInfo.version). VNKey sẽ tải, kiểm tra chữ ký, tự thay rồi mở lại.",
+                    "You have \(AppInfo.version). VNKey will download it, check its signature, replace itself, and reopen.")
+                button.title = L("Cập nhật ngay", "Update Now")
+            } else {
+                detail.stringValue = L(
+                    "Bạn đang dùng bản \(AppInfo.version). Bản này không tự cập nhật được; bấm để mở trang tải.",
+                    "You have \(AppInfo.version). This build cannot update itself; click to open the download page.")
+                button.title = L("Mở trang tải…", "Open Download Page…")
+            }
+        case .downloading(let r):
+            name.stringValue = L("Đang tải bản \(r.version)…", "Downloading \(r.version)…")
+            detail.stringValue = r.downloadSize > 0
+                ? String(format: "%.1f MB", Double(r.downloadSize) / 1_000_000) : ""
+            button.isEnabled = false
+        case .installing(let r):
+            name.stringValue = L("Đang cài bản \(r.version)…", "Installing \(r.version)…")
+            detail.stringValue = L("VNKey sẽ tự mở lại sau giây lát.", "VNKey will reopen in a moment.")
+            button.isEnabled = false
+        case .installFailed(let r, let why):
+            name.stringValue = L("Chưa cài được bản \(r.version)", "Could not install \(r.version)")
+            detail.stringValue = why
+            button.title = L("Mở trang tải…", "Open Download Page…")
         case .done(.noRelease):
-            name.stringValue = "Chưa có bản phát hành nào"; detail.stringValue = "Kho \(AppInfo.repository) chưa đăng bản nào trên GitHub Releases."
+            name.stringValue = L("Chưa có bản phát hành nào", "No releases yet")
+            detail.stringValue = L(
+                "Kho \(AppInfo.repository) chưa đăng bản nào trên GitHub Releases.",
+                "The repository \(AppInfo.repository) has not published a release on GitHub.")
         case .done(.failed(let why)):
-            name.stringValue = "Không kiểm tra được"; detail.stringValue = why
+            name.stringValue = L("Không kiểm tra được", "Could not check"); detail.stringValue = why
         }
     }
 
     @objc private func updateAction() {
-        if let page = Updater.shared.available?.page { NSWorkspace.shared.open(page) } else { Updater.shared.check() }
+        let updater = Updater.shared
+        switch updater.state {
+        case .done(.available(let r)):
+            if updater.canInstall { updater.installUpdate() } else { NSWorkspace.shared.open(r.page) }
+        case .installFailed(let r, _): NSWorkspace.shared.open(r.page)
+        default: updater.check()
+        }
     }
+
+    @objc private func openWebsite() { NSWorkspace.shared.open(AppInfo.website) }
+
+    @objc private func openSource() {
+        if let url = URL(string: "https://github.com/\(AppInfo.repository)") { NSWorkspace.shared.open(url) }
+    }
+
+    @objc private func showChangelog() { ChangelogWindow.shared.show() }
 
     private func typing() -> NSView {
         let method = NSSegmentedControl(
             labels: ["Telex", "VNI"], trackingMode: .selectOne, target: self, action: #selector(pickMethod(_:)))
         methodControl = method
-        method.setAccessibilityLabel("Kiểu gõ")
+        method.setAccessibilityLabel(L("Kiểu gõ", "Input method"))
         func telexSwitch(_ name: String, _ detail: String, _ key: String) -> NSView {
             let s = NSSwitch()
             s.controlSize = .small
@@ -651,21 +724,22 @@ final class SettingsController: NSObject, NSWindowDelegate {
             return row(name, detail, s)
         }
         let tone = NSSegmentedControl(
+            // Hai nhãn là ví dụ chính tả, không dịch.
             labels: ["hòa, thủy", "hoà, thuỷ"], trackingMode: .selectOne, target: self, action: #selector(pickTone(_:)))
         toneControl = tone
-        tone.setAccessibilityLabel("Vị trí dấu thanh")
+        tone.setAccessibilityLabel(L("Vị trí dấu thanh", "Tone mark placement"))
         return page([
-            title("Cơ bản"),
+            title(L("Cơ bản", "Basics")),
             Card(rows: [
-                row("Kiểu gõ", nil, method),
-                telexSwitch("Phím “w” đứng riêng thành “ư”", "Chỉ với Telex. Gõ “ww” để ra chữ w.", Key.standaloneW),
-                telexSwitch("Phím [ ] thành “ơ” “ư”", "Chỉ với Telex. Gõ lặp “[[” để ra dấu ngoặc.", Key.bracketKeys),
-                row("Vị trí dấu thanh", "Ở nguyên âm đầu (cũ) hay nguyên âm sau (mới).", tone),
+                row(L("Kiểu gõ", "Input method"), nil, method),
+                telexSwitch(L("Phím “w” đứng riêng thành “ư”", "A lone “w” becomes “ư”"), L("Chỉ với Telex. Gõ “ww” để ra chữ w.", "Telex only. Type “ww” for a plain w."), Key.standaloneW),
+                telexSwitch(L("Phím [ ] thành “ơ” “ư”", "[ ] keys become “ơ” “ư”"), L("Chỉ với Telex. Gõ lặp “[[” để ra dấu ngoặc.", "Telex only. Type “[[” for a plain bracket."), Key.bracketKeys),
+                row(L("Vị trí dấu thanh", "Tone mark placement"), L("Ở nguyên âm đầu (cũ) hay nguyên âm sau (mới).", "On the first vowel (old style) or the second (new style)."), tone),
             ]),
-            title("Tự động"),
+            title(L("Tự động", "Automatic")),
             Card(rows: [
-                toggle("Viết hoa đầu câu", "Sau . ! ? hoặc xuống dòng. Xoá lùi rồi gõ lại để giữ chữ thường.", key: Key.autoCapitalize),
-                toggle("Xoá khoảng trắng thừa trước dấu câu", "Áp dụng cho , . ; ! ?", key: Key.tidyPunctuation),
+                toggle(L("Viết hoa đầu câu", "Capitalize the start of sentences"), L("Sau . ! ? hoặc xuống dòng. Xoá lùi rồi gõ lại để giữ chữ thường.", "After . ! ? or a new line. Backspace and retype to keep it lowercase."), key: Key.autoCapitalize),
+                toggle(L("Xoá khoảng trắng thừa trước dấu câu", "Remove the stray space before punctuation"), L("Áp dụng cho , . ; ! ?", "Applies to , . ; ! ?"), key: Key.tidyPunctuation),
             ]),
         ])
     }
@@ -675,23 +749,23 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let s = NSSwitch()
         s.controlSize = .small
         s.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.learnUsage)
-        s.setAccessibilityLabel("Học cách bạn gõ")
-        let clear = NSButton(title: "Xoá đã học", target: self, action: #selector(clearUsage))
+        s.setAccessibilityLabel(L("Học cách bạn gõ", "Learn how I type"))
+        let clear = NSButton(title: L("Xoá đã học", "Clear learned data"), target: self, action: #selector(clearUsage))
         clear.controlSize = .small
-        clear.toolTip = "Xoá bảng đếm từ và cặp từ VNKey đã ghi trên máy này"
+        clear.toolTip = L("Xoá bảng đếm từ và cặp từ VNKey đã ghi trên máy này", "Delete the word and word-pair counts VNKey has recorded on this Mac")
         return row(
-            "Học cách bạn gõ để chọn theo từ đứng trước",
-            "Đếm các từ và cặp từ bạn hay gõ (không lưu câu), chỉ trên máy này. Gõ “lầm lỗi” vài lần thì “lầm loi” cũng được sửa.",
+            L("Học cách bạn gõ để chọn theo từ đứng trước", "Learn how I type to pick words from the one before"),
+            L("Đếm các từ và cặp từ bạn hay gõ (không lưu câu), chỉ trên máy này. Gõ “lầm lỗi” vài lần thì “lầm loi” cũng được sửa.", "Counts the words and word pairs you type (never sentences), on this Mac only. Type “lầm lỗi” a few times and “lầm loi” gets fixed too."),
             clear, s)
     }
 
     private func remembered() -> NSView {
         let learned = EntryTable(
             columns: [
-                .text(title: "Chuỗi phím", placeholder: "vd: this", width: nil),
-                .choice(title: "Luôn hiện", options: ["Phím gốc", "Tiếng Việt"], width: 120),
+                .text(title: L("Chuỗi phím", "Keys typed"), placeholder: L("vd: this", "e.g. this"), width: nil),
+                .choice(title: L("Luôn hiện", "Always show"), options: [L("Phím gốc", "Raw keys"), L("Tiếng Việt", "Vietnamese")], width: 120),
             ],
-            height: 150, label: "Từ đã nhớ", searchable: true,
+            height: 150, label: L("Từ đã nhớ", "Remembered words"), searchable: true,
             load: { [defaults] in
                 ListFormat.learnedRows(
                     raw: defaults.stringArray(forKey: Key.preferRaw) ?? [], vn: defaults.stringArray(forKey: Key.preferVN) ?? [])
@@ -700,7 +774,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 let r = ListFormat.learned(fromRows: rows)
                 if r.raw != (defaults.stringArray(forKey: Key.preferRaw) ?? []).sorted() { defaults.set(r.raw.sorted(), forKey: Key.preferRaw) }
                 if r.vn != (defaults.stringArray(forKey: Key.preferVN) ?? []).sorted() { defaults.set(r.vn.sorted(), forKey: Key.preferVN) }
-                return ("\(r.raw.count + r.vn.count) từ", false)
+                return (L("\(r.raw.count + r.vn.count) từ", "\(r.raw.count + r.vn.count) words"), false)
             })
         tables.append(learned)
         learned.view.identifier = SettingsController.wide
@@ -708,72 +782,72 @@ final class SettingsController: NSObject, NSWindowDelegate {
         // Các cặp từ VNKey đã học đủ để sửa dạng gõ không dấu. Chỉ xem và xoá: nội dung do việc gõ tạo ra.
         let pairs = EntryTable(
             columns: [
-                .text(title: "Khi bạn gõ", placeholder: "", width: 170),
-                .text(title: "VNKey sửa thành", placeholder: "", width: nil),
-                .text(title: "Đã gõ", placeholder: "", width: 60),
+                .text(title: L("Khi bạn gõ", "When you type"), placeholder: "", width: 170),
+                .text(title: L("VNKey sửa thành", "VNKey changes it to"), placeholder: "", width: nil),
+                .text(title: L("Đã gõ", "Typed"), placeholder: "", width: 60),
             ],
-            height: 110, label: "Cặp từ đã học", searchable: false, readOnly: true,
+            height: 110, label: L("Cặp từ đã học", "Learned word pairs"), searchable: false, readOnly: true,
             load: {
-                UsageStore.model.learnedPairs().map { ["\($0.prev) \($0.plain)", "\($0.prev) \($0.word)", "\($0.count) lần"] }
+                UsageStore.model.learnedPairs().map { ["\($0.prev) \($0.plain)", "\($0.prev) \($0.word)", L("\($0.count) lần", "\($0.count)×")] }
             },
             save: { rows in
                 // Dòng nào không còn trong bảng là dòng người dùng vừa xoá: quên cặp đó.
-                let kept = Set(rows.map { $0[1] })
+                let kept = Set(rows.map { $0[1] })  // cột "sửa thành" không phụ thuộc ngôn ngữ giao diện
                 for p in UsageStore.model.learnedPairs() where !kept.contains("\(p.prev) \(p.word)") {
                     UsageStore.model.forget(prev: p.prev, word: p.word)
                     Log.write("USAGE quên một cặp từ theo yêu cầu người dùng")
                 }
                 UsageStore.saveIfNeeded()
-                return (rows.isEmpty ? "Chưa có cặp nào" : "\(rows.count) cặp", false)
+                return (rows.isEmpty ? L("Chưa có cặp nào", "No pairs yet") : L("\(rows.count) cặp", "\(rows.count) pairs"), false)
             })
         tables.append(pairs)
         pairs.view.identifier = SettingsController.wide
         return page([
-            title("Từ đã nhớ"),
+            title(L("Từ đã nhớ", "Remembered words")),
             learned.view,
-            note("VNKey thêm vào đây mỗi lần bạn dùng phím “Đổi từ vừa gõ” hoặc gõ lại một từ vừa xoá. “Phím gốc”: từ luôn hiện đúng như đã gõ; “Tiếng Việt”: luôn bỏ dấu. Bấm đúp để sửa; xoá dòng để quên."),
-            title("Cặp từ đã học"),
+            note(L("VNKey thêm vào đây mỗi lần bạn dùng phím “Đổi từ vừa gõ” hoặc gõ lại một từ vừa xoá. “Phím gốc”: từ luôn hiện đúng như đã gõ; “Tiếng Việt”: luôn bỏ dấu. Bấm đúp để sửa; xoá dòng để quên.", "VNKey adds a row here whenever you use “Flip the last word” or retype a word you just deleted. “Raw keys”: the word always appears exactly as typed; “Vietnamese”: it always gets its marks. Double-click to edit; delete a row to forget it.")),
+            title(L("Cặp từ đã học", "Learned word pairs")),
             pairs.view,
-            note("Học từ cách bạn gõ: một cặp vào đây khi bạn đã gõ nó có dấu ít nhất ba lần và nhiều hơn dạng không dấu. Xoá dòng để VNKey quên cặp đó."),
+            note(L("Học từ cách bạn gõ: một cặp vào đây khi bạn đã gõ nó có dấu ít nhất ba lần và nhiều hơn dạng không dấu. Xoá dòng để VNKey quên cặp đó.", "Learned from your typing: a pair appears here once you have typed it with marks at least three times and more often than without. Delete a row to make VNKey forget that pair.")),
         ])
     }
 
     private func mixed() -> NSView {
         return page([
-            title("Xen kẽ tiếng Anh"),
+            title(L("Xen kẽ tiếng Anh", "Mixing in English")),
             Card(rows: [
-                toggle("Tự trả lại từ không phải tiếng Việt", "user, string, data… hiện đúng như bạn đã gõ.", key: Key.autoRestore),
+                toggle(L("Tự trả lại từ không phải tiếng Việt", "Restore words that are not Vietnamese"), L("user, string, data… hiện đúng như bạn đã gõ.", "user, string, data… appear exactly as you typed them."), key: Key.autoRestore),
                 toggle(
-                    "Đoán theo ngữ cảnh", "Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.",
+                    L("Đoán theo ngữ cảnh", "Use context"), L("Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.", "After two English words in a row, ambiguous words such as this and test stay English too."),
                     key: Key.contextAware, dependsOn: Key.autoRestore),
-                toggle("Giữ nguyên trong ngữ cảnh code", "Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", key: Key.codeAware),
+                toggle(L("Giữ nguyên trong ngữ cảnh code", "Leave code alone"), L("Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", "Right after @ # / \\ . _ : $ ~ = or a digit: emails, paths, identifiers."), key: Key.codeAware),
             ]),
-            title("Chữ teen"),
-            Card(rows: [toggle("Cho phép f, j, w, z đứng đầu từ", "zậy, jờ, dzô, fải…", key: Key.teen)]),
+            title(L("Chữ teen", "Chat spelling")),
+            Card(rows: [toggle(L("Cho phép f, j, w, z đứng đầu từ", "Allow f, j, w, z at the start of a word"), "zậy, jờ, dzô, fải…", key: Key.teen)]),
         ])
     }
 
     /// Thẻ "Tự sửa": mọi việc VNKey tự đổi chữ khi bạn gõ nhầm hoặc thiếu, và việc nó học từ cách bạn gõ.
     private func corrections() -> NSView {
         return page([
-            title("Sửa lỗi gõ"),
+            title(L("Sửa lỗi gõ", "Fixing typos")),
             Card(rows: [
                 toggle(
-                    "Sửa gõ đảo hai phím liền nhau", "tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.",
+                    L("Sửa gõ đảo hai phím liền nhau", "Fix two swapped keys"), L("tieegns → tiếng. Chỉ sửa khi ra đúng một từ có trong từ điển.", "tieegns → tiếng. Only when exactly one dictionary word results."),
                     key: Key.fixTransposition, dependsOn: Key.autoRestore),
                 toggle(
-                    "Đoán từ còn thiếu dấu", "duojc, đươc → được. Chỉ đoán khi chữ gõ ra chưa phải một từ tiếng Việt.",
+                    L("Đoán từ còn thiếu dấu", "Complete words with missing marks"), L("duojc, đươc → được. Chỉ đoán khi chữ gõ ra chưa phải một từ tiếng Việt.", "duojc, đươc → được. Only when what you typed is not yet a Vietnamese word."),
                     key: Key.predict, dependsOn: Key.autoRestore),
                 toggle(
-                    "Đoán cả từ chưa có dấu nào", "duoc, khong → được, không; chỉ khi bạn đang gõ tiếng Việt có dấu.",
+                    L("Đoán cả từ chưa có dấu nào", "Also complete words with no marks at all"), L("duoc, khong → được, không; chỉ khi bạn đang gõ tiếng Việt có dấu.", "duoc, khong → được, không; only while you are typing accented Vietnamese."),
                     key: Key.predictUnmarked, dependsOn: Key.predict),
-                toggle("Nháy nhẹ từ vừa được tự sửa", "Một lớp màu thoáng qua trên từ, để bạn thấy VNKey vừa đổi chữ.", key: Key.flashFix),
+                toggle(L("Nháy nhẹ từ vừa được tự sửa", "Flash the word that was just fixed"), L("Một lớp màu thoáng qua trên từ, để bạn thấy VNKey vừa đổi chữ.", "A brief tint over the word, so you notice VNKey changed it."), key: Key.flashFix),
             ]),
-            note("Các mục này cần bật “Tự trả lại từ không phải tiếng Việt” ở thẻ Việt & Anh. Đoán sai thì nhấn phím “Đổi từ vừa gõ” để lấy lại chữ đã gõ."),
-            title("Học từ cách bạn gõ"),
+            note(L("Các mục này cần bật “Tự trả lại từ không phải tiếng Việt” ở thẻ Việt & Anh. Đoán sai thì nhấn phím “Đổi từ vừa gõ” để lấy lại chữ đã gõ.", "These need “Restore words that are not Vietnamese” in the VI & EN tab. If a guess is wrong, press “Flip the last word” to get your keys back.")),
+            title(L("Học từ cách bạn gõ", "Learning from your typing")),
             Card(rows: [
                 toggle(
-                    "Tự nhớ khi bạn gõ lại", "Xoá ngay từ vừa gõ rồi gõ lại y nguyên: VNKey đổi sang dạng còn lại và nhớ cho lần sau.",
+                    L("Tự nhớ khi bạn gõ lại", "Remember when I retype"), L("Xoá ngay từ vừa gõ rồi gõ lại y nguyên: VNKey đổi sang dạng còn lại và nhớ cho lần sau.", "Delete the word you just typed and retype it the same way: VNKey switches to the other form and remembers."),
                     key: Key.learnFromRetype, dependsOn: Key.autoRestore),
                 learnRow(),
             ]),
@@ -783,10 +857,10 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private func shortcuts() -> NSView {
         let macros = EntryTable(
             columns: [
-                .text(title: "Từ tắt", placeholder: "vd: vn", width: 110),
-                .text(title: "Nội dung", placeholder: "vd: Việt Nam", width: nil),
+                .text(title: L("Từ tắt", "Shortcut"), placeholder: L("vd: vn", "e.g. vn"), width: 110),
+                .text(title: L("Nội dung", "Expands to"), placeholder: L("vd: Việt Nam", "e.g. Việt Nam"), width: nil),
             ],
-            height: 196, label: "Danh sách gõ tắt", searchable: true,
+            height: 196, label: L("Danh sách gõ tắt", "Shortcut list"), searchable: true,
             load: { [defaults] in ListFormat.rows(from: defaults.dictionary(forKey: Key.macros) as? [String: String] ?? [:]) },
             save: { [defaults] rows in
                 let r = ListFormat.macros(fromRows: rows)
@@ -794,37 +868,42 @@ final class SettingsController: NSObject, NSWindowDelegate {
                     defaults.set(r.macros, forKey: Key.macros)
                 }
                 return r.skipped == 0
-                    ? ("\(r.macros.count) mục", false)
-                    : ("\(r.macros.count) mục · \(r.skipped) dòng chưa dùng được: cần đủ hai ô, từ tắt chỉ gồm chữ cái", true)
+                    ? (L("\(r.macros.count) mục", "\(r.macros.count) shortcuts"), false)
+                    : (
+                        L(
+                            "\(r.macros.count) mục · \(r.skipped) dòng chưa dùng được: cần đủ hai ô, từ tắt chỉ gồm chữ cái",
+                            "\(r.macros.count) shortcuts · \(r.skipped) rows unusable: fill both cells, letters only in the shortcut"),
+                        true
+                    )
             })
         tables.append(macros)
         macros.view.identifier = SettingsController.wide
         return page([
-            title("Gõ tắt của bạn"),
+            title(L("Gõ tắt của bạn", "Your shortcuts")),
             macros.view,
-            note("Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa. Bấm đúp vào ô để sửa."),
-            title("Có sẵn"),
-            Card(rows: [toggle("Bung viết tắt teen", "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
+            note(L("Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa. Bấm đúp vào ô để sửa.", "Type a shortcut, then space or punctuation, to expand it; capitalize the shortcut and the result is capitalized too. Double-click a cell to edit.")),
+            title(L("Có sẵn", "Built in")),
+            Card(rows: [toggle(L("Bung viết tắt teen", "Expand chat abbreviations"), "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
         ])
     }
 
     private func apps() -> NSView {
         let list = AppList(key: Key.excludedApps)
         appList = list
-        let add = NSButton(title: "Thêm ứng dụng…", target: self, action: #selector(addApp))
+        let add = NSButton(title: L("Thêm ứng dụng…", "Add App…"), target: self, action: #selector(addApp))
         // Nút dạng menu kéo xuống: liệt kê ứng dụng đang mở, dựng lại mỗi lần bấm.
         let running = NSPopUpButton(frame: .zero, pullsDown: true)
-        running.addItem(withTitle: "Thêm ứng dụng đang mở")
+        running.addItem(withTitle: L("Thêm ứng dụng đang mở", "Add a Running App"))
         NotificationCenter.default.addObserver(
             self, selector: #selector(fillRunningApps(_:)), name: NSPopUpButton.willPopUpNotification, object: running)
         runningAppsMenu = running
-        let remove = NSButton(title: "Xoá", target: self, action: #selector(removeApps))
+        let remove = NSButton(title: L("Xoá", "Delete"), target: self, action: #selector(removeApps))
         remove.isEnabled = false
-        remove.toolTip = "Xoá các ứng dụng đang chọn (phím Delete)"
+        remove.toolTip = L("Xoá các ứng dụng đang chọn (phím Delete)", "Remove the selected apps (Delete key)")
         removeButton = remove
         list.onSelection = { [weak remove] n in remove?.isEnabled = n > 0 }
-        let restore = NSButton(title: "Về mặc định", target: self, action: #selector(restoreApps))
-        restore.toolTip = "Trở lại danh sách ứng dụng terminal ban đầu"
+        let restore = NSButton(title: L("Về mặc định", "Reset to default"), target: self, action: #selector(restoreApps))
+        restore.toolTip = L("Trở lại danh sách ứng dụng terminal ban đầu", "Go back to the original list of terminal apps")
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let buttons = NSStackView(views: [add, running, remove, spacer, restore])
@@ -832,17 +911,17 @@ final class SettingsController: NSObject, NSWindowDelegate {
         buttons.spacing = Metrics.controlGap
         buttons.identifier = SettingsController.wide
         return page([
-            title("Theo từng ứng dụng"),
+            title(L("Theo từng ứng dụng", "Per app")),
             Card(rows: [
                 toggle(
-                    "Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", "Mỗi ứng dụng trở lại chế độ bạn chọn lần cuối ở đó.",
+                    L("Nhớ chế độ Việt/Anh riêng cho từng ứng dụng", "Remember Vietnamese/English mode for each app"), L("Mỗi ứng dụng trở lại chế độ bạn chọn lần cuối ở đó.", "Each app returns to the mode you last used there."),
                     key: Key.perApp),
-                toggle("Sửa lặp chữ ở ô có gợi ý", "Thanh địa chỉ trình duyệt, Spotlight.", key: Key.fixBrowser),
+                toggle(L("Sửa lặp chữ ở ô có gợi ý", "Fix doubled letters in fields with suggestions"), L("Thanh địa chỉ trình duyệt, Spotlight.", "Browser address bars, Spotlight."), key: Key.fixBrowser),
             ]),
-            title("Bắt đầu ở chế độ Anh"),
+            title(L("Bắt đầu ở chế độ Anh", "Start in English mode")),
             list.scroll,
             buttons,
-            note("Mỗi lần chuyển sang các ứng dụng này VNKey tự về chế độ Anh; vẫn bật lại được bằng phím tắt."),
+            note(L("Mỗi lần chuyển sang các ứng dụng này VNKey tự về chế độ Anh; vẫn bật lại được bằng phím tắt.", "VNKey switches to English mode whenever you move to these apps; the shortcut still turns Vietnamese back on.")),
         ])
     }
 
@@ -855,11 +934,13 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     @objc private func clearUsage() {
         let alert = NSAlert()
-        alert.messageText = "Xoá mọi thứ VNKey đã học về cách bạn gõ?"
+        alert.messageText = L("Xoá mọi thứ VNKey đã học về cách bạn gõ?", "Delete everything VNKey has learned about how you type?")
         alert.informativeText =
-            "Hiện có \(UsageStore.model.wordCount) từ và \(UsageStore.model.pairTotal) cặp từ. Việc đoán từ sẽ chỉ còn dựa vào danh sách từ thông dụng có sẵn cho tới khi học lại."
-        alert.addButton(withTitle: "Xoá")
-        alert.addButton(withTitle: "Huỷ")
+            L(
+                "Hiện có \(UsageStore.model.wordCount) từ và \(UsageStore.model.pairTotal) cặp từ. Việc đoán từ sẽ chỉ còn dựa vào danh sách từ thông dụng có sẵn cho tới khi học lại.",
+                "There are \(UsageStore.model.wordCount) words and \(UsageStore.model.pairTotal) word pairs. Prediction will rely only on the built-in list of common words until it learns again.")
+        alert.addButton(withTitle: L("Xoá", "Delete"))
+        alert.addButton(withTitle: L("Huỷ", "Cancel"))
         alert.beginSheetModal(for: window) { r in if r == .alertFirstButtonReturn { UsageStore.clear() } }
     }
 
@@ -877,9 +958,12 @@ final class SettingsController: NSObject, NSWindowDelegate {
         do { if sender.state == .on { try service.register() } else { try service.unregister() } } catch {
             Log.write("LOGIN ITEM lỗi: \(error.localizedDescription)")
             let alert = NSAlert()
-            alert.messageText = "Không đổi được thiết lập mở cùng lúc đăng nhập"
+            alert.messageText = L("Không đổi được thiết lập mở cùng lúc đăng nhập", "Could not change the open-at-login setting")
             alert.informativeText =
-                "\(error.localizedDescription)\n\nBạn có thể tự bật trong Cài đặt hệ thống › Cài đặt chung › Mục đăng nhập."
+                error.localizedDescription + "\n\n"
+                + L(
+                    "Bạn có thể tự bật trong Cài đặt hệ thống › Cài đặt chung › Mục đăng nhập.",
+                    "You can turn it on yourself in System Settings › General › Login Items.")
             alert.beginSheetModal(for: window)
         }
         sender.state = service.status == .enabled ? .on : .off
@@ -899,7 +983,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
             .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && !have.contains($0.bundleIdentifier!) }
             .sorted { ($0.localizedName ?? "").localizedCaseInsensitiveCompare($1.localizedName ?? "") == .orderedAscending }
         if apps.isEmpty {
-            let none = NSMenuItem(title: "Không còn ứng dụng nào để thêm", action: nil, keyEquivalent: "")
+            let none = NSMenuItem(title: L("Không còn ứng dụng nào để thêm", "No more apps to add"), action: nil, keyEquivalent: "")
             none.isEnabled = false
             menu.addItem(none)
         }

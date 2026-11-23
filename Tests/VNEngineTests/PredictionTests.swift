@@ -9,7 +9,8 @@ final class PredictLexicon: Lexicon {
     let vi: Set<String> = [
         "được", "dược", "đước", "người", "ngươi", "nguôi", "nguội", "không", "khống", "khổng", "tiếng",
         "việt", "viết", "tôi", "đã", "ngành", "là", "của", "ban", "bạn", "bán", "bàn", "to", "tô", "tơ", "la",
-        "con", "nước", "học", "bài", "lầm", "lỗi", "lời", "lôi", "loi", "hôm", "nay", "này", "nãy", "hóc", "trường", "trưởng", "thuốc", "thuộc", "gọn", "gòn", "sài", "một", "mốt",
+        "con", "nước", "học", "bài", "lầm", "lỗi", "lời", "lôi", "loi", "hôm", "nay", "này", "nãy",
+        "lam", "làm", "do", "đỏ", "bè", "be", "bạn", "hóc", "trường", "trưởng", "thuốc", "thuộc", "gọn", "gòn", "sài", "một", "mốt",
     ]
     /// Câu trả lời giả cho tầng "gợi ý của macOS": từ gõ -> từ được chọn.
     var ranked: [String: String] = [:]
@@ -174,16 +175,69 @@ final class PredictLexicon: Lexicon {
         #expect(model.pairCount("lỗi", after: "lầm") == 1)
     }
 
+    /// Cả hai từ đều gõ không dấu ("lam loi"): nếu người dùng đã gõ "lầm lỗi" đủ nhiều, sửa luôn cả từ đứng trước.
+    @Test func learnedPhraseFixesBothUnmarkedWords() {
+        let model = UsageModel()
+        for _ in 0..<3 { model.record("lỗi", after: "lầm") }
+        let e = engine()
+        e.context = model
+        #expect(type("lam loi ", e) == "lầm lỗi ")
+        #expect(e.fixedWord == "lầm lỗi")  // nháy cả hai từ vừa được thay
+        e.reset()
+        #expect(type("Lam loi, ", e) == "Lầm lỗi, ")  // giữ chữ hoa đầu của từ đứng trước
+        e.reset()
+        #expect(type("tooi lam loi ", e) == "tôi lầm lỗi ")
+        // Từ do VNKey sửa không được ghi nhận là thói quen gõ không dấu.
+        #expect(model.pairCount("loi", after: "lam") == 0)
+        #expect(model.count("lam") == 0)
+    }
+
+    @Test func phraseFixNeedsClearEvidence() {
+        // Chưa đủ ba lần.
+        let few = UsageModel()
+        for _ in 0..<2 { few.record("lỗi", after: "lầm") }
+        let e1 = engine(); e1.context = few
+        #expect(type("lam loi ", e1) == "lam loi ")
+        // Người dùng cũng hay gõ đúng cụm không dấu đó ("to do" trong câu tiếng Anh): không sửa.
+        let both = UsageModel()
+        for _ in 0..<3 { both.record("đỏ", after: "tô") }
+        for _ in 0..<3 { both.record("do", after: "to") }
+        let e2 = engine(); e2.context = both
+        #expect(type("to do ", e2) == "to do ")
+        // Hai cụm có dấu cùng khớp và ngang nhau: không rõ.
+        let two = UsageModel()
+        for _ in 0..<3 { two.record("lỗi", after: "lầm") }
+        for _ in 0..<3 { two.record("lời", after: "làm") }
+        let e3 = engine(); e3.context = two
+        #expect(type("lam loi ", e3) == "lam loi ")
+        // Tắt đoán từ không dấu thì không sửa.
+        let m = UsageModel()
+        for _ in 0..<3 { m.record("lỗi", after: "lầm") }
+        let e4 = engine { $0.predictUnmarked = false }; e4.context = m
+        #expect(type("lam loi ", e4) == "lam loi ")
+    }
+
+    /// Gõ không dấu một cụm thì cụm đó được đếm, kể cả khi quanh đó không có từ nào có dấu: đây là bằng chứng
+    /// duy nhất cho biết người dùng có thật sự viết cụm ấy không dấu hay không.
+    @Test func plainPhrasesAreCounted() {
+        let model = UsageModel()
+        let e = engine()
+        e.context = model
+        _ = type("to do ", e)
+        #expect(model.pairCount("do", after: "to") == 1)
+        #expect(model.count("to") == 1)
+        // Từ không phải tiếng Việt (kể cả khi là tiếng Anh) thì không đếm.
+        e.reset()
+        _ = type("user data ", e)
+        #expect(model.count("user") == 0 && model.count("data") == 0)
+    }
+
     @Test func unmarkedVietnameseWordsAreRecordedInContext() {
         let model = UsageModel()
         let e = engine()
         e.context = model
         _ = type("hoom nay ", e)
         #expect(model.pairCount("nay", after: "hôm") == 1)
-        // Không có ngữ cảnh tiếng Việt thì từ không dấu không được ghi (có thể là tiếng Anh hoặc tên riêng).
-        e.reset()
-        _ = type("la to ", e)
-        #expect(model.count("la") == 0 && model.count("to") == 0)
     }
 
     @Test func autoFixIsReportedForTheFlash() {
@@ -285,6 +339,21 @@ final class PredictLexicon: Lexicon {
         #expect(m.wordCount <= 50)
         #expect(m.pairTotal <= 50)
         #expect(m.count("được") == 5)  // từ dùng nhiều được giữ lại
+    }
+
+    @Test func findsThePhraseBehindPlainTyping() {
+        let m = UsageModel()
+        for _ in 0..<5 { m.record("lỗi", after: "lầm") }
+        m.record("lời", after: "làm")
+        m.record("loi", after: "lam")
+        let hit = m.phrase(plainPrev: "lam", plainWord: "loi")
+        #expect(hit?.prev == "lầm" && hit?.word == "lỗi" && hit?.count == 5)
+        #expect(m.phrase(plainPrev: "lam", plainWord: "xyz") == nil)
+        // Sống sót qua lưu/đọc lại và sau khi quên.
+        let copy = UsageModel(data: m.data())
+        #expect(copy?.phrase(plainPrev: "lam", plainWord: "loi")?.word == "lỗi")
+        m.forget(prev: "lầm", word: "lỗi")
+        #expect(m.phrase(plainPrev: "lam", plainWord: "loi") == nil)  // còn 1 lần "làm lời": chưa đủ ba
     }
 
     @Test func recordCanBeTakenBack() {

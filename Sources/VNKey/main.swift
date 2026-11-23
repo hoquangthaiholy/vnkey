@@ -28,6 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Chế độ chụp giao diện: vẽ các cửa sổ ra PNG rồi thoát, KHÔNG khởi động event tap
         // (một bản VNKey khác có thể đang chạy; hai tap cùng lúc sẽ xử lý phím hai lần).
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
+            if CommandLine.arguments.contains("--en") { AppLanguage.override = "en" }
+            if CommandLine.arguments.contains("--vi") { AppLanguage.override = "vi" }
             Snapshot.run(into: URL(fileURLWithPath: CommandLine.arguments[i + 1]), dark: CommandLine.arguments.contains("--dark"))
             NSApp.terminate(nil)
             return
@@ -143,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !InputSourcePolicy.allowsTyping(
                 isKeyboardLayout: type == (kTISTypeKeyboardLayout as String), isASCIICapable: ascii)
             {
-                foreign = value(kTISPropertyLocalizedName) ?? "bộ gõ khác"
+                foreign = value(kTISPropertyLocalizedName) ?? L("bộ gõ khác", "another input method")
             }
         }
         let wasSuspended = inputSource.suspended
@@ -196,25 +198,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let main = NSMenu()
         let appItem = NSMenuItem()
         appItem.submenu = NSMenu()
-        appItem.submenu?.addItem(withTitle: "Thoát VNKey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu?.addItem(withTitle: L("Thoát VNKey", "Quit VNKey"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         main.addItem(appItem)
 
-        let edit = NSMenu(title: "Sửa")
-        edit.addItem(withTitle: "Hoàn tác", action: Selector(("undo:")), keyEquivalent: "z")
-        let redo = edit.addItem(withTitle: "Làm lại", action: Selector(("redo:")), keyEquivalent: "z")
+        let edit = NSMenu(title: L("Sửa", "Edit"))
+        edit.addItem(withTitle: L("Hoàn tác", "Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: L("Làm lại", "Redo"), action: Selector(("redo:")), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Cắt", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "Sao chép", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "Dán", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "Chọn tất cả", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(withTitle: L("Cắt", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L("Sao chép", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L("Dán", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L("Chọn tất cả", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         let editItem = NSMenuItem()
         editItem.submenu = edit
         main.addItem(editItem)
 
-        let window = NSMenu(title: "Cửa sổ")
-        window.addItem(withTitle: "Đóng", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        window.addItem(withTitle: "Thu nhỏ", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let window = NSMenu(title: L("Cửa sổ", "Window"))
+        window.addItem(withTitle: L("Đóng", "Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        window.addItem(withTitle: L("Thu nhỏ", "Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         let windowItem = NSMenuItem()
         windowItem.submenu = window
         main.addItem(windowItem)
@@ -306,13 +308,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = status.button else { return }
         // Mỗi trạng thái một biểu tượng cùng kiểu (ô bo góc tô đặc), không kèm chữ hay emoji.
         var image = tap.enabled ? StatusIcon.vn : StatusIcon.en
-        var tip = tap.enabled ? "VNKey: đang gõ tiếng Việt" : "VNKey: đang gõ tiếng Anh"
+        var tip = tap.enabled ? L("VNKey: đang gõ tiếng Việt", "VNKey: typing Vietnamese") : L("VNKey: đang gõ tiếng Anh", "VNKey: typing English")
         if !tap.isRunning {
-            image = StatusIcon.warning; tip = "VNKey: chưa có quyền Trợ năng"
+            image = StatusIcon.warning; tip = L("VNKey: chưa có quyền Trợ năng", "VNKey: Accessibility permission is missing")
         } else if let source = foreignSource {
-            image = StatusIcon.paused; tip = "VNKey: tạm ngưng vì bàn phím hệ thống đang là “\(source)”"
+            image = StatusIcon.paused; tip = L("VNKey: tạm ngưng vì bàn phím hệ thống đang là “\(source)”", "VNKey: paused because the system keyboard is “\(source)”")
         } else if IsSecureEventInputEnabled() {
-            image = StatusIcon.locked; tip = "VNKey: tạm ngưng vì đang ở ô nhập bảo mật"
+            image = StatusIcon.locked; tip = L("VNKey: tạm ngưng vì đang ở ô nhập bảo mật", "VNKey: paused in a secure input field")
         }
         if button.image !== image { button.image = image }
         if !button.title.isEmpty || button.imagePosition != .imageOnly {
@@ -351,35 +353,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !tap.isRunning {
-            menu.addItem(item("Cấp quyền Trợ năng để bắt đầu gõ…", #selector(showOnboarding), symbol: "exclamationmark.triangle"))
+            menu.addItem(item(L("Cấp quyền Trợ năng để bắt đầu gõ…", "Grant Accessibility Permission to Start Typing…"), #selector(showOnboarding), symbol: "exclamationmark.triangle"))
             menu.addItem(.separator())
         } else if let source = foreignSource {
-            let i = item("Tạm ngưng: bàn phím hệ thống là “\(source)”", nil, symbol: "keyboard")
+            let i = item(L("Tạm ngưng: bàn phím hệ thống là “\(source)”", "Paused: the system keyboard is “\(source)”"), nil, symbol: "keyboard")
             i.isEnabled = false
             menu.addItem(i)
             menu.addItem(.separator())
         } else if IsSecureEventInputEnabled() {
-            let i = item("Tạm ngưng: đang ở ô nhập bảo mật", nil, symbol: "lock")
+            let i = item(L("Tạm ngưng: đang ở ô nhập bảo mật", "Paused: secure input field"), nil, symbol: "lock")
             i.isEnabled = false
             menu.addItem(i)
             menu.addItem(.separator())
         }
         if let release = Updater.shared.available {
-            menu.addItem(item("Có bản mới \(release.version)…", #selector(openUpdatePage), symbol: "arrow.down.circle"))
+            menu.addItem(item(L("Có bản mới \(release.version)…", "Version \(release.version) Is Available…"), #selector(openUpdatePage), symbol: "arrow.down.circle"))
             menu.addItem(.separator())
         }
-        let toggle = item("Gõ tiếng Việt", foreignSource == nil ? #selector(toggleEnabled) : nil, on: tap.enabled)
-        toggle.attributedTitle = titled("Gõ tiếng Việt", shortcut: tap.toggleHotkey.label)
+        let toggle = item(L("Gõ tiếng Việt", "Type Vietnamese"), foreignSource == nil ? #selector(toggleEnabled) : nil, on: tap.enabled)
+        toggle.attributedTitle = titled(L("Gõ tiếng Việt", "Type Vietnamese"), shortcut: tap.toggleHotkey.label)
         menu.addItem(toggle)
         // Chỉ để nhắc phím tắt: thao tác này cần con trỏ đang ở ngay sau từ, nên không bấm từ menu được.
         let restore = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        restore.attributedTitle = titled("Đổi từ vừa gõ", shortcut: tap.restoreHotkey.label)
+        restore.attributedTitle = titled(L("Đổi từ vừa gõ", "Flip the last word"), shortcut: tap.restoreHotkey.label)
         restore.isEnabled = false
-        restore.toolTip = "Đổi từ vừa gõ giữa phím gốc và tiếng Việt, và nhớ cho lần sau. Dùng phím tắt ngay sau khi gõ từ."
+        restore.toolTip = L("Đổi từ vừa gõ giữa phím gốc và tiếng Việt, và nhớ cho lần sau. Dùng phím tắt ngay sau khi gõ từ.", "Flips the last word between raw keys and Vietnamese and remembers the choice. Use the shortcut right after typing the word.")
         menu.addItem(restore)
         menu.addItem(.separator())
 
-        let header = NSMenuItem(title: "Kiểu gõ", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: L("Kiểu gõ", "Input method"), action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         let method = defaults.string(forKey: Key.method)
@@ -390,11 +392,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
         // macOS tự gắn biểu tượng (bánh răng) cho các mục menu quen thuộc; menu này chỉ dùng chữ.
-        let settings = item("Cài đặt…", #selector(showVNKeySettings))
+        let settings = item(L("Cài đặt…", "Settings…"), #selector(showVNKeySettings))
         settings.keyEquivalent = ","
         menu.addItem(settings)
         menu.addItem(.separator())
-        let quit = item("Thoát VNKey", #selector(quit))
+        let quit = item(L("Thoát VNKey", "Quit VNKey"), #selector(quit))
         quit.keyEquivalent = "q"
         menu.addItem(quit)
     }
@@ -433,13 +435,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func showVNKeySettings() {
-        if settings == nil { settings = SettingsController() }
+        if settings == nil {
+            settings = SettingsController()
+            settings?.onLanguageChange = { [weak self] in
+                // Dựng lại cửa sổ bằng ngôn ngữ mới, mở lại đúng thẻ Chung nơi người dùng vừa đổi.
+                DispatchQueue.main.async {
+                    self?.settings?.window.close()
+                    self?.settings = nil
+                    self?.showVNKeySettings()
+                }
+            }
+        }
         NSApp.activate(ignoringOtherApps: true)
         settings?.window.makeKeyAndOrderFront(nil)
     }
 
+    /// Mở thẻ Giới thiệu, nơi có nút cập nhật và nhật ký thay đổi.
     @objc private func openUpdatePage() {
-        if let page = Updater.shared.available?.page { NSWorkspace.shared.open(page) }
+        showVNKeySettings()
+        settings?.selectTab((settings?.tabCount ?? 1) - 1)
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

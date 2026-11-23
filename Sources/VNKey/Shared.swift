@@ -14,16 +14,17 @@ enum Key {
     static let learnFromRetype = "learnFromRetype"
     static let followInputSource = "followInputSource", flashFix = "flashFix"
     static let autoUpdateCheck = "autoUpdateCheck", updateLastCheck = "updateLastCheck"
+    static let language = "language"
     static let predict = "predict", predictUnmarked = "predictUnmarked", learnUsage = "learnUsage"
 
     static let registered: [String: Any] = [
         enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
         codeAware: true, fixTransposition: true, contextAware: true, showHUD: true,
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
-        // Nhật ký gỡ lỗi lưu cả nội dung gõ: chỉ bật sẵn ở bản dựng trên máy phát triển (mã định danh
-        // local.vnkey). Bản phát hành mặc định TẮT; người dùng tự bật trong Cài đặt › Chung khi cần báo lỗi.
-        debugLog: Bundle.main.bundleIdentifier == "local.vnkey",
-        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, predict: true, predictUnmarked: true, learnUsage: true,
+        // Nhật ký gỡ lỗi lưu cả nội dung gõ: mặc định TẮT ở mọi bản dựng. Bật trong Cài đặt › Chung khi cần
+        // tìm lỗi (không hỏi ở cửa sổ thiết lập ban đầu).
+        debugLog: false,
+        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, language: "auto", predict: true, predictUnmarked: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Terminal mặc định bắt đầu ở chế độ Anh; vẫn bật lại được bằng phím tắt.
         excludedApps: [
@@ -32,6 +33,27 @@ enum Key {
         ],
     ]
 }
+
+/// Ngôn ngữ giao diện: theo hệ thống (mặc định), hoặc người dùng chọn tiếng Việt / tiếng Anh trong Cài đặt.
+enum AppLanguage {
+    /// Giá trị lưu ở `Key.language`: "auto", "vi", "en".
+    static var setting: String { UserDefaults.standard.string(forKey: Key.language) ?? "auto" }
+
+    /// Ép ngôn ngữ cho lần chạy này mà không đụng tới cài đặt (chế độ chụp giao diện `--snapshot … --en`).
+    static var override: String?
+
+    static var isVietnamese: Bool {
+        switch override ?? setting {
+        case "vi": return true
+        case "en": return false
+        default: return (Locale.preferredLanguages.first ?? "vi").hasPrefix("vi")
+        }
+    }
+}
+
+/// Chuỗi giao diện song ngữ: viết cả hai bản ngay tại chỗ dùng. Máy chỉ có Command Line Tools nên không dùng
+/// được tệp .strings / String Catalog của Xcode; cách này cũng giữ hai bản dịch cạnh nhau khi sửa.
+func L(_ vi: String, _ en: String) -> String { AppLanguage.isVietnamese ? vi : en }
 
 /// Cửa sổ cài đặt đang ghi phím tắt: KeyTap tạm thời cho mọi phím đi qua.
 var hotkeyRecording = false

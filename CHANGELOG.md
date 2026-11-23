@@ -15,7 +15,12 @@ Svelte) không còn được phát triển; mã nguồn và các bản phát hà
 - **Tạm ngưng khi dùng bộ gõ khác của macOS** hoặc bàn phím không phải chữ Latin; biểu tượng mờ đi.
 - **Nhãn chế độ cạnh con trỏ soạn thảo** (`VN - Telex`, `VN - VNI`, `EN`) khi đổi chế độ.
 - Tuỳ chọn Telex: phím `w` đứng riêng thành `ư`, phím `[ ]` thành `ơ ư`; viết hoa đầu câu; xoá khoảng trắng thừa trước dấu câu.
-- Cửa sổ hướng dẫn cấp quyền Trợ năng; thẻ Giới thiệu; kiểm tra bản mới qua GitHub Releases (chỉ báo và mở trang tải).
+- **Đoán cả cụm không dấu**: sau khi bạn gõ `lầm lỗi` vài lần, gõ `lam loi` cũng ra `lầm lỗi` (sửa luôn từ đứng trước).
+- **Giao diện tiếng Việt và tiếng Anh**: chọn Theo hệ thống / Tiếng Việt / English ở Cài đặt › Chung.
+- **Tự cập nhật**: VNKey kiểm tra bản mới trên GitHub Releases mỗi ngày; bấm "Cập nhật ngay" để nó tải, kiểm tra chữ ký (cùng nhà phát triển, do Apple cấp chứng chỉ), tự thay rồi mở lại.
+- **Cửa sổ "Có gì mới"**: xem nhật ký thay đổi ngay trong app.
+- Cửa sổ hướng dẫn cấp quyền Trợ năng; thẻ Giới thiệu có liên kết tới trang web và mã nguồn.
+- Nhật ký gỡ lỗi mặc định tắt.
 
 ### Thay đổi so với 1.x
 - Không còn bản Windows và Linux.
