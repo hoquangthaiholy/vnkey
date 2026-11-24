@@ -28,6 +28,33 @@ enum Snapshot {
             window.displayIfNeeded()
             write(settings.contentView, dark: dark, to: dir.appendingPathComponent("settings-\(i + 1)\(suffix).png"))
         }
+        // Cả khung cửa sổ (thanh tiêu đề + thanh thẻ) của thẻ đầu, để thấy tiêu đề và các thẻ có đủ chỗ không.
+        settings.selectTab(0, animated: false)
+        window.displayIfNeeded()
+        if let frame = window.contentView?.superview {
+            write(frame, dark: dark, to: dir.appendingPathComponent("settings-window\(suffix).png"))
+        }
+        window.orderOut(nil)
+
+        // Bảng "đã nhớ" mở từ thẻ Tự sửa, ở cả hai danh sách.
+        for (list, name) in [(0, "settings-memory-words"), (1, "settings-memory-learned")] {
+            let view = settings.memoryView(list: list)
+            guard let sheet = view.window else { continue }
+            sheet.appearance = NSApp.appearance
+            sheet.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+            sheet.orderFrontRegardless()
+            view.layoutSubtreeIfNeeded()
+            sheet.displayIfNeeded()
+            write(view, dark: dark, to: dir.appendingPathComponent("\(name)\(suffix).png"))
+            sheet.orderOut(nil)
+        }
+
+        // Đổi thẻ có chuyển động (như khi người dùng bấm) không được làm mất tiêu đề cửa sổ: NSTabViewController
+        // tự đặt lại tiêu đề theo thẻ sau khi chọn. Ảnh không thấy được việc này nên kiểm bằng giá trị.
+        window.orderFrontRegardless()
+        settings.selectTab(1, animated: true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        if window.title != SettingsController.windowTitle { print("CẢNH BÁO: tiêu đề cửa sổ Cài đặt bị mất sau khi đổi thẻ: [\(window.title)]") }
         window.orderOut(nil)
 
         // Cửa sổ hướng dẫn cấp quyền, ở cả hai trạng thái.

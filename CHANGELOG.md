@@ -6,6 +6,11 @@
 - **Chuyển bảng mã ngay khi dán**: văn bản TCVN3 (ABC), VNI Windows hay VIQR được nhận ra và dán thành Unicode; `⌥↩` dán nguyên gốc. Phím `⇥` mở "Dán dạng": Unicode dựng sẵn, Unicode tổ hợp, TCVN3, VNI Windows, VIQR, hoặc không dấu.
 - **Đồng bộ bảng tạm qua iCloud Drive** (tuỳ chọn, mặc định tắt): văn bản và đường dẫn đã sao chép hiện trên các máy Mac khác của bạn. Ảnh và tệp không đồng bộ. Nội dung nằm ở dạng đọc được trong thư mục VNKey của iCloud Drive.
 - `vnkey-tool convert`: chuyển bảng mã từ dòng lệnh.
+- **Sửa lỗi gõ bạn hay mắc**: gõ `goc`, xoá rồi sửa thành `gox` (gõ) hai lần thì từ lần sau VNKey tự sửa và nháy nhẹ từ đó; cả từ gõ chưa trọn như `dúng` → `đúng`. Chỉ học từ chính những lần bạn tự sửa; từ bạn cũng hay gõ thật thì không bị thay. Phím Đổi từ vừa gõ `⌃⌥Z` trả lại và quên. Bật/tắt cùng "Nhớ khi bạn gõ lại" ở Cài đặt › Tự sửa.
+- **Đoán từ thiếu dấu chính xác hơn**: VNKey có "từ điển" riêng là bảng tần suất khoảng 3.300 âm tiết. Chữ có dấu không nằm trong bảng (`tiêng`, `dúng`, `ròi`) được thay bằng từ thông dụng nhất cùng khớp (`tiếng`, `đúng`, `rồi`); `duojc` ra `được` thay vì `dược`. Từ có trong bảng dù hiếm (`muôn`, `trương`, `dược`) giữ đúng như đã gõ. Bạn sửa lại một lần thay hai lần thì từ bạn sửa đi trước.
+- **Phím Đổi từ vừa gõ đi vòng ba dạng** cho từ VNKey đã đoán: chữ đã đoán → phím gốc → chữ đúng như đã gõ. Dừng ở dạng thứ ba thì VNKey nhớ và không thay từ đó nữa (dùng cho tên riêng, từ hiếm).
+- **Bỏ việc đoán từ chưa có dấu nào** (`duoc`, `viet`) bằng từ điển: nó chỉ đoán được ít từ và có lúc sai. Từ đã có dấu nhưng chưa trọn (`duojc`, `đươc`) vẫn được hoàn thiện, và cặp từ bạn hay gõ (`lầm loi` → `lầm lỗi`) vẫn được sửa.
+- **Cài đặt gọn hơn**: thẻ Đã nhớ nhập vào thẻ Tự sửa; hai danh sách (từ đã nhớ, thứ đã học) mở bằng nút "Xem và sửa…".
 
 ## [2.0.0] - 2026-11-24
 Bản viết lại hoàn toàn, **chỉ dành cho macOS** (12 trở lên), bằng Swift thuần. Bản 1.x đa nền tảng (Tauri, Rust,

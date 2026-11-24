@@ -167,7 +167,13 @@ final class HUD {
                 }
             }
         }
-        // Ứng dụng chỉ cho biết vị trí con trỏ (trang web, Electron): ước lượng bề rộng của từ theo chiều cao dòng.
+        // Trang web và ứng dụng Electron (Claude, VS Code, Slack) không trả lời theo số thứ tự ký tự nhưng có
+        // "text marker": lùi từng ký tự từ con trỏ để lấy đúng khung của từ, không tính ký tự ngắt từ.
+        if let r = markerWordRect(element, count: word.count) {
+            Log.write("FLASH khung theo text marker (\(word.count) chữ) \(Int(r.width))x\(Int(r.height))")
+            return r
+        }
+        // Không đo được: ước lượng bề rộng của từ theo chiều cao dòng.
         let caret = locate()
         guard caret.kind == .caret, caret.rect.height > 4 else {
             Log.write("FLASH bỏ: không biết vị trí chữ (\(caret.note))")
@@ -175,8 +181,36 @@ final class HUD {
         }
         let h = caret.rect.height
         let width = CGFloat(word.count) * h * 0.46, gap = h * 0.24  // gap: ký tự ngắt từ (thường là dấu cách)
-        Log.write("FLASH ước lượng theo con trỏ (\(word.count) chữ)")
+        Log.write("FLASH ước lượng theo con trỏ (\(word.count) chữ) con trỏ=\(Int(caret.rect.width))x\(Int(h)) rộng=\(Int(width)) hở=\(Int(gap))")
         return NSRect(x: caret.rect.minX - gap - width, y: caret.rect.minY, width: width, height: h)
+    }
+
+    /// Khung của `count` ký tự đứng ngay trước ký tự cuối cùng trước con trỏ, đo bằng text marker. nil nếu ứng dụng
+    /// không hỗ trợ, hoặc kết quả vô lý (từ vắt qua hai dòng). Mỗi bước lùi là một lần hỏi ứng dụng, nên giới hạn
+    /// độ dài và thời gian chờ; việc này chạy sau khi phím đã xử lý xong, không nằm trong callback của event tap.
+    private func markerWordRect(_ element: AXUIElement, count: Int) -> NSRect? {
+        guard (1...24).contains(count) else { return nil }
+        AXUIElementSetMessagingTimeout(element, 0.05)
+        defer { AXUIElementSetMessagingTimeout(element, 0.15) }
+        func ask(_ attribute: String, _ parameter: CFTypeRef) -> CFTypeRef? {
+            var out: CFTypeRef?
+            return AXUIElementCopyParameterizedAttributeValue(element, attribute as CFString, parameter, &out) == .success ? out : nil
+        }
+        var selection: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, "AXSelectedTextMarkerRange" as CFString, &selection) == .success,
+            let selection, let caret = ask("AXStartTextMarkerForTextMarkerRange", selection),
+            let wordEnd = ask("AXPreviousTextMarkerForTextMarker", caret)  // bỏ qua ký tự ngắt từ (dấu cách)
+        else { return nil }
+        var start = wordEnd
+        for _ in 0..<count {
+            guard let previous = ask("AXPreviousTextMarkerForTextMarker", start) else { return nil }
+            start = previous
+        }
+        guard let range = ask("AXTextMarkerRangeForUnorderedTextMarkers", [start, wordEnd] as CFArray),
+            let r = HUD.rect(ask("AXBoundsForTextMarkerRange", range)).flatMap(HUD.cocoa),
+            r.width > 1, r.height < 80, r.width < CGFloat(count) * r.height * 1.5
+        else { return nil }
+        return r
     }
 
     private static let textRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]

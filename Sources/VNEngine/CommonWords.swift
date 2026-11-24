@@ -1,31 +1,42 @@
-/// Các âm tiết tiếng Việt thông dụng, xếp đại khái từ hay gặp nhất trở xuống. Dùng để chọn giữa các từ cùng
-/// khớp một chuỗi phím thiếu dấu khi chưa có bằng chứng nào từ chính người dùng ("được" thay vì "dược").
-/// Đây là danh sách soạn tay, không phải thống kê từ một kho ngữ liệu: chỉ cần đúng ở mức "thông dụng hơn hẳn".
+/// Độ thông dụng của các âm tiết tiếng Việt, từ một bảng tần suất đếm trên kho ngữ liệu thật (xem nguồn và
+/// giấy phép ở đầu `CommonWordsData.swift`). Dùng cho hai việc khi đoán từ gõ thiếu dấu:
+/// - chọn giữa các ứng viên khi chưa có bằng chứng nào từ chính người dùng ("được" thay vì "dược");
+/// - phân biệt chữ gõ dở với từ thật. Từ điển của macOS coi gần như mọi âm tiết đúng cấu trúc là từ đúng
+///   ("tiêng", "dúng", "ròi"); trong kho ngữ liệu những chữ đó hầu như không xuất hiện, còn từ thật dù hiếm
+///   ("muôn", "trương", "dược") vẫn có vài trăm lần.
+/// Kho ngữ liệu là phụ đề phim: nghiêng về văn nói, và có lẫn ít lỗi gõ của người làm phụ đề (nên một chữ CÓ
+/// mặt với số đếm rất nhỏ chưa chắc là từ thật; vì vậy bảng bỏ các mục dưới `tableFloor`).
 enum CommonWords {
-    static let list: [String] = """
-        và của là có không được cho trong người một những đã với các này để khi ở về như tôi đến ra thì nhưng
-        cũng lại sẽ đó nhiều mình anh em bạn ông bà chị con nó họ chúng ta rất phải còn hơn nào gì ai đâu sao
-        thế vậy nếu vì nên mà hay hoặc rồi đang vẫn chỉ nữa thôi lên xuống vào trên dưới trước sau giữa ngoài
-        năm tháng ngày giờ hôm nay mai qua tuần lúc lần đầu cuối mới cũ lớn nhỏ cao thấp dài ngắn tốt xấu đẹp
-        nhà nước việc làm học sinh trường lớp thầy cô sách báo tiền hàng bán mua giá công ty việt nam hà nội
-        thành phố quốc gia dân tộc xã hội kinh tế văn hóa chính phủ phát triển thế giới thời gian đời sống
-        biết nghĩ nói nghe thấy nhìn đi đứng ngồi nằm ăn uống ngủ chơi chạy viết đọc hỏi trả lời giúp cần muốn
-        thích yêu thương nhớ quên tin hiểu tìm gặp gọi đưa lấy mang giữ bỏ mở đóng bắt thử dùng thêm bớt
-        đúng sai thật giả khó dễ nhanh chậm sớm muộn gần xa đủ thiếu khác giống chung riêng mọi từng cả hai ba
-        bốn sáu bảy tám chín mười trăm nghìn triệu số tên tuổi chuyện điều cách phần loại mặt tay chân mắt
-        đường xe máy điện thoại tính mạng trang web thông báo gửi nhận thư tin nhắn hình ảnh âm nhạc phim
-        cảm ơn xin chào tạm biệt vui buồn khỏe mệt đau ốm bệnh thuốc bác sĩ viện cơm phở cà phê trà bia rượu
-        trời đất mưa nắng gió biển sông núi rừng cây hoa lá chim cá chó mèo màu đỏ xanh vàng trắng đen
-        tiếng lời câu chữ bài ý nghĩa vấn đề kết quả nguyên nhân lý do mục đích kế hoạch chương trình dự án
-        khách bạn bè gia đình bố mẹ vợ chồng cháu trẻ già nam nữ trai gái đội nhóm tổ chức họp
-        luôn thường đôi ít hầu hết toàn bộ hoàn chắc chắn tất nhiên có lẽ thực sự đặc biệt quan trọng
-        bây lâu vừa sắp từ tới tận theo bằng do bởi tại nhờ cùng nhau lẫn riêng tự chính ngay liền
-        """.split(whereSeparator: { $0 == " " || $0.isNewline }).map(String.init)
+    /// Bảng chỉ lưu âm tiết xuất hiện từ chừng này lần trở lên: đó là "từ điển" của VNKey. Chữ có dấu không nằm
+    /// trong bảng bị coi là không thông dụng (nhiều khả năng gõ dở) và được thay bằng ứng viên thông dụng nhất.
+    static let tableFloor = 100
+    /// Mức "rất thông dụng": chuỗi phím trùng một từ tiếng Anh chỉ bị thay khi ứng viên đạt mức này.
+    static let veryCommon = 5000
+    /// Hai ứng viên chênh nhau dưới chừng này lần được coi là cùng hạng: ngữ cảnh câu mới phân xử được.
+    static let sameLeague = 50
 
-    /// Từ -> trọng số (từ đứng đầu danh sách nặng nhất). Từ không có trong danh sách: 0.
-    static let weight: [String: Int] = {
+    private static let table: [String: Int] = {
         var out: [String: Int] = [:]
-        for (i, w) in list.enumerated() where out[w] == nil { out[w] = max(40, 600 - i) }
+        out.reserveCapacity(entryCount)
+        var key: Substring?
+        for part in data.split(whereSeparator: { $0 == " " || $0 == "\n" }) {
+            if let k = key {
+                out[String(k)] = Int(part) ?? 0
+                key = nil
+            } else {
+                key = part
+            }
+        }
         return out
     }()
+
+    /// Số lần âm tiết này xuất hiện trong kho ngữ liệu; 0 nếu không có (hoặc dưới `tableFloor`). Không phân biệt
+    /// hoa/thường và cách đặt dấu thanh.
+    static func count(_ word: String) -> Int {
+        Charset.syllableKey(word).flatMap { table[$0] } ?? 0
+    }
+
+    /// Trọng số để cộng chung với số lần chính người dùng đã gõ (mỗi lần của họ tính bằng 10): 1 cho mỗi 100 lần
+    /// xuất hiện trong kho.
+    static func weight(_ word: String) -> Int { count(word) / 100 }
 }

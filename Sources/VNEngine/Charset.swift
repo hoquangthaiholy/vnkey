@@ -79,6 +79,28 @@ public enum Charset: String, CaseIterable, Sendable {
         return r.good >= 2 && r.bad == 0 ? .viqr : nil
     }
 
+    /// Khoá chuẩn của một âm tiết tiếng Việt đúng chính tả: chữ thường đã bỏ thanh + số của thanh ("hoà" và "hòa"
+    /// đều là "hoa2"). nil nếu không phải một âm tiết hợp lệ. Dùng để tra bảng tần suất mà không phụ thuộc cách
+    /// đặt dấu thanh.
+    public static func syllableKey(_ word: String) -> String? {
+        var plain: [Character] = []
+        var tone = Tone.none
+        for ch in word.precomposedStringWithCanonicalMapping {
+            if let i = T.info[ch] {
+                if i.tone != .none {
+                    if tone != .none { return nil }
+                    tone = i.tone
+                }
+                plain.append(i.plain)
+            } else {
+                guard ch.isASCII, ch.isLetter, let l = ch.lowercased().first else { return nil }
+                plain.append(l)
+            }
+        }
+        guard !plain.isEmpty, Syl.isValid(plain, tone: tone, teen: false) else { return nil }
+        return String(plain) + String(tone.rawValue)
+    }
+
     // MARK: - Giải mã về Unicode dựng sẵn
 
     static func decode(_ s: String, _ cs: Charset) -> String {

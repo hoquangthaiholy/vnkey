@@ -133,6 +133,19 @@ case "convert":
     let unicode = Charset.convert(args[1], from: source, to: .unicode)
     print(Charset.convert(strip ? Charset.stripMarks(unicode) : unicode, from: .unicode, to: to))
 
+case "syllables":
+    // Lọc một tệp tần suất ("từ số_lần" mỗi dòng) lấy các âm tiết tiếng Việt hợp lệ, gộp theo khoá chuẩn, in
+    // "khoá số_lần" giảm dần. Dùng để sinh lại `CommonWordsData.swift` (xem chú thích ở đầu tệp đó).
+    guard args.count >= 2, let text = try? String(contentsOfFile: args[1], encoding: .utf8) else { fatalError("thiếu tệp") }
+    let floor = args.count >= 3 ? Int(args[2]) ?? 100 : 100
+    var counts: [String: Int] = [:]
+    for line in text.split(separator: "\n") {
+        let p = line.split(separator: " ")
+        guard p.count == 2, let n = Int(p[1]), let key = Charset.syllableKey(String(p[0]).lowercased()) else { continue }
+        counts[key, default: 0] += n
+    }
+    for (key, n) in counts.sorted(by: { ($0.value, $1.key) > ($1.value, $0.key) }) where n >= floor { print(key, n) }
+
 default:
     print("cách dùng: vnkey-tool type [--vni] [--trace] [--no-lexicon] \"<chuỗi phím>\" | vnkey-tool bench"
         + " | vnkey-tool convert [--from <bảng mã>] [--to <bảng mã>] [--strip] \"<văn bản>\"")

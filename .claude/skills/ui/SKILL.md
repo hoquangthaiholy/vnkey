@@ -79,7 +79,7 @@ Tự xem bố cục (không cần người dùng, không đụng tới bản đa
 swift build -c release --product VNKey && .build/release/VNKey --snapshot <thư mục tạm>
 ```
 
-Sinh `settings-1.png` … `settings-9.png` (từng thẻ Cài đặt), `clipboard.png`, `clipboard-off.png` (bảng clipboard với dữ liệu mẫu), `hud-vn.png`, `hud-en.png` (nhãn cạnh con
+Sinh `settings-1.png` … `settings-8.png` (từng thẻ Cài đặt), `clipboard.png`, `clipboard-off.png` (bảng clipboard với dữ liệu mẫu), `hud-vn.png`, `hud-en.png` (nhãn cạnh con
 trỏ, phóng to 6 lần) và `status-vn.png`, `status-en.png` (biểu tượng thanh menu phóng to; thêm `--dark` để xem trên nền tối). Mở ảnh bằng Read để nhìn. Chế độ này
 KHÔNG khởi động event tap, nên chạy song song với bản người dùng đang dùng được. Luôn chạy và xem lại
 sau mỗi thay đổi bố cục, trước khi nhờ người dùng.
@@ -120,13 +120,17 @@ mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi
 ## Bảng soạn danh sách
 
 `Sources/VNKey/EntryTable.swift` (`EntryTable`): bảng sửa ngay trong ô, nút +/−, phím Delete, ô tìm kiếm. Dùng cho
-thẻ "Gõ tắt" (hai cột chữ) và thẻ "Đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Thẻ "Đã nhớ" còn có
-bảng chỉ-đọc "Cặp từ đã học" (`readOnly: true`: chỉ xem và xoá dòng), lấy từ `UsageModel.learnedPairs()` — chỉ
-những cặp đã đủ điều kiện sửa, không phải toàn bộ số đếm; xoá dòng gọi `UsageModel.forget`. Định dạng lưu
+thẻ "Gõ tắt" (hai cột chữ) và bảng "đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Bảng "đã nhớ" KHÔNG còn
+là một thẻ (người dùng yêu cầu gộp và tinh gọn, 2026-11-24): nó là một sheet mở từ dòng "Những gì VNKey đã nhớ" ở thẻ
+Tự sửa (`SettingsController.showMemory`, `memoryWindow`), có nút chuyển giữa "Từ đã nhớ" và "Đã học từ cách gõ". Danh
+sách sau là bảng chỉ-đọc (`readOnly: true`: chỉ xem và xoá dòng) gồm lỗi gõ đã học (`UsageModel.learnedTypos()`) rồi
+cặp từ (`learnedPairs()`) — chỉ những mục đã đủ điều kiện sửa; xoá dòng gọi `forgetTypo` / `forget`. Thẻ Tự sửa đặt ví
+dụ ngay trong tên dòng ("Gõ đảo hai phím: tieegns → tiếng") để khỏi cần dòng mô tả. `--snapshot` chụp sheet này ra
+`settings-memory-words.png` và `settings-memory-learned.png`. Định dạng lưu
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt (rộng 580pt) có 9 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
+Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
 thì tách (người dùng đã phàn nàn thẻ Việt & Anh dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
@@ -159,7 +163,7 @@ công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và m�
 
 - Giao diện song ngữ qua `L(vi, en)`; ngôn ngữ chọn ở Cài đặt › Chung (`Key.language`: auto/vi/en). Đổi ngôn ngữ thì
   AppDelegate dựng lại cửa sổ Cài đặt. Chụp thử bản tiếng Anh: `VNKey --snapshot <thư mục> --en`. Tên thẻ tiếng Anh
-  phải ngắn (9 thẻ trên thanh công cụ).
+  phải ngắn (8 thẻ trên thanh công cụ).
 - Tự cập nhật (`Updater.installUpdate`, `Installer`): tải ZIP của bản phát hành từ github.com, kiểm tra chữ ký phải
   do Apple cấp và cùng Team ID với bản đang chạy (`UpdateCheck.mayInstall`), cất bản cũ rồi mới đưa bản mới vào, mở
   lại. Bản dựng trên máy (không có Team ID) không bao giờ tự cài. CHƯA kiểm chứng trọn vẹn trên bản phát hành thật.

@@ -24,6 +24,140 @@ final class PredictLexicon: Lexicon {
     }
 }
 
+/// Từ điển dễ dãi như của macOS: mọi âm tiết đúng cấu trúc đều được coi là từ tiếng Việt ("tiêng", "dúng", "ròi").
+final class LenientLexicon: Lexicon {
+    var ranked: [String: String] = [:]
+    func isEnglish(_ w: String) -> Bool { false }
+    func isVietnamese(_ w: String) -> Bool { Charset.syllableKey(w) != nil }
+    func rank(_ candidates: [String], after context: [String], typed: String) -> String? {
+        let pick = context.last.flatMap { ranked[$0.lowercased() + " " + typed] } ?? ranked[typed]
+        return pick.flatMap { candidates.contains($0) ? $0 : nil }
+    }
+}
+
+/// Như `LenientLexicon`, và coi "dungs" là từ tiếng Anh (đúng như từ điển macOS).
+final class EnglishDungs: Lexicon {
+    let alsoEnglish: Set<String>
+    init(alsoEnglish: Set<String> = []) { self.alsoEnglish = alsoEnglish }
+    func isEnglish(_ w: String) -> Bool { w == "dungs" || alsoEnglish.contains(w) }
+    func isVietnamese(_ w: String) -> Bool { Charset.syllableKey(w) != nil }
+}
+
+/// Đoán từ thiếu dấu khi từ điển dễ dãi: trọng tài cho câu hỏi "chữ này có phải từ thật không" là bảng tần suất.
+@Suite struct PredictionsWithLenientDictionary {
+    let lex = LenientLexicon()
+
+    func type(_ keys: String, context: ContextModel? = nil) -> String {
+        let e = Engine()
+        e.lexicon = lex
+        e.context = context
+        return run(keys, lexicon: lex, engine: e)
+    }
+
+    /// Chữ gõ dở mà từ điển vẫn coi là đúng: trong kho ngữ liệu gần như không có, còn từ định gõ thì rất thông dụng.
+    @Test(arguments: [("tieeng ", "tiêng", "tiếng "), ("dungs ", "dúng", "đúng "), ("ddung ", "đung", "đúng "), ("roif ", "ròi", "rồi ")])
+    func halfTypedWordsAreCompleted(keys: String, shown: String, want: String) {
+        #expect(lex.isVietnamese(shown))  // đúng là trường hợp từ điển chấp nhận chữ gõ dở
+        #expect(type(keys) == want)
+    }
+
+    /// Hai từ thông dụng cùng khớp ("dúng": đúng / đứng): chọn từ thiếu ít phím hơn. Đây là ca từ điển dễ dãi
+    /// THẬT SỰ gây khó: nó nhận cả "dứng" nên "đứng" cũng thành ứng viên.
+    @Test func fewerMissingKeysWinsBetweenCommonWords() {
+        #expect(lex.isVietnamese("dứng") && CommonWords.count("đứng") > 10_000)
+        #expect(type("dungs ") == "đúng ")
+        #expect(type("dduwng ") == "đừng ")  // chỉ thiếu thanh: "đừng" thông dụng hơn hẳn "đứng", "đựng"
+    }
+
+    /// Chuỗi phím trùng một từ tiếng Anh ("dungs") không chặn việc đoán khi đang gõ giữa câu tiếng Việt; đứng một
+    /// mình hoặc giữa mạch tiếng Anh thì vẫn để yên.
+    @Test func englishLookingKeysInsideVietnamese() {
+        let english = EnglishDungs()
+        func typed(_ keys: String) -> String {
+            let e = Engine()
+            e.lexicon = english
+            return run(keys, lexicon: english, engine: e)
+        }
+        #expect(typed("tooi dungs ") == "tôi đúng ")
+        #expect(!typed("dungs ").contains("đ"))  // không có ngữ cảnh tiếng Việt: không đoán
+    }
+
+    /// Từ thật dù hiếm thì vẫn giữ đúng như đã gõ.
+    @Test(arguments: [("muoon ", "muôn "), ("truowng ", "trương "), ("duowcj ", "dược "), ("khoongs ", "khống "), ("nguowi ", "ngươi "), ("chuyeen ", "chuyên ")])
+    func rareRealWordsAreKept(keys: String, want: String) { #expect(type(keys) == want) }
+
+    /// Một ứng viên thông dụng áp đảo thì không cần hỏi gợi ý của macOS (nó từng chọn "tôi dược").
+    @Test func overwhelminglyCommonCandidateBeatsTheSystemGuess() {
+        lex.ranked["tôi duọc"] = "dược"
+        #expect(type("tooi duojc ") == "tôi được ")
+    }
+
+    /// Hai ứng viên đều thông dụng thì gợi ý theo câu của macOS vẫn quyết định.
+    @Test func systemGuessStillDecidesBetweenCommonWords() {
+        lex.ranked["tiếng viêt"] = "việt"
+        lex.ranked["bài viêt"] = "viết"
+        #expect(type("tieengs vieet ") == "tiếng việt ")
+        #expect(type("baif vieet ") == "bài viết ")
+    }
+
+    /// Chữ hiếm mà chính người dùng hay gõ (không kém ứng viên nào) là từ của họ: không đụng tới.
+    @Test func wordsTheUserReallyTypesAreKept() {
+        let model = UsageModel()
+        for _ in 0..<3 { model.record("ròi", after: nil) }
+        #expect(type("roif ", context: model) == "ròi ")
+        for _ in 0..<5 { model.record("rồi", after: nil) }  // nhưng họ gõ "rồi" nhiều hơn: "ròi" là gõ dở
+        #expect(type("roif ", context: model) == "rồi ")
+    }
+
+    /// Thứ tự người dùng chốt: (1) chữ có dấu không nằm trong bảng của VNKey được thay bằng từ thông dụng nhất;
+    /// (2) họ sửa lại lần thay đó đủ nhiều thì từ đã học đi trước.
+    @Test func learnedCorrectionOverridesTheFrequencyGuess() {
+        let e = Engine(), model = UsageModel()
+        e.lexicon = lex
+        e.context = model
+        func typed(_ keys: String) -> String { run(keys, lexicon: lex, engine: e) }
+        #expect(typed("vieet ") == "viết ")  // (1) "viêt" không có trong bảng; "viết" thông dụng nhất
+        // Người dùng muốn "việt": xoá cả từ rồi gõ đủ dấu, hai lần.
+        #expect(typed("<<<<<vieetj vieet <<<<<vieetj ") == "việt việt ")
+        #expect(typed("vieet ") == "việt ")  // (2) từ đã học đi trước
+    }
+
+    /// Phím "Đổi từ vừa gõ" trên một từ đã đoán đi vòng ba dạng: chữ đã đoán -> phím gốc -> chữ đúng như đã gõ.
+    /// Dạng thứ ba là lối ra cho từ thật mà bảng không có: chọn nó thì lần sau VNKey không thay nữa.
+    @Test func flipKeyCyclesThroughThreeForms() {
+        let e = Engine()
+        e.lexicon = lex
+        func typed(_ keys: String) -> String { run(keys, lexicon: lex, engine: e) }
+        #expect(typed("tieeng ") == "tiếng ")
+        #expect(typed("~") == "tieeng ")
+        #expect(e.preferRaw.contains("tieeng"))
+        #expect(typed("~") == "tiêng ")
+        #expect(e.preferVN.contains("tieeng") && !e.preferRaw.contains("tieeng"))
+        #expect(typed("~") == "tiếng ")
+        #expect(!e.preferVN.contains("tieeng") && !e.preferRaw.contains("tieeng"))
+        _ = typed("~~")  // dừng ở "tiêng"
+        e.reset()
+        #expect(typed("tieeng ") == "tiêng ")  // đã nhớ: không thay nữa
+    }
+
+    /// Chuỗi phím là từ tiếng Anh mà ứng viên không thuộc loại rất thông dụng: để yên, kể cả giữa câu tiếng Việt.
+    @Test func englishWordsInsideVietnameseAreLeftAlone() {
+        let english = EnglishDungs(alsoEnglish: ["test"])
+        let e = Engine()
+        e.lexicon = english
+        #expect(CommonWords.count("tết") >= CommonWords.tableFloor && CommonWords.count("tết") < CommonWords.veryCommon)
+        #expect(run("cais nayf ddang test ", lexicon: english, engine: e) == "cái này đang test ")
+    }
+
+    @Test func frequencyTable() {
+        #expect(CommonWords.count("được") > 100_000)
+        #expect(CommonWords.count("Được") == CommonWords.count("được"))
+        #expect(CommonWords.count("hoà") == CommonWords.count("hòa") && CommonWords.count("hòa") > 1000)  // hai cách đặt dấu
+        #expect(CommonWords.count("tiêng") == 0 && CommonWords.count("xyz") == 0)
+        #expect(CommonWords.count("muôn") >= CommonWords.tableFloor)
+    }
+}
+
 @Suite struct Predictions {
     let lex = PredictLexicon()
 
@@ -42,7 +176,7 @@ final class PredictLexicon: Lexicon {
     @Test(arguments: [
         ("duojc ", "được "), ("dduowc ", "được "), ("dduocj ", "được "),
         ("nguoif ", "người "), ("khong ", "khong "),
-        ("tieeng ", "tiếng "), ("nuowc ", "nước "), ("truowng ", "trường "),
+        ("tieeng ", "tiếng "), ("nuowc ", "nước "),
         ("Duojc ", "Được "), ("DUOJC ", "ĐƯỢC "),
     ])
     func markedWordIsCompleted(keys: String, want: String) { #expect(type(keys, engine()) == want) }
@@ -60,26 +194,35 @@ final class PredictLexicon: Lexicon {
     }
 
     @Test func ambiguousMarkedWordIsLeftAlone() {
-        // "viêt": việt và viết đều thông dụng, không từ nào hơn hẳn.
-        #expect(type("vieet ", engine()) == "viêt ")
+        // "trương" (từ điển giả không có): trường và trưởng đều thông dụng, không từ nào hơn hẳn.
+        #expect(type("truowng ", engine()) == "trương ")
+        // "viêt": theo bảng tần suất thật, "viết" thông dụng hơn "việt" nhiều lần nên được chọn khi không có ngữ
+        // cảnh (trước đây danh sách soạn tay coi hai từ ngang nhau). Có từ đứng trước thì macOS vẫn quyết định.
+        #expect(type("vieet ", engine()) == "viết ")
         // "hoc" + sắc/nặng: học thông dụng hơn hẳn hóc.
         #expect(type("hocj ", engine()) == "học ")
     }
 
     // MARK: - Từ chưa có dấu nào
 
-    @Test func unmarkedWordNeedsVietnameseContext() {
-        #expect(type("tooi duoc ", engine()) == "tôi được ")
-        #expect(type("tooi khong ", engine()) == "tôi không ")
-        #expect(type("Vieejt Nam khong duoc ", engine()) == "Việt Nam không được ")  // "Nam" không dấu, "Việt" có
-        #expect(type("con nguoi ", engine()) == "con nguoi ")  // "con" không dấu: chưa đủ bằng chứng
-        #expect(type("duoc ", engine()) == "duoc ")  // đầu câu
-        #expect(type("this user duoc ", engine()) == "this user duoc ")  // đang gõ tiếng Anh
+    /// Người dùng đã bỏ tính năng đoán từ chưa có dấu nào bằng từ điển / độ thông dụng (2026-11-24).
+    @Test func unmarkedWordsAreNoLongerGuessed() {
+        #expect(type("tooi duoc ", engine()) == "tôi duoc ")
+        #expect(type("tooi khong ", engine()) == "tôi khong ")
+        #expect(type("Vieejt Nam khong duoc ", engine()) == "Việt Nam khong duoc ")
+        #expect(type("duoc ", engine()) == "duoc ")
+        #expect(type("duojc ", engine()) == "được ")  // từ đã có dấu vẫn được hoàn thiện
     }
 
-    @Test func unmarkedPredictionCanBeTurnedOff() {
-        #expect(type("tooi duoc ", engine { $0.predictUnmarked = false }) == "tôi duoc ")
-        #expect(type("duojc ", engine { $0.predictUnmarked = false }) == "được ")
+    /// Thói quen của chính người dùng vẫn được quyền thêm dấu cho từ chưa có dấu, khi rõ là đang gõ tiếng Việt.
+    @Test func unmarkedWordFollowsTheUsersOwnPairs() {
+        let model = UsageModel()
+        for _ in 0..<2 { model.record("được", after: "tôi") }
+        let e = engine()
+        e.context = model
+        #expect(type("tooi duoc ", e) == "tôi được ")
+        e.reset()
+        #expect(type("this user duoc ", e) == "this user duoc ")  // đang gõ tiếng Anh
     }
 
     // MARK: - Không được đụng tới
@@ -210,11 +353,6 @@ final class PredictLexicon: Lexicon {
         for _ in 0..<3 { two.record("lời", after: "làm") }
         let e3 = engine(); e3.context = two
         #expect(type("lam loi ", e3) == "lam loi ")
-        // Tắt đoán từ không dấu thì không sửa.
-        let m = UsageModel()
-        for _ in 0..<3 { m.record("lỗi", after: "lầm") }
-        let e4 = engine { $0.predictUnmarked = false }; e4.context = m
-        #expect(type("lam loi ", e4) == "lam loi ")
     }
 
     /// Gõ không dấu một cụm thì cụm đó được đếm, kể cả khi quanh đó không có từ nào có dấu: đây là bằng chứng
@@ -269,12 +407,18 @@ final class PredictLexicon: Lexicon {
     /// Gợi ý theo câu của từ điển hệ thống phân biệt được nghĩa theo từ đứng trước, nên được hỏi trước danh
     /// sách từ thông dụng (vốn không biết ngữ cảnh).
     @Test func systemGuessUsesThePreviousWord() {
-        lex.ranked["tiếng viet"] = "việt"
-        lex.ranked["bài viet"] = "viết"
+        lex.ranked["tiếng viêt"] = "việt"
+        lex.ranked["bài viêt"] = "viết"
         lex.ranked["ngành duọc"] = "dược"
-        #expect(type("tieengs viet ", engine()) == "tiếng việt ")
-        #expect(type("baif viet ", engine()) == "bài viết ")
-        #expect(type("nganhf duojc ", engine()) == "ngành dược ")  // thắng cả danh sách thông dụng ("được")
+        // Từ đã có dấu (ở đây là dấu mũ) nhưng chưa thành từ: gợi ý của macOS chọn theo từ đứng trước.
+        #expect(type("tieengs vieet ", engine()) == "tiếng việt ")
+        #expect(type("baif vieet ", engine()) == "bài viết ")
+        // "được" thông dụng gấp vài trăm lần "dược": không hỏi macOS nữa (nó từng chọn "tôi dược"). Muốn "ngành
+        // dược" thì gõ đủ dấu, hoặc để VNKey học cặp từ đó (`previousWordDecides`).
+        #expect(type("nganhf duojc ", engine()) == "ngành được ")
+        // Từ chưa có dấu nào thì không còn được đoán, dù macOS có gợi ý (tính năng đã bỏ, 2026-11-24).
+        lex.ranked["tiếng viet"] = "việt"
+        #expect(type("tieengs viet ", engine()) == "tiếng viet ")
     }
 
     @Test func whatTheUserTypedBeforeBeatsTheSystemGuess() {

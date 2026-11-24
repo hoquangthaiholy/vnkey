@@ -26,8 +26,10 @@ Giao tiếp với người dùng, chú thích trong mã và commit message bằn
   - `Syllable.swift`: luật âm tiết (âm đầu, vần, âm cuối, thanh); `isValid` và `isValidPrefix`.
   - `Composer.swift`: trạng thái của MỘT từ. Giữ chuỗi phím gốc `raw` và `owner` (phím nào tạo chữ nào).
   - `Engine.swift`: ranh giới từ, lịch sử, quyết định khôi phục, học từ, ngữ cảnh. Trả về `Output`.
-  - `Predictor.swift`, `CommonWords.swift`, `UsageModel.swift`: đoán từ gõ thiếu dấu (ứng viên, danh sách từ
-    thông dụng, bảng đếm thói quen gõ của người dùng).
+  - `Predictor.swift`, `CommonWords.swift`, `UsageModel.swift`: đoán từ gõ thiếu dấu (ứng viên, bảng tần suất âm
+    tiết, bảng đếm thói quen gõ của người dùng). `CommonWordsData.swift` là tệp SINH TỰ ĐỘNG từ danh sách
+    FrequencyWords (OpenSubtitles 2018, CC BY-SA 4.0): đừng sửa tay; cách sinh lại ghi ở đầu tệp
+    (`vnkey-tool syllables`). Giữ dòng ghi nguồn ở đầu tệp và trong README.
   - `Charset.swift`: chuyển giữa Unicode dựng sẵn / tổ hợp, TCVN3, VNI Windows, VIQR; `detect` đoán bảng mã cũ
     bằng cách giải mã thử rồi kiểm âm tiết; `stripMarks` bỏ dấu. Bảng tra sinh từ `Letter.glyphs`.
   - `SystemLexicon.swift`: từ điển `en`/`vi` của macOS qua NSSpellChecker (tệp duy nhất dùng AppKit).

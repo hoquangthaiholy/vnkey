@@ -35,8 +35,8 @@ public struct Config: Sendable, Equatable {
     public var learnFromRetype = true
     /// Đoán từ định gõ khi từ có dấu nhưng chưa thành từ tiếng Việt đúng (duojc, đươc -> được). Cần từ điển.
     public var predict = true
-    /// Đoán cả từ chưa có dấu nào (duoc, khong), chỉ khi một trong ba từ vừa gõ là tiếng Việt có dấu.
-    public var predictUnmarked = true
+    /// Tự sửa lỗi gõ mà người dùng đã tự sửa nhiều lần (goc -> gox = "gõ"). Cần `context`.
+    public var fixTypos = true
     public init() {}
 }
 
@@ -98,6 +98,12 @@ public final class Engine {
         var typed: String
         /// Từ này đã được ghi vào thói quen gõ sau từ `prev`; quay lại sửa nó thì phải rút lại.
         var recorded: (word: String, prev: String?)? = nil
+        /// VNKey đã thay chuỗi phím gõ sai `wrong` bằng `right` (lỗi gõ đã học).
+        var typoFix: (wrong: String, right: String)? = nil
+        /// Chuỗi phím này là một lỗi gõ đã biết mà lần này người dùng để nguyên (đã đếm); quay lại sửa thì rút lại.
+        var keptTypo: String? = nil
+        /// Từ này do VNKey đoán ra; đây là chữ đúng như người dùng đã gõ ("tiêng" khi đoán thành "tiếng").
+        var asTyped: String? = nil
     }
 
     /// Dạng người dùng muốn nếu họ gõ lại từ này: true = giữ phím gốc.
@@ -122,6 +128,9 @@ public final class Engine {
     private var watch: Retype?
     /// Họ đã xoá hết từ đó; nếu gõ lại đúng chuỗi phím thì đổi sang dạng còn lại.
     private var retype: Retype?
+    /// Chuỗi phím của từ ngay trước khi người dùng bắt đầu xoá nó. Nếu từ họ gõ xong sau đó chỉ khác đúng một
+    /// phím thì đó là một lần sửa lỗi gõ ("goc" -> "gox"). Khác `watch`: gõ thêm chữ không làm mất nó.
+    private var abandoned: String?
 
     static let codeMarks: Set<Character> = ["@", "#", "/", "\\", ".", "_", ":", "$", "~", "=", "<", "&"]
 
@@ -138,7 +147,7 @@ public final class Engine {
     }
 
     private func forgetRecent() {
-        freshBreak = false; watch = nil; retype = nil
+        freshBreak = false; watch = nil; retype = nil; abandoned = nil
     }
 
     /// Engine đang theo dõi chữ trước con trỏ (từ đang gõ hoặc từ vừa gõ xong).
@@ -198,6 +207,8 @@ public final class Engine {
         }
         let pending = retype
         retype = nil
+        let corrected = abandoned
+        abandoned = nil
         guard !comp.isEmpty else {
             comp = Composer(config)
             if config.tidyPunctuation, ",.;!?".contains(ch), sepRun == " ", history.last?.sep == " " {
@@ -219,11 +230,29 @@ public final class Engine {
         let typed = comp.rawString
         // Gõ lại đúng từ vừa xoá: nhớ dạng còn lại TRƯỚC khi phân xử, để lần gõ này đã ra dạng đó.
         if let p = pending, p.typed == typed { learn(raw: typed, wantRaw: p.wantRaw) }
-        if let fixed = transpositionFix() { comp = fixed }
         let glued = config.codeAware && config.autoRestore && (ch == "_" || ch == "@")
+        // Lỗi gõ quen tay. Người dùng vừa tự sửa: ghi nhận cặp (phím sai -> phím đúng). Không thì xem chuỗi
+        // phím này có phải lỗi họ đã sửa đủ nhiều lần; thói quen của chính họ đi trước mọi phép đoán bên dưới.
+        var typoFix: (wrong: String, right: String)?
+        var keptTypo: String?
+        if let model = context, !glued, !comp.codeLiteral, Engine.isPlainKeys(typed) {
+            let key = typed.lowercased()
+            if let wrong = corrected?.lowercased(), Engine.isPlainKeys(wrong), Engine.oneKeyApart(wrong, key) {
+                model.recordTypo(wrong, fixed: key)
+                note = "ghi một lần sửa lỗi gõ (\(wrong.count) -> \(key.count) phím)"  // không ghi nội dung
+            } else if let fixed = self.typoFix(key, model) {
+                typoFix = (key, fixed.rawString.lowercased())
+                note = "sửa lỗi gõ quen (\(typed.count) phím)"
+                comp = fixed
+            } else if corrected == nil, model.keepTypo(key) {
+                keptTypo = key
+            }
+        }
+        if typoFix == nil, let fixed = transpositionFix() { comp = fixed }
         // Cả cụm hai từ gõ không dấu ("lam loi"): nếu người dùng hay gõ "lầm lỗi" thì sửa luôn cả từ đứng trước.
         let phrase = glued ? nil : phraseFix()
         let predicted = phrase?.comp ?? (glued ? nil : predict())
+        let asTyped = predicted != nil && phrase == nil ? comp.shown : nil
         if let predicted { comp = predicted }
         let composed = comp.shown
         // Từ dính liền "_" hoặc "@" phía sau là tên biến / địa chỉ: giữ phím gốc.
@@ -262,7 +291,7 @@ public final class Engine {
         history.append(
             Entry(
                 comp: comp, raw: comp.rawString, composed: composed, final: final, sep: String(ch), resumable: resumable,
-                typed: typed, recorded: recorded))
+                typed: typed, recorded: recorded, typoFix: typoFix, keptTypo: keptTypo, asTyped: asTyped))
         if history.count > historyLimit { history.removeFirst() }
         if hard { history = [] }
         freshBreak = !hard && (resumable || predicted != nil) && (composed != comp.rawString || typed != comp.rawString)
@@ -274,6 +303,7 @@ public final class Engine {
         capBlocked = true
         if comp.isEmpty {
             retype = nil  // xoá lan sang chữ đứng trước: không còn là "xoá đúng một từ rồi gõ lại"
+            abandoned = nil  // từ sắp được mở lại bên dưới (nếu có) mới là từ đang được sửa
             if !sepRun.isEmpty { sepRun.removeLast() }
             guard var e = history.popLast() else { return .pass }
             if !e.sep.isEmpty {
@@ -284,6 +314,7 @@ public final class Engine {
             resume(e)
         }
         guard !comp.isEmpty else { return .pass }
+        if abandoned == nil { abandoned = comp.rawString }  // chỉ ghi nhớ; không phát phím nào
         // Xoá lùi LUÔN đi thẳng: màn hình mất đúng ký tự cuối, engine chỉ cập nhật trạng thái cho khớp.
         // Không bao giờ sửa chữ khác ở đây — phát phím xoá + chữ trong lúc người dùng đang giữ phím xoá
         // đã làm màn hình và engine lệch nhau. Nếu cách hiển thị chuẩn khác với màn hình (dấu thanh nằm
@@ -321,6 +352,8 @@ public final class Engine {
     private func resume(_ e: Entry) {
         // Người dùng quay lại sửa từ này: lần gõ vừa rồi không tính là thói quen. Gõ xong nó sẽ được ghi lại.
         if let r = e.recorded { context?.unrecord(r.word, after: r.prev) }
+        if let k = e.keptTypo { context?.unkeepTypo(k) }
+        abandoned = e.typed
         if freshBreak, config.learnFromRetype {
             // Đã sửa đảo phím, hoặc đang hiện tiếng Việt -> gõ lại nghĩa là muốn phím gốc; đang hiện phím gốc
             // (đã tự trả lại) -> muốn tiếng Việt.
@@ -343,6 +376,48 @@ public final class Engine {
         if last == "!" || last == "?" { return true }
         // Sau từ chỉ có một chữ thường là viết tắt (v.v., Q. 1), không phải hết câu.
         return t == "." && (history.last?.final.count ?? 0) >= 2
+    }
+
+    /// Chữ sẽ hiện khi gõ chuỗi phím này, để giao diện hiện một lỗi gõ đã học dưới dạng chữ ("gox" -> "gõ").
+    public static func shown(forKeys keys: String, config: Config) -> String {
+        Composer.replay(Array(keys), config)?.shown ?? keys
+    }
+
+    /// Chuỗi phím chỉ gồm chữ và số ASCII, ít nhất hai phím: thứ duy nhất được học làm lỗi gõ.
+    static func isPlainKeys(_ s: String) -> Bool {
+        s.count >= 2 && s.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) }
+    }
+
+    /// Hai chuỗi phím khác nhau đúng một lỗi gõ: thay một phím, thừa hoặc thiếu một phím, đảo hai phím liền nhau.
+    static func oneKeyApart(_ a: String, _ b: String) -> Bool {
+        let x = Array(a), y = Array(b)
+        if x == y || abs(x.count - y.count) > 1 { return false }
+        var i = 0
+        while i < min(x.count, y.count), x[i] == y[i] { i += 1 }
+        if x.count == y.count {
+            if x[(i + 1)...] == y[(i + 1)...] { return true }  // thay một phím
+            return i + 1 < x.count && x[i] == y[i + 1] && x[i + 1] == y[i] && x[(i + 2)...] == y[(i + 2)...]
+        }
+        let (long, short) = x.count > y.count ? (x, y) : (y, x)
+        return long[(i + 1)...] == short[i...]
+    }
+
+    /// Chuỗi phím đang gõ là một lỗi gõ người dùng đã sửa đủ nhiều lần: trả về từ gõ đúng, giữ kiểu hoa/thường.
+    /// Sửa cả khi từ điển coi chữ gõ ra là từ đúng: từ điển của macOS dễ dãi ("dúng" cũng được coi là đúng), và
+    /// bằng chứng ở đây là chính các lần người dùng sửa. Thứ ngăn sửa nhầm là số lần họ gõ chuỗi đó rồi để nguyên
+    /// (`ContextModel.keepTypo`): từ họ dùng thật ("ban") sẽ được giữ nhiều hơn số lần sửa.
+    private func typoFix(_ key: String, _ model: ContextModel) -> Composer? {
+        guard config.fixTypos, config.autoRestore, !comp.cancelled, !comp.keepComposed, !preferRaw.contains(key),
+            let right = model.typoFix(for: key)
+        else { return nil }
+        let raw = comp.raw
+        var keys = Array(right)
+        if raw.count > 1, raw.allSatisfy({ !$0.isLetter || $0.isUppercase }) {
+            keys = Array(right.uppercased())
+        } else if raw.first?.isUppercase == true, let first = keys.first {
+            keys[0] = Character(first.uppercased())
+        }
+        return Composer.replay(keys, config)
     }
 
     /// Thử đổi chỗ hai phím liền nhau; nhận nếu ra đúng MỘT từ tiếng Việt có dấu.
@@ -381,7 +456,7 @@ public final class Engine {
     /// gõ đã thêm dấu và chữ thay cho từ đứng trước. Bằng chứng duy nhất là thói quen của chính người dùng
     /// (`ContextModel.phrase`), nên không cần quanh đó có từ nào có dấu; chỉ không làm giữa một mạch tiếng Anh.
     private func phraseFix() -> (comp: Composer, prev: String)? {
-        guard config.predict, config.predictUnmarked, config.autoRestore, let model = context, lexicon != nil,
+        guard config.predict, config.autoRestore, let model = context, lexicon != nil,
             englishStreak == 0, !comp.isLiteral, comp.hasVowel, !comp.cancelled, !comp.keepComposed, !comp.codeLiteral,
             comp.markCount == 0, comp.tone == .none, expansion(for: comp.shown) == nil
         else { return nil }
@@ -427,25 +502,37 @@ public final class Engine {
         else { return nil }
         let key = comp.rawString.lowercased(), shown = comp.shown.lowercased()
         guard !preferRaw.contains(key), !preferVN.contains(key), !Engine.builtinEnglish.contains(key),
-            !(comp.lateBar && Engine.lateBarEnglish.contains(key)), !isEnglish(key), expansion(for: comp.shown) == nil
+            !(comp.lateBar && Engine.lateBarEnglish.contains(key)), expansion(for: comp.shown) == nil
         else { return nil }
+        let english = isEnglish(key)
 
         let marked = comp.markCount > 0 || comp.tone != .none
         let prev = previousWord()
-        // Chữ đang hiện đã là một từ tiếng Việt đúng: không bao giờ thay nếu nó có dấu. Nếu chưa có dấu nào
-        // ("loi" trong "lầm loi") thì chỉ chính thói quen của người dùng mới được quyền sửa (xem bên dưới).
-        let real = lex.isVietnamese(shown)
+        // Thứ tự người dùng chốt (2026-11-24):
+        //  1. "Từ điển" của VNKey là bảng tần suất `CommonWords`. Chữ CÓ DẤU không nằm trong bảng là chữ không
+        //     thông dụng — nhiều khả năng gõ dở — và được thay bằng ứng viên thông dụng nhất. Từ điển của macOS
+        //     không còn được hỏi cho việc này (nó nhận gần như mọi âm tiết đúng cấu trúc: "tiêng", "dúng", "ròi").
+        //  2. Người dùng sửa lại một lần thay như vậy đủ nhiều thì từ đã học đi trước: `typoFix` (chạy trước hàm
+        //     này), `preferVN` / `preferRaw` (phím Đổi từ vừa gõ), và số lần họ tự gõ chữ đó.
+        // Chữ CHƯA có dấu nào thì khác: chỉ thói quen của chính người dùng (cặp từ đã gõ) mới được thêm dấu.
+        let shownCount = marked ? CommonWords.count(shown) : 0
+        let real = marked ? shownCount >= CommonWords.tableFloor : lex.isVietnamese(shown)
+        if english, !(marked && !real && inVietnameseContext) { return nil }
         if real, marked || context == nil || prev == nil { return nil }
-        if !marked {
-            // Từ chưa có dấu nào chỉ được đoán khi rõ là đang gõ tiếng Việt.
-            guard config.predictUnmarked, inVietnameseContext else { return nil }
-        }
+        if !marked { guard context != nil, inVietnameseContext else { return nil } }
+
         var seen = Set<String>()
         let options = Predictor.candidates(for: comp, teen: false).compactMap { c -> (word: String, comp: Composer)? in
             let w = c.shown.lowercased()
-            return seen.insert(w).inserted && lex.isVietnamese(w) ? (w, c) : nil
+            guard seen.insert(w).inserted else { return nil }
+            return (marked ? CommonWords.count(w) >= CommonWords.tableFloor : lex.isVietnamese(w)) ? (w, c) : nil
         }
         guard !options.isEmpty else { return nil }
+        // Chữ không có trong bảng mà chính người dùng hay gõ, không kém ứng viên nào: đó là từ của họ.
+        if marked, let model = context {
+            let mine = model.count(shown)
+            if mine >= 2, mine >= (options.map { model.count($0.word) }.max() ?? 0) { return nil }
+        }
 
         /// Ứng viên đứng đầu nếu nó hơn hẳn ứng viên thứ hai (ít nhất gấp đôi).
         func clearWinner(_ score: (String) -> Int, atLeast: Int) -> Int? {
@@ -466,17 +553,35 @@ public final class Engine {
             pick = i; tier = 1
         } else if let model = context, let prev, let i = clearWinner({ model.pairCount($0, after: prev) }, atLeast: 2) {
             pick = i; tier = 1  // chính người dùng đã gõ cặp từ này
-        } else if options.count > 1 || !marked,
-            // Chỉ đưa MỘT từ đứng trước làm ngữ cảnh: đo thực tế, thêm từ xa hơn làm gợi ý của macOS kém đi
-            // ("biết không duoc" -> dược, trong khi "không duoc" -> được).
-            let w = lex.rank(options.map(\.word), after: prev.map { [$0] } ?? [], typed: comp.shown),
-            let i = options.firstIndex(where: { $0.word == w })
-        {
-            pick = i; tier = 2  // từ điển hệ thống, có xét các từ đứng trước
-        } else if let i = clearWinner({ (CommonWords.weight[$0] ?? 0) + 10 * (context?.count($0) ?? 0) }, atLeast: 1) {
-            pick = i; tier = 3  // thông dụng hơn hẳn
-        } else if marked, options.count == 1 {
-            pick = 0; tier = 4
+        } else if !marked {
+            return nil
+        } else {
+            // Điểm = tần suất (cộng số lần chính người dùng gõ), chia 10 cho mỗi phím phải thêm nhiều hơn ứng viên
+            // gần nhất: gõ thiếu một phím dễ xảy ra hơn thiếu hai ("dúng": đúng thiếu một, đứng thiếu hai).
+            func missing(_ c: Composer) -> Int { (c.markCount - comp.markCount) + (c.tone != comp.tone ? 1 : 0) }
+            let least = options.map { missing($0.comp) }.min() ?? 0
+            let scores = options.map { o -> Int in
+                var score = CommonWords.count(o.word) + 1000 * (context?.count(o.word) ?? 0)
+                for _ in 0..<min(missing(o.comp) - least, 6) { score /= 10 }
+                return score
+            }
+            let best = scores.max() ?? 0
+            let top = scores.firstIndex(of: best) ?? 0
+            // Các ứng viên cùng thiếu ít phím nhất và không kém từ đứng đầu quá 50 lần (việt / viết ≈ 1 : 10) là
+            // "cùng hạng"; được / dược ≈ 350 : 1 thì không.
+            let close = scores.indices.filter { missing(options[$0].comp) == least && scores[$0] * CommonWords.sameLeague > best }
+            if close.count > 1, close.contains(top),
+                // Vài ứng viên cùng hạng: để gợi ý theo câu của macOS xét từ đứng trước ("tiếng viêt" -> việt, "bài
+                // viêt" -> viết). Chỉ đưa MỘT từ đứng trước: đo thực tế, thêm từ xa hơn làm gợi ý kém đi.
+                let w = lex.rank(close.map { options[$0].word }, after: prev.map { [$0] } ?? [], typed: comp.shown),
+                let i = close.first(where: { options[$0].word == w })
+            {
+                pick = i; tier = 2
+            } else {
+                pick = top; tier = 3  // không ai phân xử: lấy từ thông dụng nhất
+            }
+            // Chuỗi phím trùng một từ tiếng Anh ("dungs", "test"): chỉ thay khi ứng viên rất thông dụng.
+            if english, let i = pick, CommonWords.count(options[i].word) < CommonWords.veryCommon { return nil }
         }
         guard let pick else { return nil }
         note = "đoán \(comp.shown) -> \(options[pick].comp.shown) (tầng \(tier), \(options.count) ứng viên)"
@@ -508,6 +613,27 @@ public final class Engine {
         }
         guard var e = history.popLast() else { return .pass }
         defer { history.append(e) }
+        if let t = e.typoFix, e.final != e.typed {
+            // Từ này vừa được sửa theo lỗi gõ đã học: trả lại đúng những phím đã gõ và quên cặp đó.
+            let out = Output(backspaces: e.final.count + e.sep.count, text: e.typed + e.sep, passKey: false)
+            context?.forgetTypo(t.wrong, fixed: t.right)
+            e.comp.forceLiteral(e.typed)
+            e.raw = e.typed; e.composed = e.typed; e.final = e.typed
+            e.resumable = false; e.typoFix = nil
+            return out
+        }
+        if let typedForm = e.asTyped, typedForm != e.raw, typedForm != e.composed {
+            // Từ do VNKey đoán có ba dạng, đổi vòng: chữ đã đoán -> phím gốc -> chữ đúng như đã gõ -> chữ đã đoán.
+            // Dạng thứ ba là lối ra cho từ thật mà bảng tần suất không có: chọn nó thì lần sau VNKey không thay nữa.
+            let next = e.final == e.composed ? e.raw : e.final == e.raw ? typedForm : e.composed
+            let out = Output(backspaces: e.final.count + e.sep.count, text: next + e.sep, passKey: false)
+            let key = e.raw.lowercased()
+            preferRaw.remove(key); preferVN.remove(key)
+            if next == e.raw { preferRaw.insert(key) } else if next == typedForm { preferVN.insert(key) }
+            onLearn?()
+            e.final = next
+            return out
+        }
         guard e.composed != e.raw else { return .pass }
         let alt = e.final == e.raw ? e.composed : e.raw
         let out = Output(backspaces: e.final.count + e.sep.count, text: alt + e.sep, passKey: false)

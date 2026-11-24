@@ -18,10 +18,11 @@ and English without switching modes, completes words with missing diacritics, an
 
 - **Gõ xen kẽ Việt – Anh:** `user`, `string`, `data` giữa câu tiếng Việt được trả lại đúng như đã gõ; giữ nguyên
   trong ngữ cảnh code (sau `@ # / . _`, chữ số).
-- **Đoán từ gõ thiếu dấu:** `duojc`, `đươc` → `được`; `tiếng viet` → `việt`, `bài viet` → `viết`. Chỉ thêm dấu, không
+- **Đoán từ gõ thiếu dấu:** `duojc`, `đươc` → `được`; `tiếng viêt` → `việt`, `bài viêt` → `viết`. Chỉ thêm dấu, không
   thay từ đã đúng.
 - **Học từ cách bạn gõ:** nhớ từ bạn muốn giữ nguyên và các cặp từ bạn hay gõ; gõ `lầm lỗi` vài lần thì `lam loi`
   không dấu cũng ra `lầm lỗi`. Dữ liệu chỉ nằm trên máy, xem và xoá được trong Cài đặt.
+- **Sửa lỗi gõ bạn hay mắc:** sửa cùng một lỗi hai lần (`goc` thành `gõ`) thì lần sau VNKey tự sửa.
 - **Gõ tự do, sửa gõ đảo phím:** `dduwowcj`, `duojwcd` đều ra `được`; `tieegns` → `tiếng`.
 - **Không gạch chân, không lặp chữ:** sửa chữ bằng kỹ thuật xoá lùi; có xử lý riêng cho thanh địa chỉ trình duyệt
   và Spotlight.
@@ -75,6 +76,13 @@ Developer ID và công chứng với Apple.
 
 VNKey miễn phí và mã nguồn mở. Nếu thấy hữu ích, bạn có thể ủng hộ qua [PayPal](https://paypal.me/hqthai) hoặc mã
 MoMo trên [trang web](https://hoquangthaiholy.github.io/vnkey/#donation).
+
+## Dữ liệu
+
+Bảng tần suất âm tiết dùng để đoán từ thiếu dấu (`Sources/VNEngine/CommonWordsData.swift`) dẫn xuất từ danh sách
+tiếng Việt của [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (Hermit Dave), đếm trên kho phụ đề
+OpenSubtitles 2018, giấy phép [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). VNKey chỉ giữ các
+âm tiết tiếng Việt đúng chính tả, gộp các cách đặt dấu thanh, và bỏ mục dưới 100 lần.
 
 ## Giấy phép
 

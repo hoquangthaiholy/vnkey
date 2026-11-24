@@ -15,7 +15,7 @@ enum Key {
     static let followInputSource = "followInputSource", flashFix = "flashFix"
     static let autoUpdateCheck = "autoUpdateCheck", updateLastCheck = "updateLastCheck"
     static let language = "language"
-    static let predict = "predict", predictUnmarked = "predictUnmarked", learnUsage = "learnUsage"
+    static let predict = "predict", learnUsage = "learnUsage"
     static let clipboardEnabled = "clipboardEnabled", clipboardHotkey = "clipboardHotkey", clipboardSync = "clipboardSync"
     static let clipboardExcludedApps = "clipboardExcludedApps"
     /// Khoá ẩn (không có trong Cài đặt): trỏ thư mục đồng bộ sang chỗ khác khi thử nghiệm.
@@ -28,7 +28,7 @@ enum Key {
         // Nhật ký gỡ lỗi lưu cả nội dung gõ: mặc định TẮT ở mọi bản dựng. Bật trong Cài đặt › Chung khi cần
         // tìm lỗi (không hỏi ở cửa sổ thiết lập ban đầu).
         debugLog: false,
-        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, language: "auto", predict: true, predictUnmarked: true, learnUsage: true,
+        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, language: "auto", predict: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Lịch sử clipboard ghi mọi thứ đã sao chép xuống đĩa: mặc định TẮT, người dùng tự bật.
         clipboardEnabled: false, clipboardSync: false, clipboardHotkey: Hotkey.defaultClipboard.string,

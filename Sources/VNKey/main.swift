@@ -261,7 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.tidyPunctuation = defaults.bool(forKey: Key.tidyPunctuation)
         c.learnFromRetype = defaults.bool(forKey: Key.learnFromRetype)
         c.predict = defaults.bool(forKey: Key.predict)
-        c.predictUnmarked = defaults.bool(forKey: Key.predictUnmarked)
+        c.fixTypos = c.learnFromRetype  // một công tắc "Nhớ khi bạn gõ lại" cho cả hai cách học từ lần sửa
         UsageStore.model.recording = defaults.bool(forKey: Key.learnUsage)
         c.macros = (defaults.dictionary(forKey: Key.macros) as? [String: String]) ?? [:]
         // Gán config sẽ xoá trạng thái đang gõ: chỉ gán khi thật sự đổi.
