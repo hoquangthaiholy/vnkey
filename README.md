@@ -25,6 +25,9 @@ and English without switching modes, completes words with missing diacritics, an
 - **Gõ tự do, sửa gõ đảo phím:** `dduwowcj`, `duojwcd` đều ra `được`; `tieegns` → `tiếng`.
 - **Không gạch chân, không lặp chữ:** sửa chữ bằng kỹ thuật xoá lùi; có xử lý riêng cho thanh địa chỉ trình duyệt
   và Spotlight.
+- **Bảng tạm:** `⌃⌥V` mở lịch sử clipboard ngay cạnh chỗ đang gõ (văn bản, đường dẫn, ảnh, tệp); gõ để tìm, `↩` để
+  dán. Văn bản TCVN3, VNI Windows, VIQR tự dán thành Unicode, và dán ngược lại sang các bảng mã đó khi cần. Mặc định
+  tắt; có thể đồng bộ văn bản qua iCloud Drive.
 - **Telex và VNI**, gõ tắt dạng bảng, nhớ chế độ theo ứng dụng, tạm ngưng khi dùng bộ gõ khác của macOS.
 - **Giao diện tiếng Việt và tiếng Anh**; **tự cập nhật** qua GitHub Releases (có kiểm tra chữ ký, chỉ cài khi bạn
   bấm) và xem nhật ký thay đổi ngay trong app.

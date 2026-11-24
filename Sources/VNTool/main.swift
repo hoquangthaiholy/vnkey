@@ -5,6 +5,7 @@ import VNKeyCore
 // vnkey-tool type [tuỳ chọn] "<chuỗi phím>"   Gõ lại chuỗi phím qua engine, in kết quả trên màn hình.
 //                                              "<" = Backspace, "~" = phím đổi từ vừa gõ, "\n" "\t" như thường.
 // vnkey-tool bench [tuỳ chọn]                  Đo thời gian xử lý mỗi phím.
+// vnkey-tool convert [--from X] [--to Y] [--strip] "<văn bản>"   Chuyển bảng mã (unicode, decomposed, tcvn3, vni, viqr).
 // Tuỳ chọn: --vni  --brackets  --no-w  --no-predict  --no-lexicon  --trace  --cap  --tidy  --expand  --modern
 
 var args = Array(CommandLine.arguments.dropFirst())
@@ -115,7 +116,25 @@ case "bench-parts":
     Log.flush()
     try? FileManager.default.removeItem(at: Log.url)
 
+case "convert":
+    // Bảng mã: unicode, decomposed, tcvn3, vni, viqr. Thiếu --from thì tự đoán.
+    func option(_ name: String) -> Charset? {
+        guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+        let value = args[i + 1]
+        args.removeSubrange(i...i + 1)
+        guard let cs = Charset(rawValue: value) else { fatalError("không biết bảng mã \"\(value)\"") }
+        return cs
+    }
+    let from = option("--from"), to = option("--to") ?? .unicode
+    let strip = flag("--strip")
+    guard args.count >= 2 else { fatalError("thiếu văn bản") }
+    let source = from ?? Charset.detect(args[1]) ?? .unicode
+    if from == nil { print("đoán: \(source.rawValue)") }
+    let unicode = Charset.convert(args[1], from: source, to: .unicode)
+    print(Charset.convert(strip ? Charset.stripMarks(unicode) : unicode, from: .unicode, to: to))
+
 default:
-    print("cách dùng: vnkey-tool type [--vni] [--trace] [--no-lexicon] \"<chuỗi phím>\" | vnkey-tool bench")
+    print("cách dùng: vnkey-tool type [--vni] [--trace] [--no-lexicon] \"<chuỗi phím>\" | vnkey-tool bench"
+        + " | vnkey-tool convert [--from <bảng mã>] [--to <bảng mã>] [--strip] \"<văn bản>\"")
     exit(2)
 }

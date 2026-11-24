@@ -21,6 +21,7 @@ public struct Hotkey: Equatable {
 
     public static let defaultToggle = Hotkey(code: -1, mods: Mods.control | Mods.shift, keyLabel: "")
     public static let defaultRestore = Hotkey(code: 6, mods: Mods.control | Mods.option, keyLabel: "Z")
+    public static let defaultClipboard = Hotkey(code: 9, mods: Mods.control | Mods.option, keyLabel: "V")
 
     public var string: String { "\(code):\(mods):\(keyLabel)" }
     public var isModifierOnly: Bool { code < 0 }

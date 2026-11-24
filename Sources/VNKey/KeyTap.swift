@@ -30,6 +30,9 @@ final class KeyTap {
 
     var toggleHotkey = Hotkey.defaultToggle
     var restoreHotkey = Hotkey.defaultRestore
+    var clipboardHotkey = Hotkey.defaultClipboard
+    /// Người dùng bấm phím tắt mở bảng clipboard (chạy cả ở chế độ EN).
+    var onClipboard: (() -> Void)?
 
     private var port: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -156,6 +159,9 @@ final class KeyTap {
         if toggleHotkey.isModifierOnly, toggleHotkey.mods == peak {
             Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
             onToggle?()
+        } else if clipboardHotkey.isModifierOnly, clipboardHotkey.mods == peak {
+            Log.write("HOTKEY bảng clipboard (\(clipboardHotkey.label))")
+            onClipboard?()
         } else if restoreHotkey.isModifierOnly, restoreHotkey.mods == peak {
             restoreWord(proxy)
         }
@@ -180,6 +186,11 @@ final class KeyTap {
         if toggleHotkey.matches(code: Int(code), mods: m) {
             Log.write("HOTKEY bật/tắt (\(toggleHotkey.label))")
             onToggle?()
+            return false
+        }
+        if clipboardHotkey.matches(code: Int(code), mods: m) {
+            Log.write("HOTKEY bảng clipboard (\(clipboardHotkey.label))")
+            onClipboard?()
             return false
         }
         if active, restoreHotkey.matches(code: Int(code), mods: m) {
@@ -471,6 +482,19 @@ final class KeyTap {
         e.flags = flags
         e.setIntegerValueField(.eventSourceUserData, value: kMagic)
         e.tapPostEvent(proxy)
+    }
+
+    /// Phát ⌘V vào ứng dụng đang ở trước, sau khi bảng clipboard đã đặt nội dung lên pasteboard. Gọi từ ngoài
+    /// callback nên không có `proxy`: phát thẳng vào luồng sự kiện của phiên, vẫn gắn `kMagic`.
+    /// Mã phím 9 là "V" trên bố cục ANSI/QWERTY; bố cục khác (Dvorak…) chưa được xử lý.
+    func postPaste() {
+        for down in [true, false] {
+            guard let e = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: down) else { continue }
+            e.flags = .maskCommand
+            e.setIntegerValueField(.eventSourceUserData, value: kMagic)
+            e.post(tap: .cgSessionEventTap)
+        }
+        Log.write("CLIP phát ⌘V app=\(frontApp)")
     }
 
     private func postKey(_ code: CGKeyCode, _ proxy: CGEventTapProxy, flags: CGEventFlags = []) {

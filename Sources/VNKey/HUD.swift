@@ -210,6 +210,18 @@ final class HUD {
         return p
     }
 
+    /// Chỗ đang gõ (toạ độ Cocoa) để đặt bảng clipboard ngay cạnh: con trỏ soạn thảo, hoặc ô nhập một dòng.
+    /// nil = ứng dụng không cho biết. Phải hỏi TRƯỚC khi bảng nhận tiêu điểm.
+    func typingAnchor() -> NSRect? {
+        let found = locate()
+        Log.write("CLIP vị trí=\(found.kind) \(found.note)")
+        switch found.kind {
+        case .caret: return found.rect
+        case .field where found.isText && found.rect.height <= 60: return found.rect
+        default: return nil
+        }
+    }
+
     private enum Kind { case caret, field, window, mouse }
     /// Các ứng dụng đã được yêu cầu bật cây trợ năng (mỗi tiến trình chỉ yêu cầu một lần).
     private var askedAccessibility: Set<pid_t> = []

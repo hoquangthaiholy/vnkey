@@ -1,5 +1,12 @@
 # Nhật ký thay đổi (CHANGELOG)
 
+## [Chưa phát hành]
+### Thêm mới
+- **Bảng tạm (lịch sử clipboard)**: nhấn `⌃⌥V` để mở bảng ngay cạnh chỗ đang gõ; gõ để tìm (không cần dấu), `↩` để dán, `⌘1`…`⌘9` dán nhanh, `⌘P` ghim, `⌘⌫` xoá. Lưu 200 mục gần nhất gồm văn bản, đường dẫn, ảnh và tệp, chỉ trên máy. Văn bản chép từ Word, Pages, trình duyệt, Google Docs… giữ nguyên định dạng (RTF, RTFD, HTML) khi dán lại; `⇧↩` dán chữ trơn. Mỗi mục có thẻ nhỏ cho biết định dạng đang lưu (RTF, HTML…), và `⇥` › Markdown dịch định dạng đó thành cú pháp Markdown (`**đậm**`, liên kết, danh sách, bảng, khối mã). Mặc định tắt; bật ở Cài đặt › Bảng tạm. Nội dung mà trình quản lý mật khẩu đánh dấu riêng tư không được lưu.
+- **Chuyển bảng mã ngay khi dán**: văn bản TCVN3 (ABC), VNI Windows hay VIQR được nhận ra và dán thành Unicode; `⌥↩` dán nguyên gốc. Phím `⇥` mở "Dán dạng": Unicode dựng sẵn, Unicode tổ hợp, TCVN3, VNI Windows, VIQR, hoặc không dấu.
+- **Đồng bộ bảng tạm qua iCloud Drive** (tuỳ chọn, mặc định tắt): văn bản và đường dẫn đã sao chép hiện trên các máy Mac khác của bạn. Ảnh và tệp không đồng bộ. Nội dung nằm ở dạng đọc được trong thư mục VNKey của iCloud Drive.
+- `vnkey-tool convert`: chuyển bảng mã từ dòng lệnh.
+
 ## [2.0.0] - 2026-11-24
 Bản viết lại hoàn toàn, **chỉ dành cho macOS** (12 trở lên), bằng Swift thuần. Bản 1.x đa nền tảng (Tauri, Rust,
 Svelte) không còn được phát triển; mã nguồn và các bản phát hành cũ vẫn nằm trong lịch sử của kho.

@@ -9,15 +9,18 @@ import UniformTypeIdentifiers
 /// Nút ghi phím tắt: bấm rồi nhấn tổ hợp mới.
 private final class HotkeyButton: NSButton {
     private var key = ""
-    /// Khoá của phím tắt còn lại, để không nhận hai phím tắt trùng nhau.
-    private var otherKey = ""
+    /// Khoá của các phím tắt còn lại, để không nhận hai phím tắt trùng nhau.
+    private var otherKeys: [String] = []
+    /// Giá trị khi bấm "Về mặc định".
+    private(set) var fallback = Hotkey.defaultToggle
     private var monitor: Any?
     private var peak: UInt = 0
 
-    convenience init(key: String, otherKey: String, label: String) {
+    convenience init(key: String, otherKeys: [String], fallback: Hotkey, label: String) {
         self.init(title: "", target: nil, action: #selector(toggle))
         self.key = key
-        self.otherKey = otherKey
+        self.otherKeys = otherKeys
+        self.fallback = fallback
         setAccessibilityLabel(L("Phím tắt: ", "Shortcut: ") + label)
         target = self
         widthAnchor.constraint(equalToConstant: 150).isActive = true
@@ -29,12 +32,12 @@ private final class HotkeyButton: NSButton {
     }
 
     func set(_ h: Hotkey) {
-        let other = Hotkey(string: UserDefaults.standard.string(forKey: otherKey) ?? "")
-        if let problem = h.problem(other: other) {
+        let others = otherKeys.map { Hotkey(string: UserDefaults.standard.string(forKey: $0) ?? "") }
+        if let problem = h.problem(other: nil) ?? others.compactMap({ h.problem(other: $0) }).first {
             // Không nhận: báo lý do ngay trên nút rồi trở về phím tắt cũ.
             stop()
             NSSound.beep()
-            title = problem == .duplicate ? L("Trùng phím tắt kia", "Same as the other shortcut") : L("Cần thêm ⌃, ⌥ hoặc ⌘", "Add ⌃, ⌥ or ⌘")
+            title = problem == .duplicate ? L("Trùng phím tắt khác", "Same as another shortcut") : L("Cần thêm ⌃, ⌥ hoặc ⌘", "Add ⌃, ⌥ or ⌘")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
                 if self?.monitor == nil { self?.refresh() }
             }
@@ -93,7 +96,7 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
     var onSelection: ((Int) -> Void)?
     private var items: [(id: String, name: String?, icon: NSImage)] = []
 
-    init(key: String) {
+    init(key: String, height: CGFloat = 186, label: String = L("Ứng dụng bắt đầu ở chế độ Anh", "Apps that start in English mode")) {
         self.key = key
         super.init()
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("app"))
@@ -107,12 +110,12 @@ private final class AppList: NSObject, NSTableViewDataSource, NSTableViewDelegat
         table.dataSource = self
         table.delegate = self
         table.onDelete = { [unowned self] in removeSelected() }
-        table.setAccessibilityLabel(L("Ứng dụng bắt đầu ở chế độ Anh", "Apps that start in English mode"))
+        table.setAccessibilityLabel(label)
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.borderType = .bezelBorder
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
-        scroll.heightAnchor.constraint(equalToConstant: 186).isActive = true
+        scroll.heightAnchor.constraint(equalToConstant: height).isActive = true
         reload()
     }
 
@@ -320,6 +323,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private let defaults = UserDefaults.standard
     private var tables: [EntryTable] = []
     private var appList: AppList?
+    private var clipAppList: AppList?
     private var hotkeyButtons: [HotkeyButton] = []
     private var methodControl: NSSegmentedControl?
     /// Các công tắc chỉ có nghĩa với Telex: mờ đi khi chọn VNI.
@@ -339,7 +343,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
         for (title, symbol, view) in [
             (L("Chung", "General"), "gearshape", general()), (L("Gõ", "Typing"), "keyboard", typing()), (L("Việt & Anh", "VI & EN"), "character.bubble", mixed()),
             (L("Tự sửa", "Auto-fix"), "wand.and.stars", corrections()), (L("Gõ tắt", "Shortcuts"), "text.badge.plus", shortcuts()), (L("Đã nhớ", "Memory"), "bookmark", remembered()),
-            (L("Ứng dụng", "Apps"), "macwindow.on.rectangle", apps()), (L("Giới thiệu", "About"), "info.circle", about()),
+            (L("Ứng dụng", "Apps"), "macwindow.on.rectangle", apps()), (L("Bảng tạm", "Clipboard"), "doc.on.clipboard", clipboard()),
+            (L("Giới thiệu", "About"), "info.circle", about()),  // luôn ở cuối: `openUpdatePage` chọn thẻ cuối
         ] {
             let controller = NSViewController()
             controller.view = view
@@ -376,6 +381,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         tables.forEach { $0.reload() }
         showUpdateState()
         appList?.reload()
+        clipAppList?.reload()
         hotkeyButtons.forEach { $0.refresh() }
         showMethod()
         toneControl?.selectedSegment = defaults.bool(forKey: Key.modernTone) ? 1 : 0
@@ -499,19 +505,24 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     // MARK: - Các thẻ
 
+    /// Dòng ghi phím tắt kèm nút về mặc định. Ba phím tắt của VNKey không được trùng nhau.
+    private func hotkey(_ name: String, _ detail: String?, _ key: String) -> NSView {
+        let all: [(String, Hotkey)] = [
+            (Key.toggleHotkey, .defaultToggle), (Key.restoreHotkey, .defaultRestore), (Key.clipboardHotkey, .defaultClipboard),
+        ]
+        let b = HotkeyButton(
+            key: key, otherKeys: all.map(\.0).filter { $0 != key }, fallback: all.first { $0.0 == key }?.1 ?? .defaultToggle, label: name)
+        hotkeyButtons.append(b)
+        let reset = NSButton(
+            image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: L("Về mặc định", "Reset to default"))!,
+            target: self, action: #selector(resetHotkey(_:)))
+        reset.bezelStyle = .circular
+        reset.toolTip = L("Về mặc định", "Reset to default")
+        reset.tag = hotkeyButtons.count - 1
+        return row(name, detail, b, reset)
+    }
+
     private func general() -> NSView {
-        func hotkey(_ name: String, _ detail: String?, _ key: String) -> NSView {
-            let b = HotkeyButton(
-                key: key, otherKey: key == Key.toggleHotkey ? Key.restoreHotkey : Key.toggleHotkey, label: name)
-            hotkeyButtons.append(b)
-            let reset = NSButton(
-                image: NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: L("Về mặc định", "Reset to default"))!,
-                target: self, action: #selector(resetHotkey(_:)))
-            reset.bezelStyle = .circular
-            reset.toolTip = L("Về mặc định", "Reset to default")
-            reset.tag = hotkeyButtons.count - 1
-            return row(name, detail, b, reset)
-        }
         let login = NSSwitch()
         login.controlSize = .small
         login.target = self
@@ -949,7 +960,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
     }
 
     @objc private func resetHotkey(_ sender: NSButton) {
-        hotkeyButtons[sender.tag].set(sender.tag == 0 ? .defaultToggle : .defaultRestore)
+        hotkeyButtons[sender.tag].set(hotkeyButtons[sender.tag].fallback)
     }
 
     @objc private func toggleLogin(_ sender: NSSwitch) {
@@ -1002,6 +1013,82 @@ final class SettingsController: NSObject, NSWindowDelegate {
     @objc private func addRunningApp(_ sender: NSMenuItem) {
         if let id = sender.representedObject as? String { appList?.add([id]) }
     }
+
+    // MARK: - Bảng tạm
+
+    private func clipboard() -> NSView {
+        let clear = NSButton(title: L("Xoá lịch sử…", "Clear History…"), target: self, action: #selector(clearClipboard))
+        clear.controlSize = .small
+
+        let syncName = L("Đồng bộ qua iCloud Drive", "Sync through iCloud Drive")
+        let syncDetail = L(
+            "Văn bản và đường dẫn bạn sao chép được lưu dạng đọc được trong thư mục VNKey của iCloud Drive, để các máy Mac khác của bạn cùng thấy. Ảnh và tệp không đồng bộ.",
+            "Text and links you copy are stored in readable form in the VNKey folder of iCloud Drive so your other Macs see them too. Images and files are not synced.")
+        let syncRow: NSView
+        if ClipboardSync.isAvailable {
+            syncRow = toggle(syncName, syncDetail, key: Key.clipboardSync, dependsOn: Key.clipboardEnabled)
+        } else {
+            let off = NSSwitch()
+            off.controlSize = .small
+            off.isEnabled = false
+            off.setAccessibilityLabel(syncName)
+            syncRow = row(syncName, L("Máy này chưa bật iCloud Drive.", "iCloud Drive is not turned on for this Mac."), off)
+        }
+
+        let list = AppList(key: Key.clipboardExcludedApps, height: 96, label: L("Ứng dụng không lưu vào bảng tạm", "Apps left out of clipboard history"))
+        clipAppList = list
+        let add = NSButton(title: L("Thêm ứng dụng…", "Add App…"), target: self, action: #selector(addClipApp))
+        let remove = NSButton(title: L("Xoá", "Delete"), target: self, action: #selector(removeClipApps))
+        remove.isEnabled = false
+        list.onSelection = { [weak remove] n in remove?.isEnabled = n > 0 }
+        let buttons = NSStackView(views: [add, remove])
+        buttons.orientation = .horizontal
+        buttons.spacing = Metrics.controlGap
+
+        return page([
+            title(L("Lịch sử", "History")),
+            Card(rows: [
+                toggle(
+                    L("Lưu lại những gì đã sao chép", "Keep what you copy"),
+                    L("200 mục gần nhất (văn bản, đường dẫn, ảnh, tệp), lưu trên máy này. Mật khẩu từ trình quản lý mật khẩu không được lưu.", "The last 200 items (text, links, images, files), stored on this Mac. Passwords from password managers are not kept."),
+                    key: Key.clipboardEnabled),
+                hotkey(
+                    L("Mở bảng tạm", "Open the clipboard"),
+                    L("Hiện cạnh chỗ đang gõ: gõ để tìm, ↩ để dán. Văn bản TCVN3, VNI tự dán thành Unicode.", "Appears where you type: type to search, ↩ to paste. TCVN3 and VNI text is pasted as Unicode."),
+                    Key.clipboardHotkey),
+                row(L("Xoá mọi thứ đã lưu", "Delete everything stored"), nil, clear),
+            ]),
+            title(L("Đồng bộ", "Sync")),
+            Card(rows: [syncRow]),
+            title(L("Không lưu khi sao chép từ", "Do not keep copies from")),
+            list.scroll,
+            buttons,
+        ])
+    }
+
+    @objc private func clearClipboard() {
+        let alert = NSAlert()
+        alert.messageText = L("Xoá toàn bộ lịch sử bảng tạm?", "Clear the whole clipboard history?")
+        alert.informativeText = L(
+            "Xoá cả các mục đã ghim. Nếu đang bật đồng bộ, các mục này cũng bị xoá trên iCloud Drive và trên các máy Mac khác của bạn.",
+            "Pinned items are deleted too. If sync is on, these items are also removed from iCloud Drive and from your other Macs.")
+        alert.addButton(withTitle: L("Xoá", "Delete"))
+        alert.addButton(withTitle: L("Huỷ", "Cancel"))
+        alert.beginSheetModal(for: window) { r in
+            if r == .alertFirstButtonReturn { (NSApp.delegate as? AppDelegate)?.clearClipboardHistory() }
+        }
+    }
+
+    @objc private func addClipApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        clipAppList?.add(panel.urls.compactMap { Bundle(url: $0)?.bundleIdentifier })
+    }
+
+    @objc private func removeClipApps() { clipAppList?.removeSelected() }
 
     @objc private func addApp() {
         let panel = NSOpenPanel()

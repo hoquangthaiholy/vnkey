@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let lexicon = SystemLexicon()
     private lazy var tap = KeyTap(engine: engine)
     private let hud = HUD()
+    private lazy var clipboard = ClipboardController()
     /// Tạo muộn: chế độ `--snapshot` không được đụng tới mục thanh menu. macOS lưu trạng thái ẩn/hiện của nó
     /// vào cài đặt của app, nên ẩn nó ở bản chụp thử sẽ làm biểu tượng của bản đang chạy biến mất.
     private lazy var status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -61,6 +62,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Đang ở trong callback của event tap: làm việc nặng (AX, cửa sổ) ở vòng lặp sau.
             DispatchQueue.main.async { self.setEnabled(!self.tap.enabled, announce: true) }
         }
+        tap.onClipboard = { [unowned self] in
+            DispatchQueue.main.async { self.clipboard.toggle() }
+        }
+        clipboard.anchor = { [unowned self] in hud.typingAnchor() }
+        clipboard.postPaste = { [unowned self] in tap.postPaste() }
+        clipboard.resetTyping = { [unowned self] in
+            engine.reset()
+            tap.invalidateFocus()
+        }
         applySettings()
         tap.frontApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         tap.enabled = state(for: tap.frontApp)
@@ -95,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ticks += 1
             if ticks % 15 == 0 { tap.flushPerf() }  // tổng kết hiệu năng mỗi 30 giây nếu có gõ
             if ticks % 60 == 0 { UsageStore.saveIfNeeded() }  // lưu thói quen gõ mỗi 2 phút nếu có thay đổi
+            clipboard.tick(ticks)
             if ticks % 150 == 10 { Updater.shared.checkIfDue() }  // 20 giây sau khi mở, rồi 5 phút xem lại một lần
             let secure = IsSecureEventInputEnabled()
             if secure != lastSecure {
@@ -107,11 +118,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         timer = watchdog
         refreshTitle()
         if CommandLine.arguments.contains("--settings") { showVNKeySettings() }
+        // Mở sẵn bảng clipboard để kiểm tra việc hiện bảng mà không cần bấm phím tắt.
+        if CommandLine.arguments.contains("--clipboard") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.clipboard.toggle() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         tap.flushPerf()
         UsageStore.saveIfNeeded(wait: true)
+        clipboard.flush()
         Log.write("==== VNKey thoát")
         Log.flush()
     }
@@ -269,7 +285,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tap.fixAutocomplete = defaults.bool(forKey: Key.fixBrowser)
         tap.toggleHotkey = Hotkey(string: defaults.string(forKey: Key.toggleHotkey) ?? "") ?? .defaultToggle
         tap.restoreHotkey = Hotkey(string: defaults.string(forKey: Key.restoreHotkey) ?? "") ?? .defaultRestore
+        tap.clipboardHotkey = Hotkey(string: defaults.string(forKey: Key.clipboardHotkey) ?? "") ?? .defaultClipboard
+        if clipboard.applySettings() { DispatchQueue.main.async { self.askAboutCloudCopies() } }
     }
+
+    /// Người dùng vừa tắt đồng bộ: bản đã lên iCloud Drive giữ hay xoá là do họ chọn.
+    private func askAboutCloudCopies() {
+        let alert = NSAlert()
+        alert.messageText = L("Xoá bản đã đồng bộ trên iCloud Drive?", "Delete the copies already in iCloud Drive?")
+        alert.informativeText = L(
+            "Lịch sử trên máy này vẫn giữ nguyên. Nếu xoá, các máy Mac khác đang bật đồng bộ cũng sẽ mất những mục này.",
+            "History on this Mac stays as it is. If you delete, your other Macs with sync turned on lose these items too.")
+        alert.addButton(withTitle: L("Giữ lại", "Keep"))
+        alert.addButton(withTitle: L("Xoá trên iCloud", "Delete from iCloud"))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertSecondButtonReturn { clipboard.removeRemoteCopies() } else { clipboard.keepRemoteCopies() }
+    }
+
+    /// Dùng cho nút "Xoá lịch sử" trong Cài đặt.
+    func clearClipboardHistory() { clipboard.clearHistory() }
 
     private var excluded: Set<String> { Set(defaults.stringArray(forKey: Key.excludedApps) ?? []) }
 

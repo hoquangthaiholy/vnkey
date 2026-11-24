@@ -16,6 +16,7 @@ Giao tiếp với người dùng, chú thích trong mã và commit message bằn
 | Build + mở lại app | `./Scripts/run.sh` (thêm `--settings` để mở cửa sổ Cài đặt) |
 | Chỉ đóng gói | `./Scripts/build-app.sh` → `build/VNKey.app` |
 | Gõ lại một chuỗi phím | `swift run vnkey-tool type --trace "tooi ddang"` (`<` = Backspace, `~` = đổi từ) |
+| Chuyển bảng mã một đoạn văn bản | `swift run vnkey-tool convert --to vni "Tiếng Việt"` (thiếu `--from` thì tự đoán) |
 | Đo hiệu năng engine | `swift run -c release vnkey-tool bench` |
 | Xem nhật ký | `tail -50 ~/Library/Logs/VNKey.log` |
 
@@ -27,13 +28,21 @@ Giao tiếp với người dùng, chú thích trong mã và commit message bằn
   - `Engine.swift`: ranh giới từ, lịch sử, quyết định khôi phục, học từ, ngữ cảnh. Trả về `Output`.
   - `Predictor.swift`, `CommonWords.swift`, `UsageModel.swift`: đoán từ gõ thiếu dấu (ứng viên, danh sách từ
     thông dụng, bảng đếm thói quen gõ của người dùng).
+  - `Charset.swift`: chuyển giữa Unicode dựng sẵn / tổ hợp, TCVN3, VNI Windows, VIQR; `detect` đoán bảng mã cũ
+    bằng cách giải mã thử rồi kiểm âm tiết; `stripMarks` bỏ dấu. Bảng tra sinh từ `Letter.glyphs`.
   - `SystemLexicon.swift`: từ điển `en`/`vi` của macOS qua NSSpellChecker (tệp duy nhất dùng AppKit).
 - `Sources/VNKey/` — app: `KeyTap` (event tap, gửi phím), `main` (AppDelegate, menu), `Settings`
   (cửa sổ cài đặt), `Onboarding` (hướng dẫn cấp quyền Trợ năng), `HUD` (nhãn VN/EN, nháy từ vừa sửa),
   `Updater` (kiểm tra bản mới trên GitHub Releases), `Shared` (khoá UserDefaults).
+  Clipboard: `ClipboardWatcher` (hỏi `changeCount` mỗi 0,5 giây), `ClipboardStore` (lưu lịch sử, ghi lên pasteboard
+  để dán), `ClipboardPanel` (bảng nổi cạnh con trỏ + `ClipboardController` nối các phần), `ClipboardSync` (đọc/ghi
+  thư mục iCloud Drive).
 - `Sources/VNKeyCore/` — logic thuần của app, test được: `SendPlanner` (kế hoạch gửi phím theo ứng dụng,
   xử lý phím xoá lùi của người dùng), `classifyKey`, `Hotkey`, `ModifierTracker`, `AppMode`, `ListFormat`.
   `KeyTap` chỉ còn việc đọc sự kiện, hỏi Accessibility và phát phím theo kế hoạch.
+  `Clipboard.swift`: `ClipItem` (id = mã băm nội dung), `ClipHistory`, `ClipPolicy` (bỏ qua nội dung riêng tư),
+  `ClipSearch`, `ClipSync.reconcile` (luật hoà trộn khi đồng bộ). `Markdown.swift`: `HTMLMarkdown.convert` dịch HTML
+  trên clipboard về Markdown (bộ đọc HTML tự viết, dễ dãi với HTML hỏng).
 - `Sources/VNTool/` — `vnkey-tool`: tái hiện lỗi và đo hiệu năng không cần giao diện.
 - `Tests/VNEngineTests/` — test engine bằng swift-testing; `run()` giả lập màn hình.
 - `Tests/VNKeyCoreTests/` — test logic app, kèm `Field`: mô hình ô nhập (thường, Spotlight, trình duyệt)
@@ -79,6 +88,13 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
 - Khi bật nhật ký, sau mỗi lần sửa chữ VNKey đọc lại ô nhập và ghi `VERIFY khớp` / `VERIFY LỆCH`. Tìm
   `VERIFY LỆCH` trước tiên khi người dùng báo chữ ra sai: nó chỉ đúng phím gây lệch.
 
+- Bảng clipboard là `NSPanel` kiểu `.nonactivatingPanel` nhận phím mà không kéo VNKey ra trước; dán bằng cách ghi
+  pasteboard, đóng bảng rồi phát ⌘V (`KeyTap.postPaste`, mã phím 9 = "V" trên QWERTY). Vị trí con trỏ phải hỏi
+  (`HUD.typingAnchor`) TRƯỚC khi bảng nhận tiêu điểm. Những việc này chưa được kiểm chứng tự động.
+- Lịch sử clipboard (`~/Library/Application Support/VNKey/clipboard/`) và thư mục đồng bộ
+  (`iCloud Drive/VNKey/items/`) chứa nguyên văn thứ người dùng đã sao chép: riêng tư như nhật ký, không đọc ra,
+  không dán vào câu trả lời. `Log.write` cho clipboard chỉ ghi loại và độ dài. Thử đồng bộ thì trỏ khoá ẩn
+  `clipboardSyncFolder` sang thư mục tạm. Đồng bộ qua iCloud thật chưa được kiểm chứng.
 - Thói quen gõ (bảng đếm từ và cặp từ, không có câu) lưu ở `~/Library/Application Support/VNKey/usage.json`.
   Coi nó riêng tư như nhật ký: không đọc ra, không dán vào câu trả lời.
 

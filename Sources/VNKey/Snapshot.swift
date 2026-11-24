@@ -1,4 +1,5 @@
 import AppKit
+import VNKeyCore
 
 /// Vẽ giao diện ra tệp PNG mà không cần quyền chụp màn hình, để xem bố cục khi phát triển:
 /// `VNKey --snapshot <thư mục>`.
@@ -69,6 +70,34 @@ enum Snapshot {
                 }
             }
             holder.orderOut(nil)
+        }
+
+        // Bảng clipboard với dữ liệu mẫu (không đọc lịch sử thật), ở trạng thái đang bật và đang tắt.
+        let now = Date()
+        var samples = [
+            ClipItem(kind: .text, text: "Ti\u{D5}ng Vi\u{D6}t c\u{E3} d\u{CA}u, ch\u{D0}p t\u{F5} v\u{A8}n b\u{B6}n c\u{F2}", date: now, app: "com.apple.TextEdit"),
+            ClipItem(kind: .link, text: "https://hoquangthaiholy.github.io/vnkey/", date: now.addingTimeInterval(-1)),
+            ClipItem(kind: .text, text: "Họp nhóm lúc 3 giờ chiều thứ Sáu, phòng 204", date: now.addingTimeInterval(-2), app: "com.apple.Notes"),
+            ClipItem(kind: .file, text: "/Applications/Safari.app\n/Applications/Notes.app", date: now.addingTimeInterval(-3)),
+            ClipItem(kind: .text, text: "func hello() { print(\"xin chào\") }", date: now.addingTimeInterval(-4), app: "com.apple.Terminal"),
+        ]
+        samples[2].pinned = true
+        samples[4].device = "MacBook Air"
+        for (enabled, name) in [(true, "clipboard"), (false, "clipboard-off")] {
+            let panel = ClipboardPanel()
+            panel.isEnabled = { enabled }
+            panel.formats = { $0.text.hasPrefix("Họp") ? ["rtf", "html"] : $0.kind == .text && $0.app == "com.apple.Terminal" ? ["html"] : [] }
+            panel.items = { _ in samples.filter(\.pinned) + samples.filter { !$0.pinned } }
+            panel.window.appearance = NSApp.appearance
+            panel.reload()
+            panel.contentView.layoutSubtreeIfNeeded()
+            let size = panel.contentView.fittingSize
+            panel.window.setFrame(NSRect(origin: NSPoint(x: -4000, y: -4000), size: size), display: true)
+            panel.window.orderFrontRegardless()
+            panel.contentView.layoutSubtreeIfNeeded()
+            panel.window.displayIfNeeded()
+            write(panel.contentView, dark: dark, to: dir.appendingPathComponent("\(name)\(suffix).png"))
+            panel.window.orderOut(nil)
         }
 
         for (name, image) in StatusIcon.all {

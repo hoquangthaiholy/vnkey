@@ -16,6 +16,10 @@ enum Key {
     static let autoUpdateCheck = "autoUpdateCheck", updateLastCheck = "updateLastCheck"
     static let language = "language"
     static let predict = "predict", predictUnmarked = "predictUnmarked", learnUsage = "learnUsage"
+    static let clipboardEnabled = "clipboardEnabled", clipboardHotkey = "clipboardHotkey", clipboardSync = "clipboardSync"
+    static let clipboardExcludedApps = "clipboardExcludedApps"
+    /// Khoá ẩn (không có trong Cài đặt): trỏ thư mục đồng bộ sang chỗ khác khi thử nghiệm.
+    static let clipboardSyncFolder = "clipboardSyncFolder"
 
     static let registered: [String: Any] = [
         enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
@@ -26,6 +30,9 @@ enum Key {
         debugLog: false,
         learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, language: "auto", predict: true, predictUnmarked: true, learnUsage: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
+        // Lịch sử clipboard ghi mọi thứ đã sao chép xuống đĩa: mặc định TẮT, người dùng tự bật.
+        clipboardEnabled: false, clipboardSync: false, clipboardHotkey: Hotkey.defaultClipboard.string,
+        clipboardExcludedApps: ["com.apple.Passwords", "com.apple.keychainaccess"],
         // Terminal mặc định bắt đầu ở chế độ Anh; vẫn bật lại được bằng phím tắt.
         excludedApps: [
             "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "net.kovidgoyal.kitty",

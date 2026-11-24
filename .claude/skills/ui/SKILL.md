@@ -79,7 +79,7 @@ Tự xem bố cục (không cần người dùng, không đụng tới bản đa
 swift build -c release --product VNKey && .build/release/VNKey --snapshot <thư mục tạm>
 ```
 
-Sinh `settings-1.png` … `settings-5.png` (từng thẻ Cài đặt), `hud-vn.png`, `hud-en.png` (nhãn cạnh con
+Sinh `settings-1.png` … `settings-9.png` (từng thẻ Cài đặt), `clipboard.png`, `clipboard-off.png` (bảng clipboard với dữ liệu mẫu), `hud-vn.png`, `hud-en.png` (nhãn cạnh con
 trỏ, phóng to 6 lần) và `status-vn.png`, `status-en.png` (biểu tượng thanh menu phóng to; thêm `--dark` để xem trên nền tối). Mở ảnh bằng Read để nhìn. Chế độ này
 KHÔNG khởi động event tap, nên chạy song song với bản người dùng đang dùng được. Luôn chạy và xem lại
 sau mỗi thay đổi bố cục, trước khi nhờ người dùng.
@@ -126,7 +126,7 @@ những cặp đã đủ điều kiện sửa, không phải toàn bộ số đ�
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng, Giới thiệu. Thẻ nào dài quá ~500pt
+Cửa sổ Cài đặt (rộng 580pt) có 9 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Đã nhớ, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
 thì tách (người dùng đã phàn nàn thẻ Việt & Anh dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
@@ -159,7 +159,7 @@ công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và m�
 
 - Giao diện song ngữ qua `L(vi, en)`; ngôn ngữ chọn ở Cài đặt › Chung (`Key.language`: auto/vi/en). Đổi ngôn ngữ thì
   AppDelegate dựng lại cửa sổ Cài đặt. Chụp thử bản tiếng Anh: `VNKey --snapshot <thư mục> --en`. Tên thẻ tiếng Anh
-  phải ngắn (8 thẻ trên thanh công cụ).
+  phải ngắn (9 thẻ trên thanh công cụ).
 - Tự cập nhật (`Updater.installUpdate`, `Installer`): tải ZIP của bản phát hành từ github.com, kiểm tra chữ ký phải
   do Apple cấp và cùng Team ID với bản đang chạy (`UpdateCheck.mayInstall`), cất bản cũ rồi mới đưa bản mới vào, mở
   lại. Bản dựng trên máy (không có Team ID) không bao giờ tự cài. CHƯA kiểm chứng trọn vẹn trên bản phát hành thật.
