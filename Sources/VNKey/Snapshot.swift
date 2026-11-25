@@ -36,9 +36,9 @@ enum Snapshot {
         }
         window.orderOut(nil)
 
-        // Bảng "đã nhớ" mở từ thẻ Tự sửa, ở cả hai danh sách.
-        for (list, name) in [(0, "settings-memory-words"), (1, "settings-memory-learned")] {
-            let view = settings.memoryView(list: list)
+        // Bảng "đã nhớ" mở từ thẻ Chính tả.
+        for name in ["settings-memory"] {
+            let view = settings.memoryView()
             guard let sheet = view.window else { continue }
             sheet.appearance = NSApp.appearance
             sheet.setFrameOrigin(NSPoint(x: -4000, y: -4000))
@@ -126,6 +126,24 @@ enum Snapshot {
             write(panel.contentView, dark: dark, to: dir.appendingPathComponent("\(name)\(suffix).png"))
             panel.window.orderOut(nil)
         }
+
+        // Bảng đề nghị của bộ soát lỗi, với dữ liệu mẫu.
+        let suggest = Proofing.samplePanel()
+        suggest.appearance = NSApp.appearance
+        if let view = suggest.contentView {
+            view.layoutSubtreeIfNeeded()
+            suggest.displayIfNeeded()
+            write(view, dark: dark, to: dir.appendingPathComponent("suggestion\(suffix).png"))
+        }
+        suggest.orderOut(nil)
+        let whole = Proofing.sampleSentencePanel()
+        whole.appearance = NSApp.appearance
+        if let view = whole.contentView {
+            view.layoutSubtreeIfNeeded()
+            whole.displayIfNeeded()
+            write(view, dark: dark, to: dir.appendingPathComponent("suggestion-sentence\(suffix).png"))
+        }
+        whole.orderOut(nil)
 
         for (name, image) in StatusIcon.all {
             write(image, scale: 8, dark: dark, to: dir.appendingPathComponent("status-\(name)\(suffix).png"))

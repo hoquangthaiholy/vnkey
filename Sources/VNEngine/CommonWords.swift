@@ -12,16 +12,24 @@ enum CommonWords {
     static let tableFloor = 100
     /// Mức "rất thông dụng": chuỗi phím trùng một từ tiếng Anh chỉ bị thay khi ứng viên đạt mức này.
     static let veryCommon = 5000
+    /// Mức "thông dụng": ứng viên dưới mức này chỉ được thay cho chữ đã gõ khi có thêm bằng chứng (từ đứng trước
+    /// hay đi với nó, hoặc chính người dùng đã gõ nó).
+    static let common = 1000
     /// Hai ứng viên chênh nhau dưới chừng này lần được coi là cùng hạng: ngữ cảnh câu mới phân xử được.
     static let sameLeague = 50
 
-    private static let table: [String: Int] = {
-        var out: [String: Int] = [:]
+    /// Các khoá của bảng theo thứ tự trong dữ liệu (giảm dần theo số lần). `CommonPairs` đánh số âm tiết theo thứ
+    /// tự này, nên sinh lại bảng âm tiết thì phải sinh lại cả bảng cặp từ.
+    static let keys: [String] = entries.map(\.key)
+    private static let table: [String: Int] = Dictionary(entries.map { ($0.key, $0.count) }, uniquingKeysWith: { a, _ in a })
+
+    private static let entries: [(key: String, count: Int)] = {
+        var out: [(key: String, count: Int)] = []
         out.reserveCapacity(entryCount)
         var key: Substring?
         for part in data.split(whereSeparator: { $0 == " " || $0 == "\n" }) {
             if let k = key {
-                out[String(k)] = Int(part) ?? 0
+                out.append((String(k), Int(part) ?? 0))
                 key = nil
             } else {
                 key = part

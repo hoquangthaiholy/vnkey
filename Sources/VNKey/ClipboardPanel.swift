@@ -249,6 +249,7 @@ final class ClipboardPanel: NSObject, NSTableViewDataSource, NSTableViewDelegate
         place()
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(search)
+        Motion.present(window)  // mờ dần kèm phóng nhẹ từ góc gần con trỏ
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
                 guard let self, e.window === self.window else { return e }

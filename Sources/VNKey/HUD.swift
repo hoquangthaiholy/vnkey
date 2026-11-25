@@ -100,119 +100,6 @@ final class HUD {
         }
     }
 
-    // MARK: - Nháy từ vừa được tự sửa
-
-    private lazy var flashPanel: NSPanel = {
-        let p = NSPanel(
-            contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
-        p.level = .statusBar
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.hasShadow = false
-        p.ignoresMouseEvents = true
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
-        let v = NSView()
-        v.wantsLayer = true
-        v.layer?.cornerRadius = 3
-        p.contentView = v
-        return p
-    }()
-    private var flashGeneration = 0
-
-    /// Phủ một lớp màu nhấn mờ lên từ VNKey vừa tự sửa rồi cho nó tan nhanh, để người dùng thấy chữ vừa đổi.
-    /// (Đã thử nét gạch chân thay cho lớp nền; người dùng chọn quay lại lớp nền.)
-    /// `word` là từ như đang hiện; ngay sau nó là đúng một ký tự ngắt từ rồi tới con trỏ. Ứng dụng không cho
-    /// biết vị trí chữ thì không nháy.
-    func flash(word: String) {
-        guard let rect = wordRect(word) else { return }
-        flashGeneration += 1
-        let g = flashGeneration
-        flashPanel.contentView?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.30).cgColor
-        flashPanel.setFrame(rect.insetBy(dx: -2, dy: -1), display: true)
-        flashPanel.alphaValue = 1
-        flashPanel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup(
-            { ctx in
-                ctx.duration = 0.55
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                self.flashPanel.animator().alphaValue = 0
-            },
-            completionHandler: { if g == self.flashGeneration { self.flashPanel.orderOut(nil) } })
-    }
-
-    /// Khung của từ đứng ngay trước ký tự cuối cùng trước con trỏ (toạ độ Cocoa).
-    private func wordRect(_ word: String) -> NSRect? {
-        let found = focusedElement()
-        guard let element = found.element else {
-            Log.write("FLASH bỏ: \(found.note)")
-            return nil
-        }
-        AXUIElementSetMessagingTimeout(element, 0.15)
-        let length = word.utf16.count
-        var range: CFTypeRef?
-        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
-            let range, CFGetTypeID(range) == AXValueGetTypeID()
-        {
-            var caret = CFRange(location: 0, length: 0)
-            if AXValueGetValue(range as! AXValue, .cfRange, &caret), caret.location >= length + 1 {
-                var target = CFRange(location: caret.location - 1 - length, length: length)
-                var out: CFTypeRef?
-                if let v = AXValueCreate(.cfRange, &target),
-                    AXUIElementCopyParameterizedAttributeValue(
-                        element, kAXBoundsForRangeParameterizedAttribute as CFString, v, &out) == .success,
-                    let r = HUD.rect(out).flatMap(HUD.cocoa), r.width > 1
-                {
-                    Log.write("FLASH khung của từ (\(length) ký tự)")
-                    return r
-                }
-            }
-        }
-        // Trang web và ứng dụng Electron (Claude, VS Code, Slack) không trả lời theo số thứ tự ký tự nhưng có
-        // "text marker": lùi từng ký tự từ con trỏ để lấy đúng khung của từ, không tính ký tự ngắt từ.
-        if let r = markerWordRect(element, count: word.count) {
-            Log.write("FLASH khung theo text marker (\(word.count) chữ) \(Int(r.width))x\(Int(r.height))")
-            return r
-        }
-        // Không đo được: ước lượng bề rộng của từ theo chiều cao dòng.
-        let caret = locate()
-        guard caret.kind == .caret, caret.rect.height > 4 else {
-            Log.write("FLASH bỏ: không biết vị trí chữ (\(caret.note))")
-            return nil
-        }
-        let h = caret.rect.height
-        let width = CGFloat(word.count) * h * 0.46, gap = h * 0.24  // gap: ký tự ngắt từ (thường là dấu cách)
-        Log.write("FLASH ước lượng theo con trỏ (\(word.count) chữ) con trỏ=\(Int(caret.rect.width))x\(Int(h)) rộng=\(Int(width)) hở=\(Int(gap))")
-        return NSRect(x: caret.rect.minX - gap - width, y: caret.rect.minY, width: width, height: h)
-    }
-
-    /// Khung của `count` ký tự đứng ngay trước ký tự cuối cùng trước con trỏ, đo bằng text marker. nil nếu ứng dụng
-    /// không hỗ trợ, hoặc kết quả vô lý (từ vắt qua hai dòng). Mỗi bước lùi là một lần hỏi ứng dụng, nên giới hạn
-    /// độ dài và thời gian chờ; việc này chạy sau khi phím đã xử lý xong, không nằm trong callback của event tap.
-    private func markerWordRect(_ element: AXUIElement, count: Int) -> NSRect? {
-        guard (1...24).contains(count) else { return nil }
-        AXUIElementSetMessagingTimeout(element, 0.05)
-        defer { AXUIElementSetMessagingTimeout(element, 0.15) }
-        func ask(_ attribute: String, _ parameter: CFTypeRef) -> CFTypeRef? {
-            var out: CFTypeRef?
-            return AXUIElementCopyParameterizedAttributeValue(element, attribute as CFString, parameter, &out) == .success ? out : nil
-        }
-        var selection: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, "AXSelectedTextMarkerRange" as CFString, &selection) == .success,
-            let selection, let caret = ask("AXStartTextMarkerForTextMarkerRange", selection),
-            let wordEnd = ask("AXPreviousTextMarkerForTextMarker", caret)  // bỏ qua ký tự ngắt từ (dấu cách)
-        else { return nil }
-        var start = wordEnd
-        for _ in 0..<count {
-            guard let previous = ask("AXPreviousTextMarkerForTextMarker", start) else { return nil }
-            start = previous
-        }
-        guard let range = ask("AXTextMarkerRangeForUnorderedTextMarkers", [start, wordEnd] as CFArray),
-            let r = HUD.rect(ask("AXBoundsForTextMarkerRange", range)).flatMap(HUD.cocoa),
-            r.width > 1, r.height < 80, r.width < CGFloat(count) * r.height * 1.5
-        else { return nil }
-        return r
-    }
-
     private static let textRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
     /// Nhãn lệch sang trái con trỏ chừng này, như nhãn báo bộ gõ của macOS (nó nằm gần chính giữa con trỏ).
     private static let leftShift: CGFloat = 14
@@ -260,7 +147,7 @@ final class HUD {
     /// Các ứng dụng đã được yêu cầu bật cây trợ năng (mỗi tiến trình chỉ yêu cầu một lần).
     private var askedAccessibility: Set<pid_t> = []
 
-    private static func frame(of element: AXUIElement) -> NSRect? {
+    static func frame(of element: AXUIElement) -> NSRect? {
         var pos: CFTypeRef?, extent: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &pos) == .success,
             AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &extent) == .success,
@@ -276,7 +163,7 @@ final class HUD {
     /// Ô đang nhận phím. Hỏi cả hệ thống trước; ứng dụng Electron/Chromium (Claude, Zalo, VS Code, Chrome…)
     /// thường không trả lời vì chúng chỉ dựng cây trợ năng khi có công cụ yêu cầu — khi đó hỏi thẳng ứng dụng
     /// đang ở trước và đặt cờ `AXManualAccessibility` để nó bắt đầu dựng (có hiệu lực cho lần hỏi sau).
-    private func focusedElement() -> (element: AXUIElement?, app: AXUIElement?, note: String) {
+    func focusedElement() -> (element: AXUIElement?, app: AXUIElement?, note: String) {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.15)
         var focused: CFTypeRef?
@@ -304,13 +191,13 @@ final class HUD {
 
     /// AX dùng gốc trên-trái của màn hình chính; Cocoa dùng gốc dưới-trái. Bỏ khung rỗng hoặc nằm ngoài mọi
     /// màn hình (vài ứng dụng trả về toàn số 0 hoặc toạ độ rác).
-    private static func cocoa(_ rect: CGRect) -> NSRect? {
+    static func cocoa(_ rect: CGRect) -> NSRect? {
         guard rect.height > 0, let primary = NSScreen.screens.first else { return nil }
         let r = NSRect(x: rect.minX, y: primary.frame.height - rect.maxY, width: rect.width, height: rect.height)
         return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).intersects(r) } ? r : nil
     }
 
-    private static func rect(_ value: CFTypeRef?) -> CGRect? {
+    static func rect(_ value: CFTypeRef?) -> CGRect? {
         guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
         var r = CGRect.zero
         return AXValueGetValue(value as! AXValue, .cgRect, &r) ? r : nil

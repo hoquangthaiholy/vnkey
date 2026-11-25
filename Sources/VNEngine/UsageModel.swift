@@ -22,8 +22,10 @@ public protocol ContextModel: AnyObject {
     /// Người dùng gõ `wrong` rồi để nguyên. true nếu lần này được đếm (để rút lại được bằng `unkeepTypo`).
     func keepTypo(_ wrong: String) -> Bool
     func unkeepTypo(_ wrong: String)
-    /// Người dùng từ chối một lần tự sửa: quên cặp đó và đòi nhiều bằng chứng hơn trước khi học lại.
+    /// Người dùng từ chối một lần đề nghị sửa: quên cặp đó và đòi nhiều bằng chứng hơn trước khi học lại.
     func forgetTypo(_ wrong: String, fixed: String)
+    /// Mọi lỗi gõ đã đủ bằng chứng (theo luật của `typoFix`): chuỗi phím sai -> chuỗi phím đúng.
+    func knownTypos() -> [(wrong: String, right: String)]
 }
 
 extension ContextModel {
@@ -32,6 +34,7 @@ extension ContextModel {
     public func keepTypo(_ wrong: String) -> Bool { false }
     public func unkeepTypo(_ wrong: String) {}
     public func forgetTypo(_ wrong: String, fixed: String) {}
+    public func knownTypos() -> [(wrong: String, right: String)] { [] }
 }
 
 /// Bảng đếm từ và cặp từ liền nhau mà người dùng đã gõ (chữ thường). Chỉ có số đếm: không lưu câu, không
@@ -172,13 +175,15 @@ public final class UsageModel: ContextModel {
         }
     }
 
-    /// Các lỗi gõ đã đủ điều kiện tự sửa, theo đúng luật của `typoFix`. Xếp theo số lần giảm dần.
+    /// Các lỗi gõ đã đủ điều kiện để đề nghị sửa, theo đúng luật của `typoFix`. Xếp theo số lần giảm dần.
     public func learnedTypos() -> [LearnedTypo] {
         typos.keys.compactMap { wrong in
             typoFix(for: wrong).map { LearnedTypo(wrong: wrong, right: $0, count: typos[wrong]?[$0] ?? 0) }
         }
         .sorted { $0.count != $1.count ? $0.count > $1.count : $0.wrong < $1.wrong }
     }
+
+    public func knownTypos() -> [(wrong: String, right: String)] { learnedTypos().map { ($0.wrong, $0.right) } }
 
     // MARK: - Cho người dùng xem
 

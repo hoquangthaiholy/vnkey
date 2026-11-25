@@ -6,11 +6,26 @@
 - **Chuyển bảng mã ngay khi dán**: văn bản TCVN3 (ABC), VNI Windows hay VIQR được nhận ra và dán thành Unicode; `⌥↩` dán nguyên gốc. Phím `⇥` mở "Dán dạng": Unicode dựng sẵn, Unicode tổ hợp, TCVN3, VNI Windows, VIQR, hoặc không dấu.
 - **Đồng bộ bảng tạm qua iCloud Drive** (tuỳ chọn, mặc định tắt): văn bản và đường dẫn đã sao chép hiện trên các máy Mac khác của bạn. Ảnh và tệp không đồng bộ. Nội dung nằm ở dạng đọc được trong thư mục VNKey của iCloud Drive.
 - `vnkey-tool convert`: chuyển bảng mã từ dòng lệnh.
-- **Sửa lỗi gõ bạn hay mắc**: gõ `goc`, xoá rồi sửa thành `gox` (gõ) hai lần thì từ lần sau VNKey tự sửa và nháy nhẹ từ đó; cả từ gõ chưa trọn như `dúng` → `đúng`. Chỉ học từ chính những lần bạn tự sửa; từ bạn cũng hay gõ thật thì không bị thay. Phím Đổi từ vừa gõ `⌃⌥Z` trả lại và quên. Bật/tắt cùng "Nhớ khi bạn gõ lại" ở Cài đặt › Tự sửa.
-- **Đoán từ thiếu dấu chính xác hơn**: VNKey có "từ điển" riêng là bảng tần suất khoảng 3.300 âm tiết. Chữ có dấu không nằm trong bảng (`tiêng`, `dúng`, `ròi`) được thay bằng từ thông dụng nhất cùng khớp (`tiếng`, `đúng`, `rồi`); `duojc` ra `được` thay vì `dược`. Từ có trong bảng dù hiếm (`muôn`, `trương`, `dược`) giữ đúng như đã gõ. Bạn sửa lại một lần thay hai lần thì từ bạn sửa đi trước.
-- **Phím Đổi từ vừa gõ đi vòng ba dạng** cho từ VNKey đã đoán: chữ đã đoán → phím gốc → chữ đúng như đã gõ. Dừng ở dạng thứ ba thì VNKey nhớ và không thay từ đó nữa (dùng cho tên riêng, từ hiếm).
-- **Bỏ việc đoán từ chưa có dấu nào** (`duoc`, `viet`) bằng từ điển: nó chỉ đoán được ít từ và có lúc sai. Từ đã có dấu nhưng chưa trọn (`duojc`, `đươc`) vẫn được hoàn thiện, và cặp từ bạn hay gõ (`lầm loi` → `lầm lỗi`) vẫn được sửa.
-- **Cài đặt gọn hơn**: thẻ Đã nhớ nhập vào thẻ Tự sửa; hai danh sách (từ đã nhớ, thứ đã học) mở bằng nút "Xem và sửa…".
+- **Soát lỗi thay cho tự sửa**: VNKey không còn tự thay chữ bạn gõ (chỉ còn tự trả lại từ tiếng Anh khi gõ xen kẽ). Từ nghi gõ sai được gạch chân đỏ ngay trong ô đang nhập, kể cả chữ dán vào: thiếu dấu (`viêt`, `đươc`), trật phím dấu sang phím bên (`veeg`), gõ đảo phím (`tieegns`), lỗi gõ bạn đã tự sửa hai lần (`goc`), cụm không dấu bạn hay gõ có dấu. Rê chuột lên chữ bị gạch, hoặc dùng `←` `→` đưa con trỏ vào từ đó, để mở bảng đề nghị; chọn bằng chuột hoặc `↑` `↓` `↩`; "Thêm vào từ điển" để từ đó không bị gạch nữa. Đề nghị xếp theo từ đứng cạnh (`tiếng viêt` → `việt`, `bài viêt` → `viết`) nhờ bảng khoảng 106.000 cặp âm tiết đếm trên phụ đề OpenSubtitles. Hiện chạy trong ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail); chưa chạy trên trang web và ứng dụng Electron.
+- **Phân biệt gõ nhầm và sai chính tả**: gõ nhầm (thiếu dấu, trật phím) gạch đỏ; sai chính tả gạch cam, đề nghị theo các lỗi thường gặp: d/gi/r/v, s/x, ch/tr, l/n, n/ng, t/c, hỏi/ngã, iêu/ươu… (`dới` → `với`, `xắp` → `sắp`, `chời` → `trời`, `muổi` → `muỗi`).
+- **Từ điển từ ghép** (khoảng 48.000 từ hai âm tiết, từ danh sách Viet74K của Hồ Ngọc Đức): từ hiếm nhưng có thật không còn bị gạch nhầm (`bánh chưng`), và bắt được lỗi chính tả trùng một âm tiết có thật (`bánh trưng` → `chưng`, `dữ gìn` → `giữ`).
+- **Chuyển động**: nét gạch chân trượt ra lần lượt; bảng đề nghị và bảng tạm hiện ra mềm hơn và nhanh hơn; chữ vừa được thay (Đổi từ vừa gõ, chọn đề nghị, gõ tắt) có một dải sáng lướt qua; nét gạch ẩn khi cửa sổ đang được dời. Tôn trọng "Giảm chuyển động" của macOS.
+- **Trợ lý cho câu và đoạn văn (✦)**: để chuột dừng trên một câu rồi đưa vào nút ✦ để mở bảng riêng: sửa chính tả, cải tiến, viết lại, làm ngắn gọn, mở rộng, dịch Việt ↔ Anh, viết thành câu từ vài ý; chọn phạm vi một câu hay cả đoạn; nút ↻ để thử bản khác. Dùng mô hình ngôn ngữ chạy trên máy của macOS 26 (cần Apple Intelligence), không có gì rời khỏi máy, và chỉ thay khi bạn chọn. Máy không có mô hình vẫn có việc thêm dấu và sửa chính tả cả câu, làm bằng dữ liệu của VNKey.
+- **Soát cả tiếng Anh** (tuỳ chọn, mặc định tắt) bằng từ điển của macOS.
+- **Gõ tắt thông minh**: gõ `\tên` rồi dấu cách để bung (`\homnay` ra ngày hôm nay, `\hoten` ra họ tên); bảng tên và nội dung sửa được, tự thêm mục của bạn. Nội dung của mọi gõ tắt dùng được biến `[ngay]`, `[gio]`, `[thu]`, `[thang]`, `[nam]`, `[ngaydai]`, `[homqua]`, `[ngaymai]`, `[ngay+7]`, `[tuan]`, `[amlich]`, `[hoten]`, `[clipboard]`.
+- Gõ thừa một phím làm từ bị trả về phím gốc (`ddaayy`), xoá phím thừa đi rồi nhấn dấu cách thì từ được hiểu lại (`đây`).
+- `vnkey-tool check`: soát lỗi một đoạn văn bản từ dòng lệnh.
+
+### Sửa lỗi
+- Gõ `Dd`, lỡ gõ một phím dấu (`j`) rồi xoá đi, gõ tiếp `ajt` ra "Đajt" thay vì "Đạt".
+- Sau hai từ tiếng Anh liên tiếp, `cos` bị giữ nguyên thay vì ra "có" (và gõ lại vẫn sai). Từ tiếng Việt rất thông dụng nay luôn được ưu tiên.
+
+### Thay đổi
+- Bỏ các công tắc tự sửa (gõ đảo phím, từ thiếu dấu, phím dấu gõ trượt, nháy từ vừa sửa). Thẻ "Tự sửa" trong Cài đặt thành thẻ "Chính tả".
+- Thẻ "Việt & Anh" thành thẻ "Ngôn ngữ" với hai nhóm có công tắc chính: Tiếng Anh (gõ xen kẽ, ngữ cảnh, code, chính tả tiếng Anh) và Ngôn ngữ GenZ (chữ teen, bung viết tắt). Tắt công tắc chính thì các tuỳ chọn trong nhóm mất tác dụng.
+- Một công tắc "Ghi lại thói quen gõ" cho mọi việc học, và một bảng duy nhất cho mọi thứ VNKey đã nhớ (từ điển của bạn, từ giữ một dạng, lỗi gõ, cặp từ); chỉ xem và xoá.
+- Phím Đổi từ vừa gõ chỉ còn đổi giữa phím gốc và tiếng Việt.
+- **Cài đặt gọn hơn**: thẻ Đã nhớ nhập vào thẻ Chính tả.
 
 ## [2.0.0] - 2026-11-24
 Bản viết lại hoàn toàn, **chỉ dành cho macOS** (12 trở lên), bằng Swift thuần. Bản 1.x đa nền tảng (Tauri, Rust,

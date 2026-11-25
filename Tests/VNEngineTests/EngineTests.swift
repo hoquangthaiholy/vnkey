@@ -156,10 +156,12 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
     func codeContext(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
 
     @Test(arguments: [
-        ("tieegns ", "tiếng "), ("veitj ", "veitj "), ("vieejt ", "việt "), ("nugowfi ", "người "),
+        ("tieegns ", "tieegns "), ("veitj ", "veitj "), ("vieejt ", "việt "), ("nugowfi ", "nugowfi "),
         ("dduwojwc ", "được "), ("form ", "form "), ("wnidow ", "wnidow "),
     ])
-    func transposition(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+    /// Gõ đảo hai phím không còn được tự sửa (2026-11-25): chữ để nguyên, bộ soát lỗi đề nghị (`Proofreading`).
+    /// Gõ dấu tự do ("vieejt", "dduwojwc") là việc của `Composer`, vẫn chạy.
+    func swappedKeysAreNotFixedWhileTyping(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
 
     @Test(arguments: [
         ("chaof. banj ", "chào. Bạn "), ("chaof! banj", "chào! Bạn"), ("chaof... banj", "chào... bạn"),
@@ -187,7 +189,7 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
     /// VNI: chuỗi phím gốc có chữ số nên không bao giờ là "từ tiếng Anh", kể cả khi trình
     /// kiểm tra chính tả bỏ qua từ có số.
     @Test(arguments: [
-        ("fix bug cu3a ", "fix bug của "), ("fix bug to6i ", "fix bug tôi "), ("tie61gn ", "tiếng "),
+        ("fix bug cu3a ", "fix bug của "), ("fix bug to6i ", "fix bug tôi "), ("tie61gn ", "tie61gn "),
     ])
     func vniDigitsAreNotEnglish(keys: String, want: String) {
         var c = Config(); c.method = .vni
@@ -369,12 +371,6 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
         #expect(e.preferVN.contains("test"))
     }
 
-    @Test func transpositionRetypedIsKept() {
-        let e = Engine(config: Config())
-        #expect(run("tieegns <<<<<<tieegns ", lexicon: FakeLexicon.shared, engine: e) == "tieegns ")
-        #expect(e.preferRaw.contains("tieegns"))
-    }
-
     @Test func worksAcrossPunctuation() {
         #expect(run("this, <<<<<this, ", lexicon: FakeLexicon.shared) == "this, ")
     }
@@ -441,5 +437,127 @@ func run(_ keys: String, _ cfg: Config = Config(), lexicon: Lexicon? = nil, engi
         #expect(run("tw ", cfg(w: false)) == "tw ")
         // Tắt w đứng riêng không ảnh hưởng dấu móc/trăng sau nguyên âm.
         #expect(run("muaw dduwowcj ", cfg(w: false)) == "mưa được ")
+    }
+}
+
+/// Lỗi người dùng báo (2026-11-25): đang ở chế độ tiếng Việt mà "cos" ra "cos" thay vì "có". Nhật ký: mạch tiếng
+/// Anh đang là 2 (`en×2`), nên từ hợp lệ ở cả hai ngôn ngữ bị coi là tiếng Anh; chính lần trả lại đó lại nối dài
+/// mạch (`en×3`…`en×6`), gõ lại bao nhiêu lần vẫn ra "cos". Từ tiếng Việt thông dụng phải thắng mạch tiếng Anh.
+@Suite struct VietnameseWinsInVietnameseMode {
+    final class Lex: Lexicon {
+        let en: Set<String> = ["user", "data", "cos", "this", "error"]
+        func isEnglish(_ w: String) -> Bool { en.contains(w) }
+        func isVietnamese(_ w: String) -> Bool { Charset.syllableKey(w) != nil }
+    }
+    let lex = Lex()
+
+    @Test func commonVietnameseWordBeatsAnEnglishRun() {
+        #expect(run("user data cos ", lexicon: lex) == "user data có ")
+        #expect(run("user data error cos cos cos ", lexicon: lex) == "user data error có có có ")
+    }
+
+    /// Từ tiếng Việt hiếm ("thí") giữa một mạch tiếng Anh vẫn được coi là tiếng Anh như trước.
+    @Test func rareVietnameseReadingStillFollowsTheRun() {
+        #expect(run("this ", lexicon: lex) == "thí ")
+        #expect(run("user data this ", lexicon: lex) == "user data this ")
+    }
+
+    @Test func switchStillTurnsTheRunRuleOff() {
+        var c = Config()
+        c.contextAware = false
+        #expect(run("user data this ", c, lexicon: lex) == "user data thí ")
+    }
+}
+
+/// Lỗi người dùng báo (2026-11-25): gõ "Đạt" ra "Đajt". Nhật ký: họ gõ "Dd", lỡ gõ "j" (phím dấu khi chưa có nguyên
+/// âm: từ thành nguyên văn "Đj"), xoá "j", rồi gõ "ajt". Sau lần xoá, phần còn lại của từ nguyên văn là chữ "Đ" chứ
+/// không còn là chuỗi phím, nên engine không hiểu lại được và giữ nguyên văn tới hết từ.
+@Suite struct RetryAfterAStrayToneKey {
+    @Test(arguments: [
+        ("Ddj<ajt ", "Đạt "), ("ddj<ajt ", "đạt "), ("ddj<i ", "đi "), ("DDJ<AJT ", "ĐẠT "), ("ddf<<dduowcj ", "được "),
+        ("ddj<<<", ""), ("ddj<j", "đj"),
+    ])
+    func telex(keys: String, want: String) { #expect(run(keys) == want) }
+
+    @Test func vni() {
+        var c = Config()
+        c.method = .vni
+        #expect(run("D95<a5t ", c) == "Đạt ")
+    }
+}
+
+/// Người dùng hỏi (2026-11-25): gõ "ddaayy" (thừa chữ y) thì VNKey trả lại phím gốc "ddaayy"; xoá chữ y thừa đi, từ
+/// có quay lại "đây" không. Engine không được sửa chữ lúc xoá lùi (`BackspaceIsPlain`), nhưng lúc NGẮT TỪ thì được:
+/// phần còn lại được hiểu lại như vừa gõ mới, giống khi gõ tiếp một chữ ("ddaayy<s" -> "đấy").
+@Suite struct RetryAtWordBreak {
+    let lex = FakeLexicon.shared
+
+    @Test(arguments: [
+        ("ddaayy< ", "đây "), ("ddaayy<, ", "đây, "), ("ddaayy <<  ", "đây  "), ("vieejtt< ", "việt "), ("DDAAYY< ", "ĐÂY "),
+        ("testt< ", "test "),  // từ tiếng Anh vẫn là tiếng Anh
+        ("ass< ", "a "),  // gõ lặp để huỷ dấu được tôn trọng: không hiểu lại thành "á"
+    ])
+    func strayKeyDeletedThenBreak(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    /// Xoá lùi vẫn không đụng tới màn hình: chữ chỉ đổi khi ngắt từ.
+    @Test func backspaceItselfStillChangesNothing() { #expect(run("ddaayy<", lexicon: lex) == "ddaay") }
+}
+
+/// Lỗi người dùng báo (2026-11-25): gõ "userr" ra "uer", mất chữ s. Chữ s đã thành dấu sắc, chữ r đầu đổi nó thành
+/// dấu hỏi, chữ r thứ hai huỷ dấu và mọi phím dấu biến mất. Gõ lặp chỉ là "huỷ dấu" khi từ mới có MỘT phím dấu
+/// ("ass" -> "as"); đã có phím dấu khác bị đè lên trước đó thì đây không còn là âm tiết đang gõ dở: trả lại đủ các phím.
+@Suite struct RepeatedToneKeyAfterAnotherTone {
+    let lex = FakeLexicon.shared
+
+    @Test(arguments: [
+        ("userr", "userr"), ("userr ", "userr "), ("USERR ", "USERR "), ("asrr", "asrr"), ("afss ", "afss "),
+        ("userr< ", "user "),  // xoá phím thừa rồi ngắt từ: hiểu lại, "user" là tiếng Anh
+        ("asrr< ", "ả "),  // còn "asr": á rồi đổi thành ả
+        ("ass", "as"), ("tass ", "tas "), ("arr ", "ar "),  // huỷ dấu thường vẫn như cũ
+    ])
+    func keepsEveryKey(keys: String, want: String) { #expect(run(keys, lexicon: lex) == want) }
+
+    @Test func vni() {
+        var c = Config()
+        c.method = .vni
+        #expect(run("a122 ", c) == "a122 ")
+        #expect(run("a11 ", c) == "a1 ")
+    }
+}
+
+/// THỬ NGHIỆM `Config.retryOnBackspace` (người dùng yêu cầu chạy thử 2026-11-25, mặc định tắt): chữ đổi NGAY khi xoá
+/// phím gõ thừa. Bật cờ cho cả bộ test thì chỉ có hai chỗ va chạm, ghi ở hai test cuối.
+@Suite struct RetryOnBackspace {
+    let lex = FakeLexicon.shared
+
+    func type(_ keys: String) -> String {
+        var c = Config()
+        c.retryOnBackspace = true
+        return run(keys, c, lexicon: lex)
+    }
+
+    @Test(arguments: [
+        ("ddaayy<", "đây"), ("ddaayy<<", "đâ"), ("ddaayy< ", "đây "), ("vieejtt<", "việt"), ("DDAAYY<", "ĐÂY"),
+        ("ddaayy<s ", "đấy "), ("tooi ddaayy<", "tôi đây"),
+        ("testt<", "test"), ("testt< ", "test "),  // phần còn lại là từ tiếng Anh: không đổi
+        ("ass<", "a"), ("slide<<<", "sl"),  // huỷ dấu chủ động, phần còn lại chưa thành từ: không đổi
+    ])
+    func changesAsSoonAsTheStrayKeyIsDeleted(keys: String, want: String) { #expect(type(keys) == want) }
+
+    /// Va chạm 1 (đã chặn): từ đã gõ xong rồi mở lại bằng phím xoá không được hiểu lại, nếu không xoá dần một từ
+    /// tiếng Anh sẽ ra tiếng Việt giữa chừng ("test" -> "tes" -> "té") và việc học khi gõ lại bị hỏng.
+    @Test func reopenedWordsAreLeftAlone() {
+        #expect(type("test <<") == "tes")
+        #expect(type("test <<<<<test ") == "tét ")  // vẫn học được như `restoredWordRetypedBecomesVietnamese`
+    }
+
+    /// Va chạm 2 (theo thiết kế): đang giữ phím xoá thì không đổi chữ.
+    @Test func heldBackspaceNeverChangesText() {
+        var c = Config()
+        c.retryOnBackspace = true
+        let e = Engine(config: c)
+        for ch in "ddaayy" { _ = e.type(ch) }
+        #expect(e.backspace(held: true).isPass)
+        #expect(e.currentWord == "ddaay")
     }
 }

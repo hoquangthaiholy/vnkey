@@ -7,15 +7,23 @@ enum Key {
     static let teen = "teenInitials", autoRestore = "autoRestore", expandTeen = "expandTeen"
     static let perApp = "perAppLanguage", appStates = "appStates", fixBrowser = "fixAutocomplete"
     static let preferRaw = "preferRaw", preferVN = "preferVN", macros = "macros"
-    static let codeAware = "codeAware", fixTransposition = "fixTransposition", contextAware = "contextAware"
+    static let codeAware = "codeAware", contextAware = "contextAware"
     static let autoCapitalize = "autoCapitalize", tidyPunctuation = "tidyPunctuation", showHUD = "showHUD"
     static let toggleHotkey = "toggleHotkey", restoreHotkey = "restoreHotkey", excludedApps = "excludedApps"
     static let debugLog = "debugLog"
-    static let learnFromRetype = "learnFromRetype"
-    static let followInputSource = "followInputSource", flashFix = "flashFix"
+    /// Công tắc chính của nhóm "Ngôn ngữ GenZ" (chữ teen): tắt thì `teen` và `expandTeen` không còn tác dụng.
+    static let genZ = "genZ"
+    /// Gõ tắt thông minh: công tắc, và bảng tên -> nội dung (gõ `\tên` rồi ngắt từ). Người dùng sửa được cả bảng.
+    static let smartMacros = "smartMacros", smartMacroTable = "smartMacroTable"
+    static let followInputSource = "followInputSource"
     static let autoUpdateCheck = "autoUpdateCheck", updateLastCheck = "updateLastCheck"
     static let language = "language"
-    static let predict = "predict", learnUsage = "learnUsage"
+    static let learnUsage = "learnUsage"
+    /// Soát lỗi: gạch chân từ nghi gõ sai trong ô đang nhập (VNKey không tự thay chữ); soát cả tiếng Anh; các từ
+    /// người dùng bảo bỏ qua (mảng chữ thường).
+    static let proofread = "proofread", proofreadEnglish = "proofreadEnglish", proofreadIgnored = "proofreadIgnored"
+    /// Thêm dòng "Sửa cả câu…" vào bảng đề nghị (mô hình chạy trên máy của macOS; xem `SentenceFix`).
+    static let proofreadSentence = "proofreadSentence"
     static let clipboardEnabled = "clipboardEnabled", clipboardHotkey = "clipboardHotkey", clipboardSync = "clipboardSync"
     static let clipboardExcludedApps = "clipboardExcludedApps"
     /// Khoá ẩn (không có trong Cài đặt): trỏ thư mục đồng bộ sang chỗ khác khi thử nghiệm.
@@ -23,12 +31,18 @@ enum Key {
 
     static let registered: [String: Any] = [
         enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
-        codeAware: true, fixTransposition: true, contextAware: true, showHUD: true,
+        codeAware: true, contextAware: true, showHUD: true,
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
         // Nhật ký gỡ lỗi lưu cả nội dung gõ: mặc định TẮT ở mọi bản dựng. Bật trong Cài đặt › Chung khi cần
         // tìm lỗi (không hỏi ở cửa sổ thiết lập ban đầu).
         debugLog: false,
-        learnFromRetype: true, followInputSource: true, flashFix: true, autoUpdateCheck: true, language: "auto", predict: true, learnUsage: true,
+        genZ: true, smartMacros: true, followInputSource: true,
+        smartMacroTable: [
+            "homnay": "[ngay]", "bgio": "[gio]", "thu": "[thu]", "ngay": "[ngaydai]", "amlich": "[amlich]", "hoten": "[hoten]",
+        ],
+        // Hai gõ tắt thường làm mẫu, chỉ có khi người dùng chưa từng lưu bảng nào.
+        macros: ["vn": "Việt Nam", "tphcm": "Thành phố Hồ Chí Minh"], autoUpdateCheck: true, language: "auto", learnUsage: true,
+        proofread: true, proofreadEnglish: false, proofreadSentence: true,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Lịch sử clipboard ghi mọi thứ đã sao chép xuống đĩa: mặc định TẮT, người dùng tự bật.
         clipboardEnabled: false, clipboardSync: false, clipboardHotkey: Hotkey.defaultClipboard.string,

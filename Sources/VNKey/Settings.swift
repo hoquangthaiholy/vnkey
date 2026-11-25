@@ -353,8 +353,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
         super.init()
         tabs.tabStyle = .toolbar
         for (title, symbol, view) in [
-            (L("Chung", "General"), "gearshape", general()), (L("Gõ", "Typing"), "keyboard", typing()), (L("Việt & Anh", "VI & EN"), "character.bubble", mixed()),
-            (L("Tự sửa", "Auto-fix"), "wand.and.stars", corrections()), (L("Gõ tắt", "Shortcuts"), "text.badge.plus", shortcuts()),
+            (L("Chung", "General"), "gearshape", general()), (L("Gõ", "Typing"), "keyboard", typing()), (L("Ngôn ngữ", "Languages"), "globe", mixed()),
+            (L("Chính tả", "Spelling"), "textformat.abc.dottedunderline", corrections()), (L("Gõ tắt", "Shortcuts"), "bolt", shortcuts()),
             (L("Ứng dụng", "Apps"), "macwindow.on.rectangle", apps()), (L("Bảng tạm", "Clipboard"), "doc.on.clipboard", clipboard()),
             (L("Giới thiệu", "About"), "info.circle", about()),  // luôn ở cuối: `openUpdatePage` chọn thẻ cuối
         ] {
@@ -517,7 +517,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
 
     // MARK: - Các thẻ
 
-    /// Dòng ghi phím tắt kèm nút về mặc định. Ba phím tắt của VNKey không được trùng nhau.
+    /// Dòng ghi phím tắt kèm nút về mặc định. Các phím tắt của VNKey không được trùng nhau.
     private func hotkey(_ name: String, _ detail: String?, _ key: String) -> NSView {
         let all: [(String, Hotkey)] = [
             (Key.toggleHotkey, .defaultToggle), (Key.restoreHotkey, .defaultRestore), (Key.clipboardHotkey, .defaultClipboard),
@@ -603,7 +603,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let version = NSTextField(labelWithString: L("Phiên bản", "Version") + " \(AppInfo.version)\(AppInfo.build.isEmpty ? "" : " (\(AppInfo.build))")")
         version.textColor = .secondaryLabelColor
         version.isSelectable = true
-        let tagline = NSTextField(labelWithString: L("Bộ gõ tiếng Việt cho macOS: gõ xen kẽ Việt – Anh, tự sửa lỗi gõ.", "A Vietnamese input method for macOS: mix Vietnamese and English, typos fixed for you."))
+        let tagline = NSTextField(labelWithString: L("Bộ gõ tiếng Việt cho macOS: gõ xen kẽ Việt – Anh, soát lỗi gõ.", "A Vietnamese input method for macOS: mix Vietnamese and English, with typo checking."))
         tagline.font = .systemFont(ofSize: 11)
         tagline.textColor = .secondaryLabelColor
         let text = NSStackView(views: [name, version, tagline])
@@ -772,85 +772,42 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let s = NSSwitch()
         s.controlSize = .small
         s.bind(.value, to: NSUserDefaultsController.shared, withKeyPath: "values." + Key.learnUsage)
-        s.setAccessibilityLabel(L("Học cách bạn gõ", "Learn how I type"))
+        s.setAccessibilityLabel(L("Ghi lại thói quen gõ", "Record my typing habits"))
         let clear = NSButton(title: L("Xoá đã học", "Clear learned data"), target: self, action: #selector(clearUsage))
         clear.controlSize = .small
-        clear.toolTip = L("Xoá bảng đếm từ và cặp từ VNKey đã ghi trên máy này", "Delete the word and word-pair counts VNKey has recorded on this Mac")
+        clear.toolTip = L("Xoá bảng đếm từ, cặp từ và lỗi gõ VNKey đã ghi trên máy này", "Delete the word, word-pair and typo counts VNKey has recorded on this Mac")
         return row(
-            L("Học cách bạn gõ", "Learn how I type"),
-            L("Đếm từ và cặp từ bạn hay gõ, chỉ trên máy này: “lầm loi” → “lầm lỗi”.", "Counts the words and word pairs you type, on this Mac only: “lầm loi” → “lầm lỗi”."),
+            L("Ghi lại thói quen gõ", "Record my typing habits"),
+            L("Đếm từ, cặp từ và lỗi gõ bạn đã sửa để đề nghị sát hơn; nhớ từ bạn xoá rồi gõ lại y nguyên. Chỉ trên máy này. Tắt thì ngừng ghi; thứ đã học vẫn được dùng.", "Counts words, word pairs and typos you corrected, and remembers words you delete and retype. On this Mac only. Turning it off keeps what was learned."),
             clear, s)
     }
 
-    /// Hai bảng của phần "đã nhớ": từ người dùng muốn giữ một dạng, và thứ VNKey học được từ cách gõ.
-    private func remembered() -> (words: NSView, learned: NSView) {
-        let learned = EntryTable(
-            columns: [
-                .text(title: L("Chuỗi phím", "Keys typed"), placeholder: L("vd: this", "e.g. this"), width: nil),
-                .choice(title: L("Luôn hiện", "Always show"), options: [L("Phím gốc", "Raw keys"), L("Tiếng Việt", "Vietnamese")], width: 120),
-            ],
-            height: 220, label: L("Từ đã nhớ", "Remembered words"), searchable: true,
-            load: { [defaults] in
-                ListFormat.learnedRows(
-                    raw: defaults.stringArray(forKey: Key.preferRaw) ?? [], vn: defaults.stringArray(forKey: Key.preferVN) ?? [])
-            },
-            save: { [defaults] rows in
-                let r = ListFormat.learned(fromRows: rows)
-                if r.raw != (defaults.stringArray(forKey: Key.preferRaw) ?? []).sorted() { defaults.set(r.raw.sorted(), forKey: Key.preferRaw) }
-                if r.vn != (defaults.stringArray(forKey: Key.preferVN) ?? []).sorted() { defaults.set(r.vn.sorted(), forKey: Key.preferVN) }
-                return (L("\(r.raw.count + r.vn.count) từ", "\(r.raw.count + r.vn.count) words"), false)
-            })
-        tables.append(learned)
-        learned.view.identifier = SettingsController.wide
-
-        // Các cặp từ VNKey đã học đủ để sửa dạng gõ không dấu. Chỉ xem và xoá: nội dung do việc gõ tạo ra.
-        let pairs = EntryTable(
-            columns: [
-                .text(title: L("Khi bạn gõ", "When you type"), placeholder: "", width: 170),
-                .text(title: L("VNKey sửa thành", "VNKey changes it to"), placeholder: "", width: nil),
-                .text(title: L("Đã gõ", "Typed"), placeholder: "", width: 60),
-            ],
-            height: 250, label: L("Đã học từ cách bạn gõ", "Learned from your typing"), searchable: false, readOnly: true,
-            load: { [unowned self] in
-                // Lỗi gõ đã học đứng trước (một từ), rồi tới các cặp từ (hai từ).
-                typoRows().map { [$0.wrong, $0.shown, L("\($0.count) lần", "\($0.count)×")] }
-                    + UsageStore.model.learnedPairs().map { ["\($0.prev) \($0.plain)", "\($0.prev) \($0.word)", L("\($0.count) lần", "\($0.count)×")] }
-            },
-            save: { [unowned self] rows in
-                // Dòng nào không còn trong bảng là dòng người dùng vừa xoá: quên cặp đó.
-                let kept = Set(rows.map { $0[1] })  // cột "sửa thành" không phụ thuộc ngôn ngữ giao diện
-                let keptTypos = Set(rows.map { $0[0] })
-                for t in typoRows() where !keptTypos.contains(t.wrong) {
-                    UsageStore.model.forgetTypo(t.wrong, fixed: t.right)
-                    Log.write("USAGE quên một lỗi gõ theo yêu cầu người dùng")
-                }
-                for p in UsageStore.model.learnedPairs() where !kept.contains("\(p.prev) \(p.word)") {
-                    UsageStore.model.forget(prev: p.prev, word: p.word)
-                    Log.write("USAGE quên một cặp từ theo yêu cầu người dùng")
-                }
-                UsageStore.saveIfNeeded()
-                return (rows.isEmpty ? L("Chưa học được gì", "Nothing learned yet") : L("\(rows.count) mục", "\(rows.count) items"), false)
-            })
-        tables.append(pairs)
-        return (learned.view, pairs.view)
-    }
-
+    /// Thẻ "Ngôn ngữ": những thứ không phải tiếng Việt chuẩn mà VNKey nhận ra khi đang ở chế độ tiếng Việt. Mỗi nhóm
+    /// có một công tắc chính; tắt nó thì các tuỳ chọn bên dưới mờ đi và không còn tác dụng (`applySettings`).
     private func mixed() -> NSView {
         return page([
-            title(L("Xen kẽ tiếng Anh", "Mixing in English")),
+            title(L("Tiếng Anh", "English")),
             Card(rows: [
-                toggle(L("Tự trả lại từ không phải tiếng Việt", "Restore words that are not Vietnamese"), L("user, string, data… hiện đúng như bạn đã gõ.", "user, string, data… appear exactly as you typed them."), key: Key.autoRestore),
+                toggle(L("Gõ xen kẽ tiếng Anh", "Mix in English"), L("user, string, data… hiện đúng như bạn đã gõ, không bị bỏ dấu.", "user, string, data… appear exactly as you typed them, with no marks added."), key: Key.autoRestore),
                 toggle(
-                    L("Đoán theo ngữ cảnh", "Use context"), L("Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.", "After two English words in a row, ambiguous words such as this and test stay English too."),
+                    L("Đoán theo ngữ cảnh", "Use context"), L("Sau hai từ tiếng Anh liên tiếp, từ mơ hồ như this, test cũng giữ tiếng Anh.", "After two English words in a row, ambiguous words (this, test) stay English."),
                     key: Key.contextAware, dependsOn: Key.autoRestore),
-                toggle(L("Giữ nguyên trong ngữ cảnh code", "Leave code alone"), L("Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", "Right after @ # / \\ . _ : $ ~ = or a digit: emails, paths, identifiers."), key: Key.codeAware),
+                toggle(
+                    L("Giữ nguyên trong ngữ cảnh code", "Leave code alone"), L("Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", "Right after @ # / \\ . _ : $ ~ = or a digit: emails, paths, identifiers."),
+                    key: Key.codeAware, dependsOn: Key.autoRestore),
+                toggle(
+                    L("Kiểm tra chính tả tiếng Anh", "Check English spelling"), L("Dùng từ điển tiếng Anh của macOS. Cần bật kiểm tra chính tả ở thẻ Chính tả.", "Uses the macOS English dictionary. Needs spell checking turned on in the Spelling tab."),
+                    key: Key.proofreadEnglish, dependsOn: Key.autoRestore),
             ]),
-            title(L("Chữ teen", "Chat spelling")),
-            Card(rows: [toggle(L("Cho phép f, j, w, z đứng đầu từ", "Allow f, j, w, z at the start of a word"), "zậy, jờ, dzô, fải…", key: Key.teen)]),
+            title(L("Ngôn ngữ GenZ", "Gen Z slang")),
+            Card(rows: [
+                toggle(L("Nhận chữ teen", "Recognize chat spelling"), L("Kiểu viết khi nhắn tin: zậy, jờ, ko, dc…", "The way people write in chats: zậy, jờ, ko, dc…"), key: Key.genZ),
+                toggle(L("Cho phép f, j, w, z đứng đầu từ", "Allow f, j, w, z at the start of a word"), "zậy, jờ, dzô, fải…", key: Key.teen, dependsOn: Key.genZ),
+                toggle(L("Bung viết tắt teen", "Expand chat abbreviations"), "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen, dependsOn: Key.genZ),
+            ]),
         ])
     }
 
-    /// Thẻ "Tự sửa": mọi việc VNKey tự đổi chữ khi bạn gõ nhầm hoặc thiếu, và việc nó học từ cách bạn gõ.
     /// Lỗi gõ đã học, kèm chữ sẽ hiện ra theo kiểu gõ đang chọn.
     private func typoRows() -> [(wrong: String, right: String, shown: String, count: Int)] {
         var config = Config()
@@ -858,62 +815,103 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return UsageStore.model.learnedTypos().map { ($0.wrong, $0.right, Engine.shown(forKeys: $0.right, config: config), $0.count) }
     }
 
-    /// Thẻ "Tự sửa": mọi thứ VNKey tự đổi sau khi bạn gõ, và những gì nó học từ cách bạn gõ. Mỗi dòng mang luôn ví
-    /// dụ trong tên để khỏi cần dòng mô tả; hai danh sách đã nhớ / đã học mở trong một bảng riêng (`showMemory`).
+    /// Thẻ "Chính tả": VNKey không tự thay chữ (trừ việc trả lại từ tiếng Anh ở thẻ Ngôn ngữ). Nó gạch chân từ nghi
+    /// gõ sai trong ô đang nhập và đề nghị chữ thay; bên dưới là việc học từ cách bạn gõ. Mọi thứ đã nhớ nằm trong MỘT
+    /// bảng (`showMemory`): từ điển của bạn, từ giữ một dạng, lỗi gõ và cặp từ đã học.
     private func corrections() -> NSView {
-        let open = NSButton(title: L("Xem và sửa…", "View and Edit…"), target: self, action: #selector(showMemory))
+        let open = NSButton(title: L("Xem và xoá…", "View and Remove…"), target: self, action: #selector(showMemory))
         open.controlSize = .small
         return page([
-            title(L("Tự sửa khi gõ", "Fix as I type")),
-            Card(rows: [
-                toggle(L("Gõ đảo hai phím: tieegns → tiếng", "Swapped keys: tieegns → tiếng"), key: Key.fixTransposition, dependsOn: Key.autoRestore),
-                toggle(L("Từ thiếu dấu: duojc, đươc → được", "Missing marks: duojc, đươc → được"), key: Key.predict, dependsOn: Key.autoRestore),
-                toggle(L("Nháy nhẹ từ vừa được sửa", "Flash the word that was just fixed"), key: Key.flashFix),
-            ]),
-            note(L("Sửa sai thì nhấn phím “Đổi từ vừa gõ”. Cần bật “Tự trả lại từ không phải tiếng Việt” ở thẻ Việt & Anh.", "If a fix is wrong, press “Flip the last word”. Needs “Restore words that are not Vietnamese” in the VI & EN tab.")),
-            title(L("Học từ cách bạn gõ", "Learning from your typing")),
+            title(L("Kiểm tra chính tả", "Check spelling")),
             Card(rows: [
                 toggle(
-                    L("Nhớ khi bạn gõ lại", "Remember when I retype"),
-                    L("Sửa cùng một lỗi hai lần (goc → gõ, dúng → đúng) thì lần sau VNKey tự sửa. Xoá từ vừa gõ rồi gõ lại y nguyên thì đổi sang dạng còn lại.", "Correct the same typo twice (goc → gõ, dúng → đúng) and VNKey fixes it from then on. Delete a word and retype it the same way to switch to its other form."),
-                    key: Key.learnFromRetype, dependsOn: Key.autoRestore),
+                    L("Gạch chân từ nghi gõ sai", "Underline words that look mistyped"),
+                    L("Đỏ: gõ nhầm (thiếu dấu, trật phím). Cam: sai chính tả. Rê chuột lên nét gạch, hoặc dùng ← → đưa con trỏ vào từ, để xem đề nghị. VNKey không tự thay chữ.", "Red: mistyped (missing marks, a slipped key). Orange: misspelled. Point at an underline, or arrow into the word, for suggestions. Nothing is changed for you."),
+                    key: Key.proofread),
+                toggle(
+                    L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
+                    SentenceFix.available
+                        ? L("Rê chuột lên một câu rồi vào nút ✦: sửa chính tả, cải tiến, viết lại, rút gọn, mở rộng, dịch, hoặc viết thành câu từ vài ý. Dùng mô hình chạy trên máy của macOS: không có gì rời khỏi máy. Bạn chọn thì mới thay.", "Rest the pointer on a sentence and move to ✦: fix spelling, improve, rewrite, shorten, expand, translate, or write sentences from notes. Uses the macOS on-device model: nothing leaves this Mac. Nothing changes until you choose.")
+                        : L("Rê chuột lên một câu rồi vào nút ✦ để thêm dấu và sửa chính tả cả câu, bằng dữ liệu trên máy. Các việc khác (viết lại, dịch…) cần macOS 26 trở lên và Apple Intelligence.", "Rest the pointer on a sentence and move to ✦ to add marks and fix spelling for the whole sentence, using data on this Mac. The other tasks (rewrite, translate…) need macOS 26 or later with Apple Intelligence."),
+                    key: Key.proofreadSentence, dependsOn: Key.proofread),
+            ]),
+            note(L("Để kiểm tra, VNKey đọc nội dung ô đang nhập, chỉ trên máy này và không lưu lại. Hiện chạy với ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), chưa chạy trên trang web.", "To check, VNKey reads the text of the field you are typing in, only on this Mac, and stores none of it. It works in standard macOS apps (TextEdit, Notes, Mail) for now, not on web pages.")),
+            title(L("Học từ cách bạn gõ", "Learning from your typing")),
+            Card(rows: [
                 learnRow(),
-                row(L("Những gì VNKey đã nhớ", "What VNKey remembers"), L("Từ luôn giữ phím gốc hoặc luôn bỏ dấu, cặp từ và lỗi gõ đã học.", "Words kept raw or always accented, learned word pairs and typos."), open),
+                row(L("Những gì VNKey đã nhớ", "What VNKey remembers"), L("Từ điển của bạn, từ luôn giữ một dạng, lỗi gõ và cặp từ đã học.", "Your dictionary, words kept in one form, learned typos and word pairs."), open),
             ]),
         ])
     }
 
-    // MARK: - Bảng "đã nhớ" (mở từ thẻ Tự sửa)
-
-    private var memoryNote: NSTextField?
-    private var memoryViews: [NSView] = []
-    private static var memoryNotes: [String] {
-        [
-            L("VNKey thêm vào đây khi bạn dùng phím “Đổi từ vừa gõ” hoặc gõ lại một từ vừa xoá. “Phím gốc”: từ hiện đúng như đã gõ; “Tiếng Việt”: luôn bỏ dấu. Bấm đúp để sửa; xoá dòng để quên.", "VNKey adds a row when you use “Flip the last word” or retype a word you just deleted. “Raw keys”: shown exactly as typed; “Vietnamese”: always gets its marks. Double-click to edit; delete a row to forget it."),
-            L("Cặp từ vào đây khi bạn đã gõ nó có dấu ít nhất ba lần và nhiều hơn dạng không dấu. Lỗi gõ vào đây khi bạn đã tự sửa nó hai lần (“goc” thành “gõ”). Xoá dòng để VNKey quên.", "A word pair appears once you have typed it with marks at least three times and more often than without. A typo appears once you have corrected it twice (“goc” to “gõ”). Delete a row to forget it."),
-        ]
+    /// Mọi thứ VNKey đã nhớ, trong MỘT bảng chỉ xem và xoá (người dùng chọn 2026-11-25: đã có bảng đề nghị nên không cần
+    /// hai bảng và không cần sửa tay). Mỗi dòng: chữ bạn gõ, VNKey làm gì với nó, và loại. Xoá dòng là quên mục đó.
+    private func rememberedRows() -> [(row: [String], forget: () -> Void)] {
+        var config = Config()
+        config.method = VNEngine.Method(rawValue: defaults.string(forKey: Key.method) ?? "") ?? .telex
+        var out: [(row: [String], forget: () -> Void)] = []
+        func drop(_ word: String, from key: String) {
+            defaults.set((defaults.stringArray(forKey: key) ?? []).filter { $0 != word }, forKey: key)
+        }
+        for w in (defaults.stringArray(forKey: Key.proofreadIgnored) ?? []).sorted() {
+            out.append(([w, L("không gạch chân", "never underlined"), L("Từ điển", "Dictionary")], { [unowned self] in _ = self; drop(w, from: Key.proofreadIgnored) }))
+        }
+        for w in (defaults.stringArray(forKey: Key.preferRaw) ?? []).sorted() {
+            out.append(([w, L("giữ nguyên phím đã gõ", "kept as typed"), L("Giữ một dạng", "Kept form")], { drop(w, from: Key.preferRaw) }))
+        }
+        for w in (defaults.stringArray(forKey: Key.preferVN) ?? []).sorted() {
+            out.append(([w, L("luôn là “\(Engine.shown(forKeys: w, config: config))”", "always “\(Engine.shown(forKeys: w, config: config))”"), L("Giữ một dạng", "Kept form")], { drop(w, from: Key.preferVN) }))
+        }
+        for t in typoRows() {
+            out.append(([t.wrong, L("đề nghị “\(t.shown)” (đã sửa \(t.count) lần)", "suggests “\(t.shown)” (fixed \(t.count)×)"), L("Lỗi gõ", "Typo")], {
+                UsageStore.model.forgetTypo(t.wrong, fixed: t.right)
+                Log.write("USAGE quên một lỗi gõ theo yêu cầu người dùng")
+            }))
+        }
+        for p in UsageStore.model.learnedPairs() {
+            out.append((["\(p.prev) \(p.plain)", L("đề nghị “\(p.prev) \(p.word)” (đã gõ \(p.count) lần)", "suggests “\(p.prev) \(p.word)” (typed \(p.count)×)"), L("Cặp từ", "Word pair")], {
+                UsageStore.model.forget(prev: p.prev, word: p.word)
+                Log.write("USAGE quên một cặp từ theo yêu cầu người dùng")
+            }))
+        }
+        return out
     }
 
+    private func remembered() -> NSView {
+        let table = EntryTable(
+            columns: [
+                .text(title: L("Bạn gõ", "You type"), placeholder: "", width: 130),
+                .text(title: L("VNKey", "VNKey"), placeholder: "", width: nil),
+                .text(title: L("Loại", "Kind"), placeholder: "", width: 90),
+            ],
+            height: 280, label: L("Những gì VNKey đã nhớ", "What VNKey remembers"), searchable: true, readOnly: true,
+            load: { [unowned self] in rememberedRows().map(\.row) },
+            save: { [unowned self] rows in
+                // Dòng nào không còn trong bảng là dòng người dùng vừa xoá: quên mục đó. Khoá là (chữ gõ, loại).
+                let kept = Set(rows.map { $0[0] + "\u{1}" + $0[2] })
+                for item in rememberedRows() where !kept.contains(item.row[0] + "\u{1}" + item.row[2]) { item.forget() }
+                UsageStore.saveIfNeeded()
+                return (rows.isEmpty ? L("Chưa nhớ gì", "Nothing remembered yet") : L("\(rows.count) mục", "\(rows.count) items"), false)
+            })
+        tables.append(table)
+        table.view.identifier = SettingsController.wide
+        return table.view
+    }
+
+    // MARK: - Bảng "đã nhớ" (mở từ thẻ Chính tả)
+
     private lazy var memoryWindow: NSWindow = {
-        let width: CGFloat = 520, inner = width - 2 * Metrics.pageMargin
-        let (words, learned) = remembered()
-        memoryViews = [words, learned]
-        learned.isHidden = true
-        let pick = NSSegmentedControl(
-            labels: [L("Từ đã nhớ", "Remembered words"), L("Đã học từ cách gõ", "Learned from typing")], trackingMode: .selectOne,
-            target: self, action: #selector(pickMemory(_:)))
-        pick.selectedSegment = 0
-        pick.setAccessibilityLabel(L("Danh sách", "List"))
-        let text = note(SettingsController.memoryNotes[0])
+        let width: CGFloat = 560, inner = width - 2 * Metrics.pageMargin
+        let list = remembered()
+        let text = note(L("“Từ điển”: từ bạn đã thêm từ bảng đề nghị. “Giữ một dạng”: từ bạn đã đổi bằng phím “Đổi từ vừa gõ” hoặc xoá rồi gõ lại. “Lỗi gõ”: bạn đã tự sửa hai lần. “Cặp từ”: bạn hay gõ có dấu. Xoá dòng để VNKey quên.", "“Dictionary”: words you added from a suggestion. “Kept form”: words you flipped with “Flip the last word” or deleted and retyped. “Typo”: you corrected it twice. “Word pair”: you usually type it with marks. Delete a row to make VNKey forget it."))
         text.preferredMaxLayoutWidth = inner
-        memoryNote = text
         let done = NSButton(title: L("Xong", "Done"), target: self, action: #selector(closeMemory))
         done.keyEquivalent = "\r"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let buttons = NSStackView(views: [spacer, done])
         buttons.orientation = .horizontal
-        let stack = NSStackView(views: [pick, words, learned, text, buttons])
+        let stack = NSStackView(views: [list, text, buttons])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = Metrics.controlGap + 4
@@ -926,7 +924,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
             stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ]
-        for v in [words, learned, text, buttons] as [NSView] { constraints.append(v.widthAnchor.constraint(equalToConstant: inner)) }
+        for v in [list, text, buttons] as [NSView] { constraints.append(v.widthAnchor.constraint(equalToConstant: inner)) }
         NSLayoutConstraint.activate(constraints)
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
         sheet.contentView = content
@@ -934,23 +932,12 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return sheet
     }()
 
-    /// Nội dung của bảng "đã nhớ", cho chế độ chụp giao diện. `list`: 0 = từ đã nhớ, 1 = đã học.
-    func memoryView(list: Int) -> NSView {
+    /// Nội dung của bảng "đã nhớ", cho chế độ chụp giao diện.
+    func memoryView() -> NSView {
         let sheet = memoryWindow
-        showMemoryList(list)
+        tables.forEach { $0.reload() }
         return sheet.contentView!
     }
-
-    private func showMemoryList(_ index: Int) {
-        for (i, v) in memoryViews.enumerated() { v.isHidden = i != index }
-        memoryNote?.stringValue = SettingsController.memoryNotes[index]
-        if let content = memoryWindow.contentView {
-            content.layoutSubtreeIfNeeded()
-            memoryWindow.setContentSize(content.fittingSize)
-        }
-    }
-
-    @objc private func pickMemory(_ sender: NSSegmentedControl) { showMemoryList(sender.selectedSegment) }
 
     @objc private func showMemory() {
         let sheet = memoryWindow
@@ -987,12 +974,53 @@ final class SettingsController: NSObject, NSWindowDelegate {
             })
         tables.append(macros)
         macros.view.identifier = SettingsController.wide
+        // Gõ tắt thông minh: cùng kiểu bảng, nhưng bung khi gõ `\tên`.
+        let smart = EntryTable(
+            columns: [
+                .text(title: L("Tên (gõ \\tên)", "Name (type \\name)"), placeholder: L("vd: homnay", "e.g. homnay"), width: 130),
+                .text(title: L("Nội dung", "Expands to"), placeholder: L("vd: Hà Nội, [ngaydai]", "e.g. Hà Nội, [ngaydai]"), width: nil),
+            ],
+            height: 150, label: L("Gõ tắt thông minh", "Smart shortcuts"), searchable: false,
+            load: { [defaults] in ListFormat.rows(from: defaults.dictionary(forKey: Key.smartMacroTable) as? [String: String] ?? [:]) },
+            save: { [defaults] rows in
+                let r = ListFormat.macros(fromRows: rows)
+                if r.macros != (defaults.dictionary(forKey: Key.smartMacroTable) as? [String: String] ?? [:]) {
+                    defaults.set(r.macros, forKey: Key.smartMacroTable)
+                }
+                return r.skipped == 0
+                    ? (L("\(r.macros.count) mục", "\(r.macros.count) shortcuts"), false)
+                    : (
+                        L(
+                            "\(r.macros.count) mục · \(r.skipped) dòng chưa dùng được: cần đủ hai ô, tên chỉ gồm chữ cái",
+                            "\(r.macros.count) shortcuts · \(r.skipped) rows unusable: fill both cells, letters only in the name"),
+                        true
+                    )
+            })
+        tables.append(smart)
+        smart.view.identifier = SettingsController.wide
+        let now = Date()
+        let examples = SmartMacro.variables.map { name -> String in
+            let value: String
+            switch name {
+            case "hoten": value = NSFullUserName()
+            case "clipboard": value = L("(thứ vừa sao chép)", "(what you last copied)")
+            default: value = SmartMacro.resolve("[\(name)]", at: now)
+            }
+            return "[\(name)] \(value)"
+        }.joined(separator: "   ·   ")
         return page([
             title(L("Gõ tắt của bạn", "Your shortcuts")),
             macros.view,
             note(L("Gõ từ tắt rồi nhấn dấu cách hoặc dấu câu để bung ra; viết hoa chữ đầu thì kết quả cũng viết hoa. Bấm đúp vào ô để sửa.", "Type a shortcut, then space or punctuation, to expand it; capitalize the shortcut and the result is capitalized too. Double-click a cell to edit.")),
-            title(L("Có sẵn", "Built in")),
-            Card(rows: [toggle(L("Bung viết tắt teen", "Expand chat abbreviations"), "ko → không, dc → được, j → gì, ntn → như thế nào…", key: Key.expandTeen)]),
+            title(L("Gõ tắt thông minh", "Smart shortcuts")),
+            Card(rows: [
+                toggle(
+                    L("Bung khi gõ \\tên", "Expand when I type \\name"),
+                    L("Gõ dấu \\ rồi tên, rồi dấu cách hoặc dấu câu: \\homnay ra ngày hôm nay. Dấu \\ để không lẫn với chữ gõ thường.", "Type \\, the name, then space or punctuation: \\homnay gives today's date. The \\ keeps it apart from ordinary typing."),
+                    key: Key.smartMacros)
+            ]),
+            smart.view,
+            note(L("Nội dung của cả hai bảng dùng được các biến sau, thay bằng giá trị lúc bung ra:", "Expansions in both tables can use these variables, filled in when the shortcut expands:") + "\n" + examples),
         ])
     }
 

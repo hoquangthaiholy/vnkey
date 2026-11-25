@@ -10,10 +10,17 @@ paths:
 - Mỗi phím thô phải thêm đúng MỘT phần tử vào `owner`. `raw.count == owner.count` là bất biến;
   xoá lùi và khôi phục dựa vào nó.
 - Phím lặp để huỷ dấu ("ass", "aaa", "ddd") trả về `.cancelled` và bỏ qua kiểm tra tiền tố.
+  Ngoại lệ: phím dấu thanh lặp khi trước đó đã có một phím dấu thanh KHÁC bị đè ("userr", "asrr") không phải huỷ dấu:
+  từ thành nguyên văn với ĐỦ các phím đã gõ, không `cancelled` (huỷ dấu ở đây từng nuốt mất phím đầu: "userr" ra "uer";
+  bộ test `RepeatedToneKeyAfterAnotherTone`).
 - Thêm vần mới vào `Syl.nuclei` thì kiểm tra cả dạng không dấu có va chạm với vần khác không
   (`unmarkedNuclei` gộp chúng lại).
 - Quyết định khôi phục nằm ở `Engine.decide()` theo thứ tự: từ đã học → chế độ nguyên văn →
   sai cấu trúc → danh sách tiếng Anh dựng sẵn → từ điển → ngữ cảnh. Thêm luật mới thì đặt đúng tầng.
+- Giữa một mạch tiếng Anh (`englishStreak` ≥ 2, `Config.contextAware`) từ hợp lệ ở cả hai ngôn ngữ coi là tiếng Anh,
+  TRỪ KHI chữ tiếng Việt rất thông dụng (`CommonWords.count` ≥ `veryCommon` = 5000: "cos" luôn là "có", còn "this" vẫn là "this" vì "thí" không đủ thông dụng). Người dùng chốt
+  2026-11-25: ở chế độ tiếng Việt thì ưu tiên tiếng Việt; thiếu ngoại lệ này "cos" bị trả lại rồi tự nối dài mạch
+  tiếng Anh (bộ test `VietnameseWinsInVietnameseMode`).
 - Từ hợp lệ ở cả hai ngôn ngữ (this/thí) mặc định giữ tiếng Việt. Đừng thêm ngoại lệ lẻ vào
   `builtinEnglish` cho từ mà nghĩa tiếng Việt cũng thông dụng.
 - `Engine.type` chạy cho mỗi phím: không cấp phát thừa, không gọi từ điển giữa từ. Từ điển chỉ được
@@ -25,7 +32,9 @@ paths:
 - Từ thành nguyên văn vì một phím gõ nhầm ("thii", "vieejk") rồi bị xoá lùi thì đặt `Composer.retry`; phím
   chữ kế tiếp gõ lại phần còn lại từ đầu (`Engine.recomposed`) và thoát nguyên văn nếu hợp lệ. Việc này chỉ
   làm khi có phím mới, không làm trong `backspace()`. Từ đã gõ lặp để huỷ dấu (`noRecompose`) và từ trong
-  ngữ cảnh code thì không hiểu lại.
+  ngữ cảnh code thì không hiểu lại. Từ nguyên văn mà phần còn lại là CHỮ đã có dấu ("Đ" sau "Ddj" rồi xoá: phím dấu gõ
+  lúc chưa có nguyên âm) thì dịch chữ ngược về phím (`Engine.keys(for:)`) rồi gõ lại, chỉ nhận khi ra đúng chữ đang
+  hiện (bộ test `RetryAfterAStrayToneKey`; lỗi gặp thật: "Đạt" ra "Đajt").
 - Gõ tự do là yêu cầu: phím dấu (thanh, mũ/móc, chữ d thứ hai) được đến ở bất kỳ lúc nào sau chữ nó bổ
   nghĩa ("dduwowcj", "duojwcd", "duodwcj" đều là "được"). Bộ `FreeOrder` trong `FreeOrderTests.swift` sinh
   mọi thứ tự hợp lý cho một danh sách từ; đổi luật phím thì chạy nó, thêm vần lạ thì thêm từ vào đó.
@@ -37,59 +46,91 @@ paths:
   (phím [ ] { } thành ơ ư Ơ Ư, mặc định tắt). Phím ngoặc chỉ là phím chữ khi từ chưa nguyên văn và không ở ngữ
   cảnh code; không ghép được vào âm tiết thì nó ngắt từ như dấu câu thường. Bộ `TelexOptions` giữ các luật này.
   Người dùng đã từ chối thêm kiểu gõ "Telex đơn giản 1/2" của OpenKey (2026-11-23): hai công tắc là đủ.
-- Đoán từ gõ thiếu dấu (`Engine.predict`, `Predictor`, `Config.predict`): chạy trong
-  `breakWord` sau `transpositionFix`. Nguyên tắc không được phá:
-  - chỉ THÊM dấu (đ, mũ/móc, thanh), không đổi chữ cái, không bỏ dấu đã gõ;
-  - KHÔNG BAO GIỜ thay một chữ mà từ điển coi là từ tiếng Việt đúng ("dược", "ngươi", "ban"), dù có từ thông
-    dụng hơn. Từ điển macOS khá dễ dãi ("tiêng" được coi là đúng) nên có từ sẽ không được đoán: chấp nhận;
-  - THỨ TỰ người dùng chốt (2026-11-24) cho chữ CÓ DẤU:
-    1. "Từ điển" là bảng tần suất `CommonWords` (≥ `tableFloor` = 100 lần), KHÔNG phải từ điển macOS (nó nhận gần
-       như mọi âm tiết đúng cấu trúc: "tiêng", "dúng", "ròi"). Chữ không có trong bảng là chữ không thông dụng và
-       được thay bằng ứng viên thông dụng nhất trong bảng. Điểm = tần suất + 1000 × số lần người dùng gõ, chia 10
-       cho mỗi phím phải thêm nhiều hơn ứng viên gần nhất ("dúng": đúng thiếu một phím, đứng thiếu hai).
-       Các ứng viên cùng thiếu ít phím nhất và chênh nhau dưới `sameLeague` = 50 lần (việt / viết) thì hỏi gợi ý
-       theo câu của macOS với MỘT từ đứng trước; được / dược ≈ 350 : 1 thì không hỏi (macOS từng chọn "tôi dược").
-    2. Từ đã học đi trước lần thay đó: `typoFix` (người dùng sửa lại ≥ 2 lần, chạy trước `predict`), cặp từ của
-       chính họ (tầng 1), `preferVN` / `preferRaw`, và chữ họ tự gõ ≥ 2 lần không kém ứng viên nào.
-    Từ có trong bảng dù hiếm ("muôn" 580, "trương" 784, "dược" 666) không bao giờ bị thay. Chữ thật mà bảng không
-    có (tên riêng, từ hiếm) chỉ bị thay khi có ứng viên trong bảng; lối ra là phím "Đổi từ vừa gõ", nay đi vòng BA
-    dạng cho từ đã đoán: chữ đã đoán → phím gốc (`preferRaw`) → chữ đúng như đã gõ (`Entry.asTyped`, `preferVN`).
-  - không đoán từ tiếng Anh — trừ chữ có dấu ngoài bảng giữa câu tiếng Việt khi ứng viên rất thông dụng
-    (≥ `veryCommon` = 5000: "tôi dungs" → "tôi đúng"; "đang test" giữ nguyên vì "tết" không đủ thông dụng), từ đã
-    nhớ, ngữ cảnh code, từ đã gõ lặp huỷ dấu;
-  - từ chưa có dấu nào ("duoc", "viet") KHÔNG còn được đoán bằng từ điển, gợi ý của macOS hay độ thông dụng: người
-    dùng đã bỏ hẳn tính năng đó (2026-11-24; đoán được ít từ, có lúc sai kiểu "tôi dược") và bỏ luôn
-    `Config.predictUnmarked`. Chỉ còn thói quen của chính họ (tầng 1: cặp từ đã gõ; và `phraseFix`) được thêm dấu
-    cho từ chưa có dấu, khi một trong ba từ vừa gõ có dấu và `englishStreak == 0`. Đừng thêm lại;
-  - chọn theo tầng: cặp (từ trước → từ) người dùng đã gõ (`ContextModel`) → `Lexicon.rank` (gợi ý theo câu của
-    macOS, ~8 ms, có bộ đệm; đo ngày 2026-11-23 đúng 11/11 với chữ chưa thành từ: "tiếng viet" → việt, "bài viet"
-    → viết) → độ thông dụng (`CommonWords` + số lần người dùng gõ) → chỉ một ứng viên. Tầng đếm đòi hạng nhất ≥ 2
-    lần hạng nhì; không quyết được thì giữ nguyên.
-  - Chữ không dấu mà từ điển coi là từ đúng ("loi" trong "lầm loi") CHỈ được sửa bằng thói quen của người dùng:
-    họ đã gõ cặp (từ trước → ứng viên) ít nhất 3 lần và nhiều hơn số lần gõ cặp ấy ở dạng không dấu (đòi "chưa
-    từng" thì vài lần người dùng gõ thử đã chặn việc học mãi mãi — lỗi đã gặp thật). Quay lại sửa một từ thì lần
-    ghi nhận của từ đó được rút lại (`ContextModel.unrecord`). Gợi ý của macOS
-    không dùng được ở đây (nó đổi "hôm nay" thành "hôm này"). Vì vậy engine cũng ghi nhận từ không dấu khi đang ở
-    ngữ cảnh tiếng Việt. Người dùng đã chọn cách học này thay cho từ điển từ ghép (2026-11-23).
-  - Cả cụm hai từ không dấu ("lam loi" → "lầm lỗi") sửa bằng `Engine.phraseFix` + `ContextModel.phrase`: cụm có
-    dấu đã được gõ ≥ 3 lần, ≥ 2 lần cụm có dấu khác cùng khớp, và nhiều hơn chính cụm không dấu đó. Không cần
-    quanh đó có từ có dấu, nhưng không làm giữa một mạch tiếng Anh. Lần sửa này xoá và gõ lại cả từ đứng trước.
-    Vì vậy mọi từ không dấu mà từ điển coi là tiếng Việt đều được ghi nhận (kể cả "to do" trong câu tiếng Anh):
-    đó là thứ ngăn việc sửa nhầm.
-  - `Engine.fixedWord` báo từ vừa được tự sửa (đoán dấu, sửa đảo phím) để app nháy nhẹ lên nó (`HUD.flash`).
-  Từ đã đoán lưu với `resumable = false`; phím "Đổi từ vừa gõ" trả lại phím gốc và nhớ vào `preferRaw`.
-  `UsageModel` (VNEngine, thuần Foundation) là bảng đếm có giới hạn; app lưu nó qua `UsageStore`.
+- **Engine KHÔNG tự sửa chữ** (người dùng chốt 2026-11-25, sau lỗi "việc dới" bị đổi thành "đới"). Ở `breakWord`
+  chỉ còn: `decide()` (trả lại từ tiếng Anh, gõ xen kẽ), gõ tắt, viết hoa, dọn dấu câu. Đừng thêm lại phép đoán nào
+  vào `breakWord`: đoán dấu (`predict`), gõ đảo phím (`transpositionFix`), trật phím dấu (`neighborFix`), lỗi gõ đã
+  học (`typoFix`), cụm hai từ (`phraseFix`), `Config.predict` / `fixTransposition` / `fixTypos` / `fixNeighborKeys`,
+  `Engine.fixedWord` đều đã gỡ. Phím "Đổi từ vừa gõ" chỉ còn hai dạng: phím gốc ↔ tiếng Việt. Gõ dấu tự do
+  ("vieejt", "dduwojwc") là việc của `Composer`, không phải tự sửa, vẫn chạy.
+- **Soát lỗi (`Proofreader.swift`, bộ test `Proofreading`, `TypedTextIsFlaggedNotChanged`, `MissingMarkSuggestions`,
+  `LearnedTypos`)** thay cho tự sửa: `check(text, caret:)` nhận một đoạn VĂN BẢN (không phải chuỗi phím) và trả về
+  các `ProofIssue` (vị trí UTF-16, loại, tối đa 3 đề nghị). App gạch chân và người dùng chọn. Vì không tự thay nên
+  không cần ngưỡng "thắng rõ ràng"; thứ phải giữ là KHÔNG gạch từ đúng:
+  - Từ CÓ DẤU: không gạch nếu có trong bảng tần suất `CommonWords` (≥ `tableFloor` = 100) hoặc người dùng đã gõ nó
+    ≥ 2 lần. Từ điển macOS không được hỏi (nó nhận gần như mọi âm tiết đúng cấu trúc: "tiêng", "dúng", "ròi"). Còn
+    lại: đề nghị các cách THÊM dấu (`Predictor.candidates`, không đổi chữ cái) ra từ trong bảng, xếp theo cặp từ của
+    người dùng → `CommonPairs` với từ TRƯỚC và từ SAU → tần suất chia 10 cho mỗi phím thiếu nhiều hơn ứng viên gần
+    nhất ("dúng": đúng trước đứng). Loại `.missingMark` (GÕ NHẦM, app tô đỏ).
+  - SAI CHÍNH TẢ (`.spelling`, app tô cam; người dùng yêu cầu 2026-11-25): chữ có dấu, là âm tiết đúng cấu tạo, không
+    có trong bảng, và đổi MỘT chỗ theo bảng lỗi thường gặp thì ra từ trong bảng (`Proofreader.mixups`): âm đầu
+    (d/gi/r/v, s/x, ch/tr, l/n, c/k, g/gh, ng/ngh, d/nh, h/qu, qu/v), vần (i/y, i/iê, u/uô, ư/ươ, iu/iêu/ưu/ươu,
+    ui/uôi/uy, ai/ay/ây, ao/au/âu, ă/â, o/ô, ô/ơ…), âm cuối (n/ng/nh, t/c/ch), thanh (hỏi/ngã, ngã/nặng). Ứng viên
+    lẫn âm xếp CHUNG với ứng viên thêm dấu (cặp của người dùng → `CommonPairs` → tần suất); ứng viên đứng đầu thuộc
+    loại nào thì chỗ đó mang loại ấy: "việc dới" → với (sai chính tả), "nhiệt dới" → đới (gõ thiếu). Chữ không phải
+    âm tiết đúng cấu tạo ("viêt", "đươc", "duojc") luôn là gõ nhầm. Chữ sai chính tả mà trùng một âm tiết có thật
+    ("hưu" cho "hươu", "trưng" cho "chưng", "dữ" cho "giữ") KHÔNG bắt được: giới hạn của việc soát theo âm tiết.
+    SAI DẤU THANH (`.wrongTone`, gõ nhầm, tô đỏ): cùng điều kiện, thử mọi thanh khác (`otherTones`; "đi vễ nhà" → về,
+    "đị" → đi), điểm tần suất chia 10 vì ít chắc hơn; xếp chung với hai loại trên.
+    Thêm nhóm lỗi mới thì thêm ca vào `commonMisspellings`. Lối ra cho từ bị gạch nhầm là "Thêm vào từ điển".
+  - Từ KHÔNG DẤU là âm tiết đúng cấu tạo ("goc", "nhat", "toi") không bao giờ bị gạch riêng lẻ: người ta vẫn viết
+    không dấu, và "goc" có thể là "góc". Từ tiếng Anh (`isEnglish`, `builtinEnglish`) cũng không. Ngoại lệ: chữ không
+    dấu kết thúc bằng c/ch/p/t ("viet", "duoc") không phải âm tiết đúng (thanh sắc/nặng là bắt buộc), nên khi đứng
+    cạnh một từ CÓ dấu thì bị gạch và được đề nghị thêm dấu ("Tiếng viet" → việt). Không có từ có dấu bên cạnh thì thôi.
+  - Chữ không ra từ nào: coi là chuỗi phím, gõ lại qua `Composer.replay` rồi thử gõ đảo phím (`swapped`), trật phím
+    dấu CUỐI sang phím kề (`slipped`; `telexSlips` / `vniSlips`, không có "k", nguyên âm, m, n vì chữ teen "bik",
+    "hok"; phải có từ bên cạnh ủng hộ ≥ `CommonPairs.floor`), rồi chữ có dấu mà chuỗi phím đó gõ ra ("duojc",
+    "tieesng"). Không có đề nghị thì không gạch. VNI: chữ số sau chữ cái thuộc về từ ("tie61gn").
+  - Lỗi gõ đã học đi trước mọi luật trên, kể cả với từ thật ("muôn" → "muốn"): bảng lưu chuỗi phím nên mỗi lần
+    soát dựng lại bảng "chữ đang hiện → phím đúng" (`learned`). Số lần để nguyên (`keepTypo`) chặn gạch nhầm.
+  - Cụm: cặp không dấu người dùng hay gõ có dấu (`ContextModel.phrase`: ≥ 3 lần, ≥ 2 lần cụm khác, nhiều hơn dạng
+    không dấu) thành một `ProofIssue` `.phrase`; hai từ liền nhau cùng bị gạch cũng gộp lại, đề nghị xếp theo cặp.
+  - Tiếng Anh (`checkEnglish`): chỉ khi từ điển có đề nghị (`Lexicon.englishGuesses`), từ viết thường, ≥ 3 chữ,
+    không cạnh từ tiếng Việt có dấu.
+  - Bỏ qua: từ đang gõ dở (chứa hoặc sát con trỏ), ngữ cảnh code / địa chỉ, từ viết hoa toàn bộ, từ trong `skip`
+    (từ người dùng bỏ qua, `preferRaw`, `preferVN`).
+  - Từ điển từ ghép (`Compounds`, 47.891 từ hai âm tiết + 2.874 từ đơn hiếm; người dùng chọn giữ CẢ bảng cặp, 2026-11-25):
+    (1) chữ ngoài bảng tần suất mà tạo thành từ ghép với từ bên cạnh ("bánh chưng") thì không gạch; (2) từ đơn hiếm có
+    thật ("quẫy", "tậu", "cốm") chỉ bị gạch khi đề nghị đứng đầu là loại THÊM DẤU và gặp ≥ `rareWordFloor` = 1000 lần
+    ("rưng" → rừng, "dúng" → đúng, "ròi" → rồi), hoặc hay đi với từ bên cạnh (cặp ≥ `CommonPairs.floor`, từ ghép, cặp
+    của người dùng). Người dùng chọn 2026-11-25 sau khi đo 2.894 từ hiếm bằng `vnkey-tool rare-words`: ngưỡng 1000
+    cho mọi loại gạch 1.200 từ thật (lẫn âm, đổi thanh chỉ là phỏng đoán với từ có thật), chỉ loại thêm dấu thì 165;
+    (3) ứng viên tạo thành từ ghép với từ bên cạnh được cộng `compoundBonus` vào điểm ngữ liệu; (4) `wrongCompound`: âm
+    tiết CÓ trong bảng nhưng đứng sai chỗ ("bánh trưng" → chưng, "dữ gìn" → giữ) bị gạch khi cặp đang viết không phải
+    từ ghép, KHÔNG HỀ có trong `CommonPairs`, người dùng chưa từng gõ, và đổi một âm hay lẫn thì ra từ ghép. Lỗi mà kho
+    phụ đề cũng mắc nhiều ("sữa chữa", "chia sẽ" có trong bảng cặp) vì thế chưa bắt được. Không đụng i / y.
+  - `Proofreader` không an toàn giữa các luồng (dùng chung `Lexicon`, `ContextModel` với `Engine`): gọi ở luồng chính.
+  - Tái hiện lỗi soát: `swift run vnkey-tool check [--english] "<văn bản>"`.
+- Engine vẫn GHI thói quen gõ để bộ soát lỗi dùng: từ và cặp từ tiếng Việt người dùng tự gõ, kể cả không dấu
+  (`ContextModel.record`; quay lại sửa thì `unrecord`), và lỗi gõ quen tay: `Engine.abandoned` chụp chuỗi phím của
+  từ ngay trước lần xoá lùi đầu tiên; ở `breakWord`, nếu từ gõ xong chỉ khác nó đúng một phím (`oneKeyApart`) thì
+  `recordTypo(sai, fixed: đúng)`. Đủ điều kiện khi đã sửa ≥ 2 lần, ≥ 2 lần cách sửa đứng nhì và nhiều hơn số lần gõ
+  rồi để nguyên. Việc này KHÔNG đổi `backspace()`: nó vẫn luôn trả `.pass`. `UsageModel` (VNEngine, thuần
+  Foundation) là bảng đếm có giới hạn; app lưu nó qua `UsageStore`.
 - Tự học khi gõ lại (`Config.learnFromRetype`): chỉ khi người dùng xoá ĐÚNG từ vừa gõ gần nhất (chưa gõ chữ nào
   khác sau nó, `freshBreak`), xoá HẾT từ đó mà không xoá lan sang chữ đứng trước, rồi gõ lại đúng chuỗi phím
   (phân biệt hoa/thường). Điều kiện lỏng hơn sẽ học nhầm khi người dùng chỉ giữ phím xoá rồi gõ lại. Việc nhớ
-  diễn ra TRƯỚC `transpositionFix`/`decide()` trong `breakWord`, nên chính lần gõ lại đã ra dạng mới.
-- Học lỗi gõ quen tay (`Config.fixTypos`, trong app đi theo công tắc "Nhớ khi bạn gõ lại" = `Key.learnFromRetype`; bộ test `LearnedTypos`): `Engine.abandoned` chụp chuỗi phím của từ ngay
-  trước lần xoá lùi đầu tiên (hoặc `Entry.typed` khi lùi vào từ trước); gõ chữ không làm mất nó. Ở `breakWord`, nếu
-  từ gõ xong chỉ khác nó đúng một phím (`oneKeyApart`) thì `ContextModel.recordTypo(sai, fixed: đúng)`. `typoFix`
-  chạy TRƯỚC `transpositionFix`: sửa khi cặp đã được sửa ≥ 2 lần (người dùng hạ từ 3 xuống 2, 2026-11-24), ≥ 2 lần cách sửa đứng nhì và nhiều hơn số lần
-  người dùng gõ chuỗi đó rồi để nguyên (`keepTypo`; quay lại sửa thì `unkeepTypo`). Sửa CẢ chữ mà từ điển coi là từ
-  đúng ("dúng" -> "đúng": từ điển macOS dễ dãi; người dùng yêu cầu 2026-11-24) — thứ ngăn sửa nhầm là số lần để
-  nguyên, không phải từ điển. Không đụng ngữ cảnh code, tôn trọng `preferRaw`. Phím "Đổi từ vừa gõ" trả lại `Entry.typed`
-  và `forgetTypo` (cộng ngưỡng vào số lần "để nguyên" để không học lại ngay). Việc này KHÔNG đổi `backspace()`: nó vẫn
-  luôn trả `.pass`. Người dùng đã từ chối đoán theo phím kề nhau và từ chối cho Backspace hoàn tác phím (2026-11-24).
+  diễn ra TRƯỚC `decide()` trong `breakWord`, nên chính lần gõ lại đã ra dạng mới.
+- Lúc NGẮT TỪ, `breakWord` gọi `recomposed()` trước: từ thành nguyên văn vì một phím gõ thừa rồi bị xoá ("ddaayy" xoá
+  một chữ) được hiểu lại ("đây"), như khi gõ tiếp một chữ. Vẫn KHÔNG làm gì lúc xoá lùi (bộ test `RetryAtWordBreak`).
+- Gõ tắt thông minh (`SmartMacro.swift`, `Config.smartMacros: [tên: nội dung]`, bộ test `SmartMacros`; người dùng chốt
+  2026-11-25): bung khi gõ `\tên` rồi ngắt từ, và CHỈ khi dấu `\` đứng ở đầu từ (trước nó là đầu dòng, khoảng trắng,
+  dấu mở ngoặc / nháy; `C:\ten`, `a\b` là đường dẫn, không bung). `breakWord` đặt `prefixTyped`, từ kế tiếp
+  (`afterPrefix`) luôn nguyên văn; tên có trong bảng thì xoá cả `\` lẫn tên rồi gõ nội dung. Tên chưa định nghĩa thì
+  không đụng (`\alpha`, `\n`). Tiền tố `\` được chọn vì ít đụng ứng dụng khác nhất (`@` bật bảng nhắc tên, `/` là lệnh
+  của Slack / Notion, `:` là emoji). Không còn gõ tắt đặt sẵn KHÔNG tiền tố (`hnay`…): `vn`, `tphcm` là dòng mẫu của
+  bảng thường. Biến `[tên]` trong nội dung (cả hai bảng) thay bằng `SmartMacro.resolve` theo `Engine.now`: ngay, gio,
+  thu, thang, nam, ngaydai, homqua, ngaymai, ngay±N, tuan, amlich (lịch Trung Quốc của macOS, có thể lệch lịch Việt Nam
+  một ngày); tên engine không biết thì hỏi `Engine.variable` (app trả hoten, clipboard). Gõ tắt không bung trong ngữ
+  cảnh code. `Engine.replaced` báo nội dung vừa bung để app quét dải sáng.
+- THỬ NGHIỆM `Config.retryOnBackspace` (mặc định TẮT, app chưa bật; bộ test `RetryOnBackspace`): đổi chữ ngay khi xoá
+  phím gõ thừa ("ddaayy" xoá một chữ → "đây"), trái với luật phím xoá ở trên. Bật cờ cho cả bộ test (2026-11-25) chỉ
+  hỏng hai chỗ: test giữ luật cũ, và việc học khi gõ lại ("test" xoá dần thành "tes" rồi ra "té"). Chỗ thứ hai đã
+  chặn bằng `Engine.reopened` (không áp dụng cho từ mở lại bằng phím xoá); phím xoá đang giữ (`held`) không bao giờ
+  đổi chữ. CHƯA thử trên ứng dụng thật, nơi luật cũ sinh ra vì màn hình lệch khi phát phím lúc đang xoá.
+- Thêm dấu cả câu không cần mô hình (`Proofreader.restore`, test `restoresAWholeSentence`): Viterbi qua các từ của
+  câu. Ứng viên của một từ: chính nó; các cách THÊM dấu ra từ trong bảng (từ không dấu); đề nghị của `missingMark` (từ
+  có dấu ngoài bảng); và, với từ có dấu TRONG bảng, chỉ những cách lẫn âm tạo thành từ ghép với từ bên cạnh khi chính
+  nó không tạo thành từ ghép ("chia sẽ" → sẻ; "ngày tết" giữ). Điểm = log tần suất + 2·log(cặp + cặp của người dùng +
+  `compoundBonus`); từ gốc được cộng điểm giữ (có dấu +2, lạ +2, tiếng Anh +3 nữa). Từ tiếng Anh KHÔNG bị khoá cứng: từ
+  điển macOS nhận cả "co", "lam", "hop", "muon". Đã biết sai: "mai hop luc" ra "hợp lực" (từ ghép thắng "họp lúc").
 - Sau khi sửa: `./Scripts/test.sh` và `swift run -c release vnkey-tool bench`.

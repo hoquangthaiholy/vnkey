@@ -297,6 +297,15 @@ struct Composer {
             return isLetterKey
         }
         if tone == t {  // gõ lặp -> huỷ thanh, trả lại chữ
+            // Đã có một phím dấu KHÁC bị đè lên trước đó ("userr": s thành sắc, r đổi thành hỏi, r nữa): huỷ dấu ở đây
+            // sẽ nuốt mất phím đầu ("uer"). Đây không còn là âm tiết đang gõ dở: trả lại đủ mọi phím đã gõ. Không đánh
+            // dấu `cancelled`, nên xoá phím thừa đi thì phần còn lại vẫn được hiểu lại ("userr" xoá một chữ -> "user").
+            if owner.filter({ $0 == -1 }).count >= 2 {
+                override = rawString
+                owner.append(-2)
+                prefixChecked = true
+                return true
+            }
             tone = .none; killToneKeys(); cancelled = true
             appendLetter(k, upper)
             return true

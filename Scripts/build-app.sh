@@ -29,6 +29,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Biểu tượng app: thay Resources/AppIcon.svg rồi chạy `swift Scripts/make-icon.swift`.
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp "$BINARY" "$APP/Contents/MacOS/VNKey"
+# Gỡ ký hiệu cục bộ (tên hàm nội bộ, không cần khi chạy) khỏi BẢN SAO trong gói: tệp chạy nhẹ đi khoảng một phần
+# ba. Bản trong .build giữ nguyên ký hiệu để đọc báo cáo sự cố. Phải làm TRƯỚC khi ký.
+strip -x "$APP/Contents/MacOS/VNKey"
 # Nhật ký thay đổi đi kèm app để hiện trong cửa sổ "Có gì mới" (không cần mạng).
 [ -f CHANGELOG.md ] && cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
 cat > "$APP/Contents/Info.plist" <<EOF

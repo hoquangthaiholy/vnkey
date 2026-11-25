@@ -20,13 +20,19 @@ final class KeyTap {
     /// Bàn phím hệ thống không phải tiếng Anh: đứng ngoài hoàn toàn cho tới khi người dùng đổi lại.
     var suspended = false
     /// Đang thật sự xử lý phím.
-    private var active: Bool { enabled && !suspended }
+    var active: Bool { enabled && !suspended }
     /// Bundle ID của app đang ở trước (cập nhật từ AppDelegate).
     var frontApp = ""
     var fixAutocomplete = true
     var onToggle: (() -> Void)?
-    /// VNKey vừa tự sửa một từ (đoán dấu, sửa đảo phím); tham số là từ như đang hiện trên màn hình.
-    var onFix: ((String) -> Void)?
+    /// Cho bộ soát lỗi: một phím vừa được gõ (mã phím, phím bổ trợ; trả về true nếu bộ soát lỗi đã dùng phím đó, khi
+    /// ấy phím bị nuốt); chuột trái vừa bấm ở toạ độ màn hình này. Gọi ngay trong callback của event tap nên bên nhận
+    /// chỉ được làm việc rẻ.
+    var onKey: ((Int, UInt) -> Bool)?
+    var onMouseDown: ((CGPoint) -> Void)?
+    /// Chữ trước con trỏ vừa được thay (Đổi từ vừa gõ, gõ tắt bung ra): số ký tự UTF-16 của chữ mới, và số ký tự
+    /// đứng giữa nó với con trỏ. App dùng để quét một dải sáng lên chữ đó. Gọi trong callback của event tap.
+    var onReplaced: ((Int, Int) -> Void)?
 
     var toggleHotkey = Hotkey.defaultToggle
     var restoreHotkey = Hotkey.defaultRestore
@@ -120,6 +126,7 @@ final class KeyTap {
             Log.write("TAP nhận sự kiện bị tắt: \(type == .tapDisabledByTimeout ? "timeout" : "user input")")
             ensureEnabled()
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            if type == .leftMouseDown { onMouseDown?(event.location) }
             modifiers.interrupted()
             reset("chuột", .pointer)
         case .flagsChanged:
@@ -173,7 +180,12 @@ final class KeyTap {
         let before = Log.enabled ? state : ""
         let out = engine.toggleLast()
         Log.write("HOTKEY đổi từ | \(before) -> \(describe(out)) | \(state)")
-        if !out.isPass { send(out, original: nil, proxy) }
+        if !out.isPass {
+            send(out, original: nil, proxy)
+            // Chữ mới là phần đầu của `out.text`; phần đuôi (dấu cách, dấu câu đã gõ sau từ) nằm sát con trỏ.
+            let tail = out.text.reversed().prefix(while: { !$0.isLetter && !$0.isNumber }).count
+            onReplaced?(String(out.text.dropLast(tail)).utf16.count, String(out.text.suffix(tail)).utf16.count)
+        }
     }
 
     private func keyDown(_ proxy: CGEventTapProxy, _ event: CGEvent) -> Bool {
@@ -191,6 +203,11 @@ final class KeyTap {
         if clipboardHotkey.matches(code: Int(code), mods: m) {
             Log.write("HOTKEY bảng clipboard (\(clipboardHotkey.label))")
             onClipboard?()
+            return false
+        }
+        // Bảng đề nghị đang mở dùng ↑ ↓ ↩ Esc; phím khác đóng bảng rồi đi tiếp như thường.
+        if let onKey, onKey(Int(code), m) {
+            Log.write("KEY code=\(code) -> bảng đề nghị dùng")
             return false
         }
         if active, restoreHotkey.matches(code: Int(code), mods: m) {
@@ -237,7 +254,7 @@ final class KeyTap {
                 Log.write("\(tag()) -> đi thẳng (chỉ gạt gợi ý, giữ nguyên engine) | \(before)")
                 return true
             }
-            var o = engine.backspace()
+            var o = engine.backspace(held: repeated)
             if o.isPass, route == .planned { o = Output(backspaces: 1, text: "", passKey: false) }
             out = o
         case .newline:
@@ -264,7 +281,7 @@ final class KeyTap {
         defer { if focusMayMove { focusMayHaveChanged(.fieldExit) } }
         if out.isPass { return true }
         send(out, original: event, proxy)
-        if let word = engine.fixedWord { onFix?(word) }
+        if let text = engine.replaced { onReplaced?(text.utf16.count, out.passKey ? 1 : 0) }
         return false
     }
 

@@ -11,7 +11,8 @@ private final class TypoLexicon: Lexicon {
     func isVietnamese(_ w: String) -> Bool { vi.contains(w) }
 }
 
-/// Học lỗi gõ từ chính những lần người dùng sửa: gõ "goc", sửa thành "gox" (gõ) hai lần thì lần sau tự sửa.
+/// Học lỗi gõ từ chính những lần người dùng sửa: gõ "goc", sửa thành "gox" (gõ) hai lần thì từ đó bộ soát lỗi gạch
+/// chân "goc" và đề nghị "gõ". Engine không tự thay (từ 2026-11-25).
 @Suite struct LearnedTypos {
     private let lexicon = TypoLexicon()
 
@@ -23,62 +24,74 @@ private final class TypoLexicon: Lexicon {
 
     private func type(_ keys: String, _ e: Engine) -> String { run(keys, lexicon: lexicon, engine: e) }
 
+    /// Chữ bộ soát lỗi đề nghị cho `text` (một từ), nil nếu không gạch.
+    private func suggest(_ text: String, _ model: UsageModel) -> String? {
+        let p = Proofreader()
+        p.lexicon = lexicon
+        p.context = model
+        return p.check(text).first.flatMap { $0.kind == .learnedTypo ? $0.suggestions.first : "khác loại" }
+    }
+
     /// Ba cách sửa: xoá phím sai giữa từ; quay lại sau dấu cách; xoá hết rồi gõ lại.
     @Test(arguments: ["goc<x ", "goc <<x ", "goc<<<gox "])
     func learnsFromEachWayOfCorrecting(fix: String) {
-        let (e, _) = engine()
+        let (e, model) = engine()
         #expect(type(fix + fix, e) == "gõ gõ ")
-        #expect(type("goc ", e) == "gõ ")
-        #expect(e.fixedWord == "gõ")  // app nháy từ vừa được sửa
+        #expect(type("goc ", e) == "goc ")  // không tự thay
+        #expect(suggest("goc", model) == "gõ")
     }
 
     @Test func oneCorrectionIsNotEnough() {
-        let (e, _) = engine()
+        let (e, model) = engine()
         #expect(type("goc<x goc ", e) == "gõ goc ")
+        #expect(suggest("goc", model) == nil)
     }
 
     /// Người dùng cũng hay gõ "goc" rồi giữ nguyên: đó không phải lỗi gõ.
     @Test func keptAsOftenAsCorrectedIsNotATypo() {
-        let (e, _) = engine()
+        let (e, model) = engine()
         #expect(type("goc<x goc goc goc goc<x goc<x goc ", e) == "gõ goc goc goc gõ gõ goc ")
+        #expect(suggest("goc", model) == nil)
     }
 
     /// Quay lại sửa một từ đã giữ thì lần giữ đó không tính.
     @Test func goingBackToFixDoesNotCountAsKept() {
-        let (e, _) = engine()
+        let (e, model) = engine()
         // Một lần giữ thật ("goc" rồi gõ từ khác), hai lần sửa trong đó một lần là quay lại sau dấu cách. Nếu lần
         // quay lại ấy vẫn bị đếm là "giữ" thì giữ = 2 = số lần sửa và từ sẽ không được học.
         #expect(type("goc<x goc tooi goc <<x ", e) == "gõ goc tôi gõ ")
-        #expect(type("goc ", e) == "gõ ")
+        #expect(suggest("goc", model) == "gõ")
     }
 
-    /// Từ gõ chưa trọn mà lại là một từ thật ("muôn" thiếu dấu sắc của "muốn"): phần đoán dấu không được đụng
-    /// tới nó, nhưng người dùng đã tự sửa đủ lần thì VNKey sửa theo. (Chữ gõ dở không phải từ thật như "dúng" nay
-    /// đã được phần đoán dấu sửa ngay, xem `PredictionsWithLenientDictionary`.)
-    /// Cả hai cách sửa: thêm phím còn thiếu sau khi quay lại, và xoá hết gõ lại.
+    /// Từ gõ chưa trọn mà lại là một từ thật ("muôn" thiếu dấu sắc của "muốn"): bảng tần suất coi nó là từ đúng,
+    /// nhưng người dùng đã tự sửa đủ lần thì nó được gạch chân. Bảng lỗi gõ lưu chuỗi phím ("muoon"), còn chữ trên
+    /// màn hình là "muôn". Cả hai cách sửa: thêm phím còn thiếu sau khi quay lại, và xoá hết gõ lại.
     @Test(arguments: ["muoon <s ", "muoon<<<<muoons "])
-    func fixesIncompleteWordsThatAreRealWords(fix: String) {
-        let (e, _) = engine()
+    func flagsIncompleteWordsThatAreRealWords(fix: String) {
+        let (e, model) = engine()
         #expect(type(fix + fix, e) == "muốn muốn ")
-        #expect(type("muoon ", e) == "muốn ")
+        #expect(type("muoon ", e) == "muôn ")
+        #expect(suggest("muôn", model) == "muốn")
+        #expect(suggest("Muôn", model) == "Muốn")
     }
 
-    /// Từ có trong từ điển mà người dùng cũng hay gõ thật thì không bị thay: số lần để nguyên chặn lại.
+    /// Từ có trong từ điển mà người dùng cũng hay gõ thật thì không bị gạch: số lần để nguyên chặn lại.
     @Test func realWordTheUserAlsoTypesIsKept() {
-        let (e, _) = engine()
+        let (e, model) = engine()
         #expect(type("ban<nj ban tooi ban tooi ban tooi ban<nj ban<nj ban ", e) == "bạn ban tôi ban tôi ban tôi bạn bạn ban ")
+        #expect(suggest("ban", model) == nil)
     }
 
     @Test func worksForEnglishToo() {
-        let (e, _) = engine()
-        #expect(type("teh<<he teh<<he teh<<he teh ", e) == "the the the the ")
+        let (e, model) = engine()
+        #expect(type("teh<<he teh<<he teh<<he teh ", e) == "the the the teh ")
+        #expect(suggest("teh", model) == "the")
     }
 
     @Test func keepsTheCaseOfWhatWasTyped() {
-        let (e, _) = engine()
+        let (e, model) = engine()
         _ = type("goc<x goc<x goc<x ", e)
-        #expect(type("Goc ", e) == "Gõ ")
-        #expect(type("GOC ", e) == "GÕ ")
+        #expect(suggest("Goc", model) == "Gõ")
     }
 
     /// Xoá cả từ để gõ từ khác hẳn không phải là sửa lỗi gõ.
@@ -94,29 +107,14 @@ private final class TypoLexicon: Lexicon {
         _ = type("a.goc<x a.goc<x a.goc<x ", e)
         #expect(model.learnedTypos().isEmpty)
         _ = type("goc<x goc<x goc<x ", e)
-        #expect(type("a.goc ", e) == "a.goc ")
-    }
-
-    /// Phím "Đổi từ vừa gõ" trả lại đúng những phím đã gõ và rút lại việc học.
-    @Test func flipKeyRestoresAndUnlearns() {
-        let (e, model) = engine()
-        _ = type("goc<x goc<x goc<x ", e)
-        #expect(type("goc ~", e) == "goc ")
-        #expect(model.learnedTypos().isEmpty)
-        #expect(type("goc ", e) == "goc ")
-    }
-
-    @Test func respectsTheSwitch() {
-        var cfg = Config()
-        cfg.fixTypos = false
-        let (e, _) = engine(cfg)
-        #expect(type("goc<x goc<x goc<x goc ", e) == "gõ gõ gõ goc ")
+        #expect(suggest("a.goc", model) == nil)
     }
 
     @Test func stopsLearningWhenRecordingIsOff() {
         let (e, model) = engine()
         model.recording = false
         #expect(type("goc<x goc<x goc<x goc ", e) == "gõ gõ gõ goc ")
+        #expect(suggest("goc", model) == nil)
     }
 
     @Test(arguments: [

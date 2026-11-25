@@ -1,10 +1,10 @@
 # VNKey
 
 Bộ gõ tiếng Việt cho macOS, viết thuần Swift, chạy trên thanh menu. VNKey theo dõi thứ tự phím bạn gõ để gõ xen kẽ
-Việt – Anh mà không phải chuyển chế độ, tự đoán từ gõ thiếu dấu, và học dần từ cách bạn gõ.
+Việt – Anh mà không phải chuyển chế độ, gạch chân từ nghi gõ sai kèm đề nghị sửa, và học dần từ cách bạn gõ.
 
 *A Vietnamese input method for macOS written in pure Swift. It tracks your keystroke order so you can mix Vietnamese
-and English without switching modes, completes words with missing diacritics, and learns from how you type.*
+and English without switching modes, underlines likely typos with suggestions, and learns from how you type.*
 
 - Trang web: <https://hoquangthaiholy.github.io/vnkey/>
 - Tải về: [Releases](https://github.com/hoquangthaiholy/vnkey/releases/latest)
@@ -18,13 +18,18 @@ and English without switching modes, completes words with missing diacritics, an
 
 - **Gõ xen kẽ Việt – Anh:** `user`, `string`, `data` giữa câu tiếng Việt được trả lại đúng như đã gõ; giữ nguyên
   trong ngữ cảnh code (sau `@ # / . _`, chữ số).
-- **Đoán từ gõ thiếu dấu:** `duojc`, `đươc` → `được`; `tiếng viêt` → `việt`, `bài viêt` → `viết`. Chỉ thêm dấu, không
-  thay từ đã đúng.
+- **Soát lỗi, không tự sửa:** từ nghi gõ sai được gạch chân ngay trong ô đang nhập: thiếu dấu (`viêt`), trật phím
+  dấu (`veeg` thay cho `veef`), gõ đảo phím (`tieegns`), và cả tiếng Anh nếu bạn bật. Rê chuột lên đó (hoặc đưa con trỏ vào bằng `←` `→`) để chọn đề
+  nghị (xếp theo từ đứng cạnh: `tiếng viêt` → `việt`, `bài viêt` → `viết`) hoặc thêm từ vào từ điển của bạn. VNKey không tự thay chữ của bạn. Hiện
+  chạy trong ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), chưa chạy trên trang web.
+- **Trợ lý cho câu và đoạn văn (✦):** để chuột dừng trên một câu rồi vào nút ✦ để thêm dấu và sửa chính tả cả câu.
+  Trên macOS 26 trở lên có Apple Intelligence còn có cải tiến, viết lại, rút gọn, mở rộng, dịch Việt ↔ Anh và viết thành
+  câu từ vài ý, bằng mô hình ngôn ngữ chạy ngay trên máy. Bạn xem kết quả rồi mới thay.
 - **Học từ cách bạn gõ:** nhớ từ bạn muốn giữ nguyên và các cặp từ bạn hay gõ; gõ `lầm lỗi` vài lần thì `lam loi`
-  không dấu cũng ra `lầm lỗi`. Dữ liệu chỉ nằm trên máy, xem và xoá được trong Cài đặt.
-- **Sửa lỗi gõ bạn hay mắc:** sửa cùng một lỗi hai lần (`goc` thành `gõ`) thì lần sau VNKey tự sửa.
-- **Gõ tự do, sửa gõ đảo phím:** `dduwowcj`, `duojwcd` đều ra `được`; `tieegns` → `tiếng`.
-- **Không gạch chân, không lặp chữ:** sửa chữ bằng kỹ thuật xoá lùi; có xử lý riêng cho thanh địa chỉ trình duyệt
+  không dấu sẽ được đề nghị sửa thành `lầm lỗi`. Sửa cùng một lỗi hai lần (`goc` thành `gõ`) thì lần sau VNKey gạch
+  chân và đề nghị. Dữ liệu chỉ nằm trên máy, xem và xoá được trong Cài đặt.
+- **Gõ dấu tự do:** `dduwowcj`, `duojwcd` đều ra `được`.
+- **Không có vùng soạn trước, không lặp chữ:** sửa chữ bằng kỹ thuật xoá lùi; có xử lý riêng cho thanh địa chỉ trình duyệt
   và Spotlight.
 - **Bảng tạm:** `⌃⌥V` mở lịch sử clipboard ngay cạnh chỗ đang gõ (văn bản, đường dẫn, ảnh, tệp); gõ để tìm, `↩` để
   dán. Văn bản TCVN3, VNI Windows, VIQR tự dán thành Unicode, và dán ngược lại sang các bảng mã đó khi cần. Mặc định
@@ -51,6 +56,9 @@ Yêu cầu: macOS 12 trở lên, máy Apple silicon hoặc Intel.
   Giới thiệu) và tải bản mới khi bạn bấm cập nhật.
 - Trên máy bạn, nó lưu: cài đặt, bảng gõ tắt, các từ đã nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có
   câu) tại `~/Library/Application Support/VNKey/usage.json`.
+- Để soát lỗi, VNKey đọc nội dung ô bạn đang nhập qua quyền Trợ năng. Việc này chỉ diễn ra trên máy, không lưu lại,
+  không đọc ô mật khẩu, và tắt được ở Cài đặt › Chính tả. "Sửa cả câu" đưa câu đó cho mô hình ngôn ngữ của macOS chạy
+  trên chính máy bạn; câu không được gửi đi đâu.
 - Nhật ký gỡ lỗi (`~/Library/Logs/VNKey.log`) lưu cả nội dung gõ và **mặc định tắt**; chỉ bật khi cần báo lỗi.
 
 ## Dựng từ mã nguồn
@@ -79,10 +87,21 @@ MoMo trên [trang web](https://hoquangthaiholy.github.io/vnkey/#donation).
 
 ## Dữ liệu
 
-Bảng tần suất âm tiết dùng để đoán từ thiếu dấu (`Sources/VNEngine/CommonWordsData.swift`) dẫn xuất từ danh sách
+Bảng tần suất âm tiết dùng để đề nghị sửa từ thiếu dấu (`Sources/VNEngine/CommonWordsData.swift`) dẫn xuất từ danh sách
 tiếng Việt của [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (Hermit Dave), đếm trên kho phụ đề
 OpenSubtitles 2018, giấy phép [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). VNKey chỉ giữ các
 âm tiết tiếng Việt đúng chính tả, gộp các cách đặt dấu thanh, và bỏ mục dưới 100 lần.
+
+Bảng cặp âm tiết dùng để xếp đề nghị theo từ đứng cạnh (`Sources/VNEngine/CommonPairsData.swift`) được đếm trực tiếp trên
+kho phụ đề tiếng Việt [OpenSubtitles 2018](https://opus.nlpl.eu/OpenSubtitles/corpus/version/OpenSubtitles) do dự án
+OPUS phát hành, gốc từ [opensubtitles.org](http://www.opensubtitles.org/) (P. Lison và J. Tiedemann, “OpenSubtitles2016:
+Extracting Large Parallel Corpora from Movie and TV Subtitles”, LREC 2016). VNKey chỉ giữ số đếm của các cặp âm tiết
+đứng liền nhau xuất hiện từ 20 lần trở lên, không chứa câu thoại nào.
+
+Từ điển từ ghép dùng để nhận ra từ hiếm có thật và lỗi chính tả trong từ ghép (`Sources/VNEngine/CompoundsData.swift`)
+dẫn xuất từ danh sách từ tiếng Việt Viet74K của Hồ Ngọc Đức (Free Vietnamese Dictionary Project), giấy phép GNU General
+Public License, lấy từ bản sao [duyet/vietnamese-wordlist](https://github.com/duyet/vietnamese-wordlist). VNKey chỉ giữ các
+mục một và hai âm tiết đúng chính tả, bỏ viết hoa, và nén lại.
 
 ## Giấy phép
 

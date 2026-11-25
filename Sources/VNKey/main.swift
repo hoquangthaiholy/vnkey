@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var tap = KeyTap(engine: engine)
     private let hud = HUD()
     private lazy var clipboard = ClipboardController()
+    private let proofing = Proofing()
     /// Tạo muộn: chế độ `--snapshot` không được đụng tới mục thanh menu. macOS lưu trạng thái ẩn/hiện của nó
     /// vào cài đặt của app, nên ẩn nó ở bản chụp thử sẽ làm biểu tượng của bản đang chạy biến mất.
     private lazy var status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -43,6 +44,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "==== VNKey \(info?["CFBundleShortVersionString"] ?? "?") khởi động, macOS \(ProcessInfo.processInfo.operatingSystemVersionString), AX trusted=\(AXIsProcessTrusted())"
         )
         engine.lexicon = lexicon
+        // Biến gõ tắt cần hỏi hệ thống. Được gọi trong callback của event tap, lúc gõ tắt bung ra: cả hai đều rẻ.
+        engine.variable = { name in
+            switch name {
+            case "hoten": return NSFullUserName()
+            case "clipboard": return NSPasteboard.general.string(forType: .string)
+            default: return nil
+            }
+        }
         UsageStore.load()
         engine.context = UsageStore.model
         engine.onLearn = { [unowned self] in
@@ -53,10 +62,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.defaults.set(Array(self.engine.preferVN), forKey: Key.preferVN)
             }
         }
-        tap.onFix = { [unowned self] word in
-            // Đang ở trong callback của event tap, và chữ mới chưa kịp tới ứng dụng: đợi một nhịp rồi mới nháy.
-            guard defaults.bool(forKey: Key.flashFix) else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) { self.hud.flash(word: word) }
+        tap.onKey = { [unowned self] code, mods in proofing.key(code: code, mods: mods) }
+        tap.onMouseDown = { [unowned self] point in proofing.mouseDown(at: point) }
+        tap.onReplaced = { [unowned self] length, trailing in
+            // Đang ở trong callback của event tap, và chữ mới chưa kịp tới ứng dụng: đợi một nhịp rồi mới làm sáng.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) { self.proofing.pulse(length: length, trailing: trailing) }
+        }
+        proofing.isActive = { [unowned self] in tap.active }
+        proofing.didReplace = { [unowned self] in
+            engine.reset()
+            tap.invalidateFocus()
+        }
+        proofing.ignore = { [unowned self] words in
+            let old = defaults.stringArray(forKey: Key.proofreadIgnored) ?? []
+            defaults.set(Array(Set(old).union(words)).sorted(), forKey: Key.proofreadIgnored)
         }
         tap.onToggle = { [unowned self] in
             // Đang ở trong callback của event tap: làm việc nặng (AX, cửa sổ) ở vòng lặp sau.
@@ -251,19 +270,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         c.modernTone = defaults.bool(forKey: Key.modernTone)
         c.standaloneW = defaults.bool(forKey: Key.standaloneW)
         c.bracketKeys = defaults.bool(forKey: Key.bracketKeys)
-        c.teenInitials = defaults.bool(forKey: Key.teen)
-        c.autoRestore = defaults.bool(forKey: Key.autoRestore)
-        c.expandTeen = defaults.bool(forKey: Key.expandTeen)
-        c.codeAware = defaults.bool(forKey: Key.codeAware)
-        c.fixTransposition = defaults.bool(forKey: Key.fixTransposition)
+        // Hai công tắc chính ở thẻ Ngôn ngữ: "Gõ xen kẽ tiếng Anh" (`autoRestore`) và "Ngôn ngữ GenZ" (`genZ`). Tắt công
+        // tắc chính thì các tuỳ chọn con mất tác dụng dù giá trị đã lưu của chúng vẫn còn.
+        let english = defaults.bool(forKey: Key.autoRestore), genZ = defaults.bool(forKey: Key.genZ)
+        c.teenInitials = genZ && defaults.bool(forKey: Key.teen)
+        c.autoRestore = english
+        c.expandTeen = genZ && defaults.bool(forKey: Key.expandTeen)
+        c.codeAware = english && defaults.bool(forKey: Key.codeAware)
         c.contextAware = defaults.bool(forKey: Key.contextAware)
         c.autoCapitalize = defaults.bool(forKey: Key.autoCapitalize)
         c.tidyPunctuation = defaults.bool(forKey: Key.tidyPunctuation)
-        c.learnFromRetype = defaults.bool(forKey: Key.learnFromRetype)
-        c.predict = defaults.bool(forKey: Key.predict)
-        c.fixTypos = c.learnFromRetype  // một công tắc "Nhớ khi bạn gõ lại" cho cả hai cách học từ lần sửa
+        c.learnFromRetype = defaults.bool(forKey: Key.learnUsage)  // một công tắc "Ghi lại thói quen gõ" cho mọi việc học
         UsageStore.model.recording = defaults.bool(forKey: Key.learnUsage)
         c.macros = (defaults.dictionary(forKey: Key.macros) as? [String: String]) ?? [:]
+        c.smartMacros = defaults.bool(forKey: Key.smartMacros) ? (defaults.dictionary(forKey: Key.smartMacroTable) as? [String: String]) ?? [:] : [:]
         // Gán config sẽ xoá trạng thái đang gõ: chỉ gán khi thật sự đổi.
         if engine.config != c {
             engine.config = c
@@ -280,6 +300,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let vn = Set(defaults.stringArray(forKey: Key.preferVN) ?? [])
         if engine.preferRaw != raw { engine.preferRaw = raw }
         if engine.preferVN != vn { engine.preferVN = vn }
+        // Bộ soát lỗi dùng chung cấu hình, từ điển và thói quen gõ với engine (cùng ở luồng chính).
+        proofing.configure(
+            on: defaults.bool(forKey: Key.proofread), config: c, lexicon: lexicon, context: UsageStore.model,
+            english: english && defaults.bool(forKey: Key.proofreadEnglish), sentence: defaults.bool(forKey: Key.proofreadSentence),
+            skip: raw.union(vn).union(defaults.stringArray(forKey: Key.proofreadIgnored) ?? []))
 
         checkInputSource()  // công tắc "tạm ngưng theo bàn phím hệ thống" có thể vừa đổi
         tap.fixAutocomplete = defaults.bool(forKey: Key.fixBrowser)

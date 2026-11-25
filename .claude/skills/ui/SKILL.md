@@ -35,7 +35,7 @@ cho một hai mục.
 |---|---|---|
 | Chung | App chạy thế nào? | Phím tắt, nhãn VN/EN, mở cùng lúc đăng nhập, nhật ký, phiên bản |
 | Gõ | Tôi gõ kiểu gì? | Kiểu gõ (Telex/VNI), vị trí dấu thanh, phím w, viết hoa đầu câu, dọn khoảng trắng |
-| Việt & Anh | Khi nào thì KHÔNG bỏ dấu? | Tự trả lại từ, đoán ngữ cảnh, sửa đảo phím, ngữ cảnh code, chữ teen, từ đã nhớ |
+| Ngôn ngữ | Khi nào thì KHÔNG bỏ dấu? | Tự trả lại từ, đoán ngữ cảnh, sửa đảo phím, ngữ cảnh code, chữ teen, từ đã nhớ |
 | Gõ tắt | Gõ ít ra nhiều | Gõ tắt của người dùng, bung viết tắt teen |
 | Ứng dụng | Khác nhau theo ứng dụng | Nhớ chế độ theo app, sửa lặp chữ ở ô gợi ý, danh sách bắt đầu ở chế độ Anh |
 
@@ -122,16 +122,16 @@ mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi
 `Sources/VNKey/EntryTable.swift` (`EntryTable`): bảng sửa ngay trong ô, nút +/−, phím Delete, ô tìm kiếm. Dùng cho
 thẻ "Gõ tắt" (hai cột chữ) và bảng "đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Bảng "đã nhớ" KHÔNG còn
 là một thẻ (người dùng yêu cầu gộp và tinh gọn, 2026-11-24): nó là một sheet mở từ dòng "Những gì VNKey đã nhớ" ở thẻ
-Tự sửa (`SettingsController.showMemory`, `memoryWindow`), có nút chuyển giữa "Từ đã nhớ" và "Đã học từ cách gõ". Danh
+Chính tả (`SettingsController.showMemory`, `memoryWindow`), có nút chuyển giữa "Từ đã nhớ" và "Đã học từ cách gõ". Danh
 sách sau là bảng chỉ-đọc (`readOnly: true`: chỉ xem và xoá dòng) gồm lỗi gõ đã học (`UsageModel.learnedTypos()`) rồi
-cặp từ (`learnedPairs()`) — chỉ những mục đã đủ điều kiện sửa; xoá dòng gọi `forgetTypo` / `forget`. Thẻ Tự sửa đặt ví
+cặp từ (`learnedPairs()`) — chỉ những mục đã đủ điều kiện sửa; xoá dòng gọi `forgetTypo` / `forget`. Thẻ Chính tả đặt ví
 dụ ngay trong tên dòng ("Gõ đảo hai phím: tieegns → tiếng") để khỏi cần dòng mô tả. `--snapshot` chụp sheet này ra
 `settings-memory-words.png` và `settings-memory-learned.png`. Định dạng lưu
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Việt & Anh, Tự sửa, Gõ tắt, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
-thì tách (người dùng đã phàn nàn thẻ Việt & Anh dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
+Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Ngôn ngữ, Chính tả, Gõ tắt, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
+thì tách (người dùng đã phàn nàn thẻ Ngôn ngữ dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
 - Khi màn hình ngủ hoặc bị khoá, macOS KHÔNG chạy chuyển động đổi khung cửa sổ. `--snapshot` vì thế chọn thẻ

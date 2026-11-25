@@ -82,6 +82,10 @@ public enum Charset: String, CaseIterable, Sendable {
     /// Khoá chuẩn của một âm tiết tiếng Việt đúng chính tả: chữ thường đã bỏ thanh + số của thanh ("hoà" và "hòa"
     /// đều là "hoa2"). nil nếu không phải một âm tiết hợp lệ. Dùng để tra bảng tần suất mà không phụ thuộc cách
     /// đặt dấu thanh.
+    /// Một chữ cái tiếng Việt dựng sẵn tách thành: chữ thường đã bỏ thanh, thanh, và có viết hoa không. nil với
+    /// chữ không mang dấu tiếng Việt (kể cả chữ ASCII).
+    static func letterInfo(_ ch: Character) -> (plain: Character, tone: Tone, upper: Bool)? { T.info[ch] }
+
     public static func syllableKey(_ word: String) -> String? {
         var plain: [Character] = []
         var tone = Tone.none

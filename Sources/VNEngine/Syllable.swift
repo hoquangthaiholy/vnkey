@@ -89,10 +89,10 @@ enum Syl {
 
     private static func isV(_ c: Character) -> Bool { vowels.contains(c) }
 
-    private struct Parts { var ini: String; var nuc: String; var fin: String }
+    struct Parts { var ini: String; var nuc: String; var fin: String }
 
     /// Tách âm đầu / nguyên âm / âm cuối. "qu" và "gi" có thể cho 2 cách tách.
-    private static func parse(_ s: [Character]) -> [Parts] {
+    static func parse(_ s: [Character]) -> [Parts] {
         let n = s.count
         var i = 0
         while i < n && !isV(s[i]) { i += 1 }

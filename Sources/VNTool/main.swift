@@ -5,8 +5,10 @@ import VNKeyCore
 // vnkey-tool type [tuỳ chọn] "<chuỗi phím>"   Gõ lại chuỗi phím qua engine, in kết quả trên màn hình.
 //                                              "<" = Backspace, "~" = phím đổi từ vừa gõ, "\n" "\t" như thường.
 // vnkey-tool bench [tuỳ chọn]                  Đo thời gian xử lý mỗi phím.
+// vnkey-tool fix-sentence ["<câu>"]           THỬ NGHIỆM: sửa cả câu bằng mô hình chạy trên máy của macOS.
+// vnkey-tool check [--english] "<văn bản>"     Soát lỗi một đoạn văn bản (`Proofreader`), in từng chỗ nghi sai.
 // vnkey-tool convert [--from X] [--to Y] [--strip] "<văn bản>"   Chuyển bảng mã (unicode, decomposed, tcvn3, vni, viqr).
-// Tuỳ chọn: --vni  --brackets  --no-w  --no-predict  --no-lexicon  --trace  --cap  --tidy  --expand  --modern
+// Tuỳ chọn: --vni  --brackets  --no-w  --no-lexicon  --trace  --cap  --tidy  --expand  --modern  --smart
 
 var args = Array(CommandLine.arguments.dropFirst())
 func flag(_ name: String) -> Bool {
@@ -17,12 +19,13 @@ func flag(_ name: String) -> Bool {
 var config = Config()
 if flag("--vni") { config.method = .vni }
 if flag("--brackets") { config.bracketKeys = true }
-if flag("--no-predict") { config.predict = false }
 if flag("--no-w") { config.standaloneW = false }
 if flag("--cap") { config.autoCapitalize = true }
 if flag("--tidy") { config.tidyPunctuation = true }
 if flag("--expand") { config.expandTeen = true }
 if flag("--modern") { config.modernTone = true }
+// Bảng gõ tắt thông minh mẫu, để thử `\\tên` từ dòng lệnh.
+if flag("--smart") { config.smartMacros = ["homnay": "[ngay]", "bgio": "[gio]", "ngay": "[ngaydai]", "amlich": "[amlich]"] }
 let trace = flag("--trace")
 let lexicon: SystemLexicon? = flag("--no-lexicon") ? nil : SystemLexicon()
 
@@ -62,6 +65,21 @@ case "type":
         }
     }
     print(screen)
+
+case "check":
+    let english = flag("--english")
+    guard args.count >= 2 else { fatalError("thiếu văn bản") }
+    let reader = Proofreader()
+    reader.config = config
+    reader.lexicon = lexicon
+    reader.checkEnglish = english
+    let start = DispatchTime.now().uptimeNanoseconds
+    let issues = reader.check(args[1])
+    let ms = Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6
+    for i in issues {
+        print("\(i.range.lowerBound)..<\(i.range.upperBound) [\(i.kind.rawValue)] \"\(i.text)\" -> \(i.suggestions.joined(separator: " | "))")
+    }
+    FileHandle.standardError.write("\(issues.count) chỗ, \(String(format: "%.2f", ms)) ms\n".data(using: .utf8)!)
 
 case "bench":
     let sample =
@@ -145,6 +163,87 @@ case "syllables":
         counts[key, default: 0] += n
     }
     for (key, n) in counts.sorted(by: { ($0.value, $1.key) > ($1.value, $0.key) }) where n >= floor { print(key, n) }
+
+case "pairs":
+    // Đếm cặp âm tiết kề nhau trong một kho văn bản (mỗi dòng một câu) và in ra khối dữ liệu của
+    // `CommonPairsData.swift` (xem chú thích ở đầu tệp đó). Tham số: tệp văn bản, ngưỡng số lần (mặc định 20).
+    guard args.count >= 2, let text = try? String(contentsOfFile: args[1], encoding: .utf8) else { fatalError("thiếu tệp") }
+    let floor = args.count >= 3 ? Int(args[2]) ?? 20 : 20
+    let r = CommonPairs.encode(text: text, floor: floor)
+    print("    static let floor = \(floor)")
+    print("    static let pairCount = \(r.pairs)")
+    print("    static let data = \"\"\"")
+    var rest = Substring(r.base64)
+    while !rest.isEmpty {
+        print("        " + rest.prefix(120))
+        rest = rest.dropFirst(120)
+    }
+    print("        \"\"\"")
+    FileHandle.standardError.write("\(r.words) từ, \(r.pairs) cặp từ \(floor) lần trở lên, \(r.base64.count * 3 / 4) byte\n".data(using: .utf8)!)
+
+case "compounds":
+    // Dựng từ điển từ ghép từ một danh sách từ (mỗi dòng một từ) và in ra phần thân của `CompoundsData.swift`.
+    guard args.count >= 2, let list = try? String(contentsOfFile: args[1], encoding: .utf8) else { fatalError("thiếu tệp") }
+    let r = Compounds.encode(list: list.precomposedStringWithCanonicalMapping)
+    func block(_ name: String, _ text: String, _ width: Int) {
+        print("    static let \(name) = \"\"\"")
+        var rest = Substring(text)
+        while !rest.isEmpty {
+            // Cắt ở khoảng trắng để không chẻ đôi một âm tiết.
+            var cut = rest.index(rest.startIndex, offsetBy: min(width, rest.count))
+            if cut < rest.endIndex, let space = rest[..<cut].lastIndex(of: " ") { cut = space }
+            print("        " + rest[..<cut])
+            rest = rest[cut...].drop(while: { $0 == " " })
+        }
+        print("        \"\"\"")
+    }
+    print("    static let baseCount = \(r.base)")
+    print("    static let compoundCount = \(r.compounds)")
+    block("words", r.words.joined(separator: " "), 120)
+    block("parts", r.parts.joined(separator: " "), 120)
+    block("data", r.base64, 120)
+    FileHandle.standardError.write(
+        "\(r.compounds) từ ghép, \(r.words.count) từ đơn hiếm, \(r.parts.count) âm tiết chỉ có trong từ ghép, \(r.base64.count * 3 / 4) byte nhị phân\n".data(using: .utf8)!)
+
+case "rare-words":
+    // So các ngưỡng gạch chân từ đơn hiếm: với mỗi từ đơn trong danh sách từ mà `Compounds` coi là hiếm, in từ đó,
+    // đề nghị đứng đầu khi soát nó đứng một mình, và số lần đề nghị ấy gặp trong kho ngữ liệu (tab ngăn cách).
+    guard args.count >= 2, let list = try? String(contentsOfFile: args[1], encoding: .utf8) else { fatalError("thiếu tệp") }
+    let reader = Proofreader()
+    reader.config = config
+    reader.rareWordFloor = 0
+    var seen = Set<String>()
+    for line in list.precomposedStringWithCanonicalMapping.split(whereSeparator: \.isNewline) {
+        let word = line.lowercased()
+        guard !word.contains(" "), Compounds.isRareWord(word), seen.insert(word).inserted else { continue }
+        guard let issue = reader.check(word).first, let top = issue.suggestions.first else {
+            print("\(word)\t\t0\t-")
+            continue
+        }
+        print("\(word)\t\(top)\t\(Proofreader.frequency(of: top))\t\(issue.kind.rawValue)")
+    }
+
+case "fix-sentence":
+    // THỬ NGHIỆM: sửa cả câu bằng mô hình chạy trên máy của macOS. Không có câu nào thì chạy bộ câu mẫu.
+    #if canImport(FoundationModels)
+    if #available(macOS 26.0, *) {
+        var rest = Array(args.dropFirst())
+        // `--local`: đường dự phòng không dùng mô hình (bảng cặp, từ ghép). `--task …`: thử một việc khác với câu.
+        if let i = rest.firstIndex(of: "--local") {
+            rest.remove(at: i)
+            SentenceFixer.runLocal(rest, lexicon: lexicon)
+        } else if let i = rest.firstIndex(of: "--task"), i + 1 < rest.count, let task = SentenceTask(rawValue: rest[i + 1]) {
+            rest.removeSubrange(i...(i + 1))
+            SentenceFixer.run(task: task, rest)
+        } else {
+            SentenceFixer.run(rest)
+        }
+    } else {
+        print("Cần macOS 26 trở lên.")
+    }
+    #else
+    print("Bộ công cụ biên dịch này không có framework Foundation Models.")
+    #endif
 
 default:
     print("cách dùng: vnkey-tool type [--vni] [--trace] [--no-lexicon] \"<chuỗi phím>\" | vnkey-tool bench"

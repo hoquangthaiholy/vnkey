@@ -55,6 +55,18 @@ public final class SystemLexicon: Lexicon {
     }
 
     public func isEnglish(_ word: String) -> Bool { known(word, "en") }
+
+    private var guessCache: [String: [String]] = [:]
+
+    /// Gợi ý sửa chính tả tiếng Anh của macOS cho `word` (đã nhớ lại: mỗi lần hỏi mất vài ms).
+    public func englishGuesses(_ word: String) -> [String] {
+        if let hit = guessCache[word] { return hit }
+        let range = NSRange(location: 0, length: (word as NSString).length)
+        let found = checker.guesses(forWordRange: range, in: word, language: "en", inSpellDocumentWithTag: 0) ?? []
+        if guessCache.count > 2000 { guessCache.removeAll() }
+        guessCache[word] = found
+        return found
+    }
     /// Không có từ điển Việt thì coi như hợp lệ (không tự khôi phục từ mơ hồ).
     public func isVietnamese(_ word: String) -> Bool { hasVietnamese ? known(word, "vi") : true }
 }
