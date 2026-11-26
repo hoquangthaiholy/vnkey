@@ -89,6 +89,9 @@ paths:
     hoa, không nhận đề nghị loại lẫn âm / đổi thanh ("Huế" không phải "Huệ", "Nguyễn Du", "Sông Hương"). Thiếu dấu,
     lặp, đảo chữ vẫn gạch ("Viêt Nam"). `wrongCompound` bỏ qua từ ≥ `tooCommonToDoubt` (= `veryCommon` 5000): "bánh
     khác" không phải "bánh khách". Đổi lại, lỗi trùng từ có thật bắt được ít hơn (49,8% xuống 45,9% trên `Eval/`).
+    Tên viết hoa là âm tiết đúng cấu tạo cũng không nhận đề nghị THÊM DẤU ("anh Diên" không phải "Điên"); họ và địa
+    danh thường gặp nằm trong `Proofreader.nameSyllables` (bảng tần suất từ phụ đề thiếu "nguyễn", "huế"…), bộ test
+    `namesInRealText`. Đo gạch nhầm trên văn bản thật: `vnkey-tool check-eval --set Eval/vtb.tsv`.
     Còn gạch nhầm: "mài sắt" → sắc, "tậu được" → tạo, "gỏi cuốn" → gọi, "đàn vịt" → việt, "còn đọng" → động.
   - Lỗi gõ đã học đi trước mọi luật trên, kể cả với từ thật ("muôn" → "muốn"): bảng lưu chuỗi phím nên mỗi lần
     soát dựng lại bảng "chữ đang hiện → phím đúng" (`learned`). Số lần để nguyên (`keepTypo`) chặn gạch nhầm.

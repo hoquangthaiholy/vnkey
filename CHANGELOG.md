@@ -13,6 +13,7 @@
 - **Trợ lý cho câu và đoạn văn (✦)**: để chuột dừng trên một câu rồi đưa vào nút ✦ để mở bảng riêng: sửa chính tả, cải tiến, viết lại, làm ngắn gọn, mở rộng, dịch Việt ↔ Anh, viết thành câu từ vài ý; chọn phạm vi một câu hay cả đoạn; nút ↻ để thử bản khác. Dùng mô hình ngôn ngữ chạy trên máy của macOS 26 (cần Apple Intelligence), không có gì rời khỏi máy, và chỉ thay khi bạn chọn. Máy không có Apple Intelligence thì không có trợ lý này; việc soát từng từ vẫn chạy như thường.
 - **Bắt chữ gõ lặp và gõ đảo**: chữ có một chữ cái gõ lặp (`mộtt`, `đãã`, `xemm`) hoặc hai chữ cái đảo chỗ (`khôgn`, `lcú`) được gạch chân và đề nghị từ đúng.
 - **Ít gạch nhầm hơn**: tên riêng viết hoa (`Huế`, `Nguyễn Du`, `Sông Hương`) và từ rất thông dụng không còn bị đoán là viết sai của từ khác.
+- Trợ lý ✦ viết tự nhiên hơn: giữ cách xưng hô và giọng văn của bạn, lời nhờ vẫn là lời nhờ khi viết lại hay dịch, "mở rộng" không còn tự thêm chi tiết dài dòng.
 - Trợ lý ✦: câu vô hại bị bộ lọc an toàn của mô hình từ chối giờ được hỏi lại ở mức dành cho việc biến đổi văn bản, thay vì báo lỗi.
 - **Soát cả tiếng Anh** (tuỳ chọn, mặc định tắt) bằng từ điển của macOS.
 - **Gõ tắt thông minh**: gõ `\tên` rồi dấu cách để bung (`\homnay` ra ngày hôm nay, `\hoten` ra họ tên); bảng tên và nội dung sửa được, tự thêm mục của bạn. Nội dung của mọi gõ tắt dùng được biến `[ngay]`, `[gio]`, `[thu]`, `[thang]`, `[nam]`, `[ngaydai]`, `[homqua]`, `[ngaymai]`, `[ngay+7]`, `[tuan]`, `[amlich]`, `[hoten]`, `[clipboard]`.

@@ -122,6 +122,13 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   78,3%); 98,7% nét gạch là từ sai thật (trước 94,8%); gạch nhầm 5 lần, 0,7 trên 1.000 từ đúng (trước 21 lần); lỗi
   trùng từ có thật 45,9% (trước 49,8%); viết không dấu cố ý không gạch. 0,12 ms mỗi câu. Luật được chỉnh trên chính
   bộ câu này nên con số lạc quan; câu do người làm bộ đo viết, không phải câu gõ thật.
+- Trên 3.300 câu báo đúng sẵn của UD Vietnamese VTB (`Eval/vtb.tsv`, nguồn độc lập, đo 2026-11-26): 97,7% số câu không
+  bị gạch gì, gạch nhầm 79 chỗ (1,3 trên 1.000 từ), sau khi chắn tên riêng là âm tiết đúng cấu tạo và thêm danh sách
+  họ / địa danh (`Proofreader.nameSyllables`); trước đó 106 chỗ, 97,0%. Còn lại: `wrongCompound` (khoảng 34 chỗ:
+  "buồng ngủ" → buồn, "hết cát" → cách, vì từ điển và bảng cặp thiếu cặp đúng) và từ hiếm có thật ("sụt", "trồi",
+  "kiêm"). Tắt hẳn `wrongCompound` thì còn 72 chỗ trên VTB nhưng lỗi trùng từ có thật trên `Eval/` tụt từ 45,9% xuống
+  29,3%; hạ ngưỡng `tooCommonToDoubt` (3000 … 200) đổi gần như tuyến tính, không có điểm ngọt. Đang giữ 5000. Phần
+  chắn tên được chỉnh trên chính VTB.
 - Đoán từ tiếp theo, đo 2026-11-26 (bảng đếm từ 4,9 triệu câu phụ đề, thử trên Tatoeba / câu viết tay; kịch bản đo
   không nằm trong dự án): đúng ngay 16% / 12% với cặp từ, 24% / 20% với bộ ba từ, 25% / 21% khi thêm các từ trong câu;
   biết chữ cái đầu thì 55% / 47%. Chưa làm gì trong ứng dụng.
@@ -145,6 +152,18 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
     `SystemLanguageModel(guardrails: .permissiveContentTransformations)`, mức Apple dành cho việc biến đổi văn bản. Đo
     2026-11-26 trên 1.001 câu viết tay (`eval --engine apple,apple-retry`): 30 câu bị từ chối đều được trả lời khi hỏi
     lại, câu đúng 78,7% lên 79,8%, sửa bậy giữ 1,0 trên 1.000 âm tiết. Trong ứng dụng thật chưa kiểm chứng.
+  - Lời nhắc chỉnh 2026-11-26 (`SentenceFilter.instructions`, `SentenceTask.instructions`). `fix`: thêm bốn ví dụ mẫu;
+    trên 500 câu viết tay (`--part b`) 81,6% so với 80,6% của bản cũ, tin nhắn không dấu 58,6% so với 52,5%, sửa bậy
+    2,1 so với 1,5 trên 1.000 âm tiết: chênh trong mức sai số, đừng coi là cải thiện chắc chắn. Hai bản khác (luật chặt
+    hơn, viết bằng tiếng Anh) kém hơn bản cũ. Các việc viết lại / mở rộng / dịch: thêm đoạn "giữ cách xưng hô, giọng
+    văn, lời nhờ vẫn là lời nhờ" và giới hạn độ dài cho `expand`; chỉ xem bằng mắt trên bốn câu mẫu (`fix-sentence
+    --task`), không có số đo. Trước đó "anh gửi em báo giá nhé" bị viết lại và dịch thành "anh sẽ gửi / I will send".
+    `expand` vẫn kém tin nhất (còn thêm ý nhỏ).
+  - ĐÃ THỬ, KHÔNG DÙNG (2026-11-26): để từ điển đưa ứng viên cho từng từ rồi mô hình chỉ chọn. Đưa danh sách vào lời
+    nhắn: 60,8% câu đúng trên 143 câu (cách hiện tại 79,0% trên cùng câu), dù danh sách chứa đáp án cho 86,7% số câu;
+    mô hình nhỏ hay giữ nguyên từ gốc khi phải đọc danh sách. Sinh có ràng buộc (`DynamicGenerationSchema`, `anyOf`): bộ
+    lọc an toàn từ chối 95/143 câu và mức `permissiveContentTransformations` không áp dụng cho kiểu sinh này; chậm gấp
+    đôi (0,8 giây). Mã thử nghiệm đã gỡ. Đừng thử lại nếu Apple chưa đổi mô hình hoặc bộ lọc.
   - Đo 2026-11-26 trên M4 bằng `vnkey-tool eval` (420 câu trong `Eval/`: 400 câu Tatoeba cấy lỗi + 20 câu viết tay):
     câu đúng hoàn toàn: `local` (`Proofreader.restore`) 64,3%, mô hình + lọc 63,8%, mô hình chưa lọc 60,0%. `local`
     hơn ở câu không dấu (57,5% so với 38,3%) và thiếu dấu (87% / 69%), thua ở lẫn âm (36% / 54%) và sai thanh

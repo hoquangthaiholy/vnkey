@@ -17,6 +17,11 @@ public enum SentenceTask: String, CaseIterable, Sendable {
     /// làm mô hình trả lời bằng tiếng Việt dù đã dặn giữ nguyên ngôn ngữ.
     public func instructions(for sentence: String) -> String {
         let vi = SentenceTask.isVietnamese(sentence)
+        // "Tự nhiên" (người dùng yêu cầu 2026-11-26): giữ cách xưng hô và giọng văn của người viết, lời nhờ vẫn là lời
+        // nhờ. Trước đó "anh gửi em báo giá nhé" bị viết lại thành "Anh sẽ gửi cho em báo giá" (đổi nghĩa).
+        let voice = vi
+            ? " Viết tự nhiên như người Việt vẫn nói và viết hằng ngày. Giữ cách xưng hô (anh, em, mình, bạn…) và giọng văn của người viết: thân mật vẫn thân mật, trang trọng vẫn trang trọng. Lời nhờ hay đề nghị vẫn là lời nhờ, không đổi ai làm việc gì."
+            : " Write the way a fluent speaker naturally would. Keep the writer's tone: casual stays casual, formal stays formal. A request stays a request, and who does what must not change."
         let tail = vi
             ? " Chỉ trả về kết quả bằng tiếng Việt, không giải thích, không đặt trong dấu ngoặc kép."
             : " Return only the result, in English, with no explanation and no quotation marks."
@@ -24,24 +29,24 @@ public enum SentenceTask: String, CaseIterable, Sendable {
         case .fix: return SentenceFilter.instructions
         case .improve:
             return (vi
-                ? "Hãy sửa câu người dùng đưa cho rõ ràng, tự nhiên và đúng ngữ pháp hơn. Giữ nguyên ý; câu hỏi vẫn là câu hỏi."
-                : "Improve the user's sentence so it is clear, natural and grammatically correct. Keep the meaning; a question stays a question.") + tail
+                ? "Hãy sửa câu người dùng đưa cho rõ ràng, tự nhiên và đúng ngữ pháp hơn. Giữ nguyên ý; câu hỏi vẫn là câu hỏi. Câu đã ổn thì chỉ sửa chỗ cần sửa."
+                : "Improve the user's sentence so it is clear, natural and grammatically correct. Keep the meaning; a question stays a question. If it already reads well, change only what needs changing.") + voice + tail
         case .rewrite:
             return (vi
                 ? "Hãy viết lại câu người dùng đưa bằng cách diễn đạt khác. Giữ nguyên ý; câu hỏi vẫn là câu hỏi."
-                : "Rewrite the user's sentence with different wording. Keep the meaning; a question stays a question.") + tail
+                : "Rewrite the user's sentence with different wording. Keep the meaning; a question stays a question.") + voice + tail
         case .shorten:
             return (vi
                 ? "Hãy viết lại câu người dùng đưa cho ngắn gọn hơn bằng cách bỏ từ thừa. Giữ nguyên ý nghĩa: câu hỏi vẫn là câu hỏi, không đổi khẳng định thành phủ định."
-                : "Make the user's sentence shorter by removing unnecessary words. Keep the meaning: a question stays a question, and do not turn a statement into its opposite.") + tail
+                : "Make the user's sentence shorter by removing unnecessary words. Keep the meaning: a question stays a question, and do not turn a statement into its opposite.") + voice + tail
         case .expand:
             return (vi
-                ? "Hãy viết lại câu người dùng đưa cho dài hơn và chi tiết hơn: thêm từ ngữ làm rõ ý, kết quả phải dài hơn câu gốc, tối đa hai câu. Không thêm sự việc mới."
-                : "Make the user's sentence longer and more detailed: add wording that clarifies it; the result must be longer than the original, two sentences at most. Do not add new facts.") + tail
+                ? "Hãy viết lại câu người dùng đưa cho đầy đủ và rõ ý hơn một chút: thêm vài từ nối, từ làm rõ, lời lẽ lịch sự. Kết quả dài hơn câu gốc nhưng không quá gấp rưỡi, tối đa hai câu, không lặp lại ý. Tuyệt đối không thêm sự việc, lý do hay chi tiết mà câu gốc không có."
+                : "Make the user's sentence a little fuller and clearer: add linking words, clarifying words, polite phrasing. The result is longer than the original but at most one and a half times its length, two sentences at most, and never repeats an idea. Never add facts, reasons or details the original does not contain.") + voice + tail
         case .translate:
             return vi
-                ? "Translate the user's Vietnamese sentence into English. Return only the English translation, with no explanation and no quotation marks."
-                : "Hãy dịch câu người dùng đưa sang tiếng Việt. Chỉ trả về bản dịch tiếng Việt, không giải thích, không đặt trong dấu ngoặc kép."
+                ? "Translate the user's Vietnamese sentence into natural English, the way a fluent speaker would say it, not word by word. Keep the tone (casual or formal). A request stays a request: in Vietnamese the subject of a request is often the person being asked (\"anh gửi em … nhé\" means \"please send me …\"). Return only the English translation, with no explanation and no quotation marks."
+                : "Hãy dịch câu người dùng đưa sang tiếng Việt tự nhiên, như người Việt vẫn nói, không dịch từng chữ (\"my manager\" là \"sếp tôi\", không phải \"người quản lý của tôi\"). Giữ giọng văn: thân mật hay trang trọng như câu gốc. Chỉ trả về bản dịch tiếng Việt, không giải thích, không đặt trong dấu ngoặc kép."
         case .compose:
             return (vi
                 ? "Người dùng đưa vài ý, ghi chú hoặc từ khoá. Hãy viết chúng thành câu văn hoàn chỉnh, tự nhiên, lịch sự vừa phải, tối đa hai câu. Chỉ dùng thông tin người dùng đưa, không thêm sự việc mới."
@@ -87,7 +92,18 @@ public enum SentenceFilter {
     public static let instructions = """
         Bạn là công cụ sửa chính tả tiếng Việt. Người dùng đưa một câu. Hãy trả về đúng câu đó sau khi sửa lỗi chính tả \
         và thêm các dấu còn thiếu. Giữ nguyên từ ngữ, thứ tự từ, dấu câu và cách viết hoa; không thêm bớt ý; không giải \
-        thích. Chỉ trả về câu đã sửa, trên một dòng.
+        thích. Từ tiếng Anh, tên riêng và từ đã đúng thì giữ nguyên. Câu đã đúng thì trả về y nguyên. Chỉ trả về câu đã \
+        sửa, trên một dòng.
+
+        Ví dụ:
+        Câu: toi dang hop, ti nua goi lai nhe
+        Trả về: tôi đang họp, tí nữa gọi lại nhé
+        Câu: Chúng ta cần bổ xung thêm tài liệu cho buổi meeting.
+        Trả về: Chúng ta cần bổ sung thêm tài liệu cho buổi meeting.
+        Câu: Anh ấy sẽ chia sẽ kinh nghiệm với cả nhóm.
+        Trả về: Anh ấy sẽ chia sẻ kinh nghiệm với cả nhóm.
+        Câu: Hôm nay trời đẹp quá.
+        Trả về: Hôm nay trời đẹp quá.
         """
 
     /// Đoạn văn chứa đoạn `range`: từ sau dấu xuống dòng gần nhất bên trái tới trước dấu xuống dòng bên phải, bỏ khoảng

@@ -5,7 +5,7 @@ mô hình của macOS ở các chế độ khác nhau; thuật toán `Proofreade
 
 Mỗi dòng: `câu gõ <TAB> câu đúng <TAB> loại`. Dòng bắt đầu bằng `#` là ghi chú.
 
-## Hai tệp
+## Ba tệp
 
 - `generated.tsv`: SINH TỰ ĐỘNG, đừng sửa tay. 460 câu đúng lấy từ Tatoeba rồi cấy lỗi. 400 câu đầu:
   `khong-dau` (bỏ hết dấu), `thieu-dau` (1–2 âm tiết mất dấu), `lan-am` (một âm tiết bị đổi theo bảng lẫn âm của
@@ -16,6 +16,10 @@ Mỗi dòng: `câu gõ <TAB> câu đúng <TAB> loại`. Dòng bắt đầu bằn
   phải câu gõ thật của người dùng: `tay-chinh-ta` (303 câu lỗi chính tả hay gặp: "xử dụng", "bổ xung", hỏi / ngã),
   `tay-khong-dau` (197 tin nhắn không dấu), `tay-go-loi` (150 câu sót dấu, đảo chữ, lặp chữ), `tay-dung` (203 câu đúng có
   tên riêng, từ hiếm, thành ngữ: không được đổi gì). Thêm câu lỗi thật của bạn vào cuối tệp (bỏ cột loại thì thành `tay`).
+
+- `vtb.tsv`: 3.300 câu báo ĐÚNG SẴN (loại `bao-dung`) từ treebank UD Vietnamese VTB, nguồn độc lập với người làm bộ đo.
+  Chỉ đo được việc gạch nhầm (`check-eval --set Eval/vtb.tsv`), không có lỗi để bắt. Văn bản gốc có vài chỗ viết thường
+  tên riêng ("nguyễn văn tường") và vài lỗi chính tả thật ("chuôt"), nên con số gạch nhầm hơi cao hơn thực tế.
 
 ## Giới hạn
 
@@ -64,3 +68,8 @@ gạch riêng lẻ), chữ không có thật (không phải tiếng Việt cũng
 Câu đúng trong `generated.tsv` lấy từ [Tatoeba](https://tatoeba.org), giấy phép
 [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/). Thay đổi so với bản gốc: chỉ giữ câu thuần Việt dài
 4–20 âm tiết, lấy mẫu 400 câu, và cấy lỗi vào cột "câu gõ".
+
+Câu trong `vtb.tsv` lấy từ [UD Vietnamese VTB](https://github.com/UniversalDependencies/UD_Vietnamese-VTB) (chuyển từ
+treebank của dự án VLSP, câu báo Tuổi Trẻ), giấy phép [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Thay đổi so với bản gốc: chỉ lấy dòng văn bản của mỗi câu, bỏ câu trùng, ghép lại dấu câu vốn bị tách rời. Tệp này
+vẫn theo CC BY-SA 4.0.

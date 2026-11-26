@@ -79,6 +79,14 @@ public final class Proofreader {
     }
 
     private static let limit = 3
+    /// Họ và địa danh Việt Nam thường gặp. Bảng tần suất đếm từ phụ đề phim (phần lớn phim nước ngoài) nên thiếu
+    /// nhiều chữ này: "nguyễn" từng bị đề nghị "nguyên", "huế" thành "huệ", kể cả khi viết thường. Chữ đã có trong bảng
+    /// nằm ở đây cũng không sao.
+    static let nameSyllables: Set<String> = [
+        "nguyễn", "trần", "lê", "phạm", "hoàng", "huỳnh", "phan", "vũ", "võ", "đặng", "bùi", "đỗ", "hồ", "ngô", "dương",
+        "lý", "trịnh", "đinh", "đoàn", "trương", "lương", "phùng", "quách", "khổng", "doãn", "tạ", "thái", "mạc", "châu",
+        "huế", "nẵng", "thơ", "thuột", "gòn", "pleiku", "kạn", "bái", "tĩnh", "ngãi", "giang",
+    ]
     /// Chữ đang hiện của mỗi lỗi gõ đã học (chữ thường) -> chuỗi phím đúng. Dựng lại ở đầu mỗi lần soát: bảng lỗi gõ
     /// lưu theo chuỗi phím ("muoon"), còn trên màn hình là chữ ("muôn").
     private var learned: [String: String] = [:]
@@ -131,8 +139,10 @@ public final class Proofreader {
             // Tên riêng (viết hoa giữa câu, hoặc viết hoa và đứng trước một từ viết hoa: "bún bò Huế", "Nguyễn Du", "Sông
             // Hương") không bị đoán là viết sai của một từ thường. Lẫn âm và đổi thanh chỉ là phỏng đoán; thiếu dấu, lặp
             // và đảo chữ ("Viêt", "Khôgn") thì chữ đang viết không phải từ nào cả nên vẫn gạch. Đo 2026-11-26.
-            if let f = findings[i], f.kind == .spelling || f.kind == .wrongTone, t.text.first?.isUppercase == true,
-                t.joined || (next?.text.first?.isUppercase ?? false)
+            // Tên là âm tiết đúng cấu tạo ("anh Diên") thì đề nghị thêm dấu ("Điên") cũng chỉ là phỏng đoán: bỏ nốt. Chữ
+            // chưa thành âm tiết ("Viêt") vẫn gạch. Đo trên câu báo của UD Vietnamese VTB, 2026-11-26.
+            if let f = findings[i], t.text.first?.isUppercase == true, t.joined || (next?.text.first?.isUppercase ?? false),
+                f.kind == .spelling || f.kind == .wrongTone || (f.kind == .missingMark && Charset.syllableKey(t.lower) != nil)
             {
                 findings[i] = nil
             }
@@ -262,6 +272,7 @@ public final class Proofreader {
     /// tả; "nhiệt dới" -> đới: gõ thiếu). Chữ không phải âm tiết đúng cấu tạo luôn là gõ nhầm.
     private func missingMark(_ t: Token, _ prev: Token?, _ next: Token?) -> Finding? {
         if CommonWords.count(t.lower) >= CommonWords.tableFloor { return nil }
+        if Proofreader.nameSyllables.contains(t.lower) { return nil }
         if (context?.count(t.lower) ?? 0) >= 2 { return nil }  // từ của chính người dùng
         // Âm tiết là một phần của từ ghép với từ bên cạnh ("bánh chưng": "chưng" không có trong bảng tần suất): từ thật.
         if inCompound(t.lower, prev, next) { return nil }

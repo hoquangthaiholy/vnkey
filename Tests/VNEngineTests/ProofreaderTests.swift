@@ -65,6 +65,16 @@ final class EnglishLexicon: Lexicon {
         #expect(found(text) == [])
     }
 
+    /// Đo trên 3.300 câu báo của UD Vietnamese VTB (2026-11-26): tên người viết hoa giữa câu là âm tiết đúng cấu tạo
+    /// ("anh Diên" bị đề nghị "Điên"), và họ tên viết thường ("nguyễn văn tường") bị gạch nhầm.
+    @Test(arguments: [
+        "Nhà anh Diên cũng ở trên một con đường đẹp.", "Hôm qua tôi gặp chị Bàu ở chợ.", "Con trai: nguyễn văn tường, 3 tuổi.",
+        "Nguyễn nói rằng anh sẽ đến.", "cô ấy họ huỳnh, quê ở huế",
+    ])
+    func namesInRealText(text: String) {
+        #expect(found(text) == [])
+    }
+
     @Test func capitalisedWordStillFlaggedForMissingMark() {
         #expect(found("tôi ở Viêt Nam") == ["Viêt>Việt"])
     }

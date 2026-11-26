@@ -107,6 +107,10 @@ Bộ câu để đo việc sửa cả câu (`Eval/generated.tsv`, chỉ dùng kh
 [Tatoeba](https://tatoeba.org), giấy phép [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/). VNKey lấy
 mẫu 400 câu thuần Việt và cấy lỗi vào để có cặp câu gõ / câu đúng; xem `Eval/README.md`.
 
+Bộ câu báo đúng sẵn để đo việc gạch nhầm (`Eval/vtb.tsv`, cũng chỉ dùng khi phát triển) lấy từ
+[UD Vietnamese VTB](https://github.com/UniversalDependencies/UD_Vietnamese-VTB), giấy phép
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); VNKey chỉ lấy văn bản của từng câu và ghép lại dấu câu.
+
 ## Giấy phép
 
 [GPL-3.0](LICENSE). © 2026 Hồ Quang Thái.
