@@ -67,3 +67,44 @@ import Testing
         #expect(!SentenceFilter.same("xong rồi", "xong rồi."))
     }
 }
+
+/// Chấm điểm một lần sửa câu (`SentenceFilter.score`), cho bộ đo `vnkey-tool eval`.
+@Suite struct SentenceScoring {
+    @Test func countsFixedMissedAndHarmed() {
+        // "hop" được sửa, "luc" bị bỏ sót, "mai" vốn đúng bị đổi bậy.
+        let s = SentenceFilter.score(typed: "mai hop luc ba giờ", want: "mai họp lúc ba giờ", got: "mái họp luc ba giờ")
+        #expect(s.syllables == 5)
+        #expect(s.errors == 2)
+        #expect(s.right == 3)
+        #expect(s.missed == 1)
+        #expect(s.harmed == 1)
+        #expect(!s.exact)
+        #expect(!s.reshaped)
+    }
+
+    @Test func ignoresCaseAndToneplacement() {
+        let s = SentenceFilter.score(typed: "suc khoe", want: "sức khoẻ", got: "Sức khỏe")
+        #expect(s.right == 2)
+        #expect(s.exact)
+    }
+
+    @Test func punctuationOnlyBreaksTheWholeSentence() {
+        let s = SentenceFilter.score(typed: "toi di hoc", want: "tôi đi học", got: "Tôi đi học.")
+        #expect(s.right == 3)
+        #expect(!s.exact)
+    }
+
+    @Test func changedWordCountIsNotScoredPerSyllable() {
+        let s = SentenceFilter.score(typed: "toi di hoc", want: "tôi đi học", got: "tôi đang đi học")
+        #expect(s.reshaped)
+        #expect(s.right == 0)
+        #expect(s.missed == 3)
+    }
+
+    @Test func confusionsSplitToneFromSound() {
+        let reader = Proofreader()
+        #expect(reader.confusions(of: "sẻ", tonesOnly: true).contains("sẽ"))
+        #expect(!reader.confusions(of: "sẻ").contains("sẽ"))
+        #expect(reader.confusions(of: "chưng").contains("trưng"))
+    }
+}

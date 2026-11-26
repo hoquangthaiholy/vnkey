@@ -9,29 +9,8 @@ import VNEngine
 /// gì rời khỏi máy.
 @available(macOS 26.0, *)
 enum SentenceFixer {
-    /// Câu mẫu lấy từ các lỗi đã gặp khi làm bộ soát lỗi: (câu gõ, câu đúng).
-    static let samples: [(String, String)] = [
-        ("em co muon lam viec voi thay khong", "em có muốn làm việc với thầy không"),
-        ("hom nay troi dep qua", "hôm nay trời đẹp quá"),
-        ("toi dang hoc tieng viet", "tôi đang học tiếng việt"),
-        ("Tiếng viet giàu và đẹp.", "Tiếng việt giàu và đẹp."),
-        ("tôi đươc nghỉ hai ngày", "tôi được nghỉ hai ngày"),
-        ("Đi vễ nhà thôi", "Đi về nhà thôi"),
-        ("em làm việc dới thầy", "em làm việc với thầy"),
-        ("trời xắp mưa rồi", "trời sắp mưa rồi"),
-        ("chời ơi đẹp quá", "trời ơi đẹp quá"),
-        ("anh lói gì thế", "anh nói gì thế"),
-        ("cảm ơn bạn đã chia sẽ", "cảm ơn bạn đã chia sẻ"),
-        ("xe đang sữa chữa", "xe đang sửa chữa"),
-        ("con hưu cao cổ", "con hươu cao cổ"),
-        ("bánh trưng ngày tết", "bánh chưng ngày tết"),
-        ("dữ gìn sức khoẻ nhé", "giữ gìn sức khoẻ nhé"),
-        ("đi ra ngoài rưng", "đi ra ngoài rừng"),
-        ("tôi uống riệu với bạn", "tôi uống rượu với bạn"),
-        ("anh ấy tậu xe mới", "anh ấy tậu xe mới"),  // câu đúng: không được đổi
-        ("gửi file data cho user nhé", "gửi file data cho user nhé"),  // xen tiếng Anh: không được đổi
-        ("mai hop luc 3 gio chieu o phong 204", "mai họp lúc 3 giờ chiều ở phòng 204"),
-    ]
+    /// Câu mẫu (câu gõ, câu đúng): các câu viết tay trong `Eval/handwritten.tsv`. Đo đầy đủ thì dùng `vnkey-tool eval`.
+    static var samples: [(String, String)] { (EvalSet.load(EvalSet.handwritten) ?? []).map { ($0.typed, $0.want) } }
 
     /// Chạy một việc khác "sửa chính tả" (cải tiến, viết lại, rút gọn, mở rộng, dịch) trên vài câu và in kết quả.
     static func run(task: SentenceTask, _ inputs: [String]) {

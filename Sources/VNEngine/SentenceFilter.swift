@@ -225,6 +225,60 @@ public enum SentenceFilter {
         return out
     }
 
+    /// Điểm của một lần sửa câu, đếm theo âm tiết. Dùng cho bộ đo (`vnkey-tool eval`).
+    public struct Score: Equatable, Sendable {
+        /// Số âm tiết của câu đúng.
+        public var syllables = 0
+        /// Số âm tiết ra đúng.
+        public var right = 0
+        /// Số âm tiết gõ sai trong câu gốc.
+        public var errors = 0
+        /// Âm tiết gõ sai mà kết quả vẫn sai (không sửa, hoặc sửa thành từ khác).
+        public var missed = 0
+        /// Âm tiết vốn đúng mà bị đổi thành sai.
+        public var harmed = 0
+        /// Kết quả có số từ khác câu đúng: không so từng âm tiết được, coi như không sửa được gì.
+        public var reshaped = false
+        /// Cả câu đúng (kể cả dấu câu và khoảng trắng).
+        public var exact = false
+
+        public init() {}
+    }
+
+    /// Chấm `got` (kết quả sửa `typed`) so với câu đúng `want`. Không tính hoa/thường và chỗ đặt dấu thanh.
+    public static func score(typed: String, want: String, got: String) -> Score {
+        func keys(_ s: String) -> [String] {
+            pieces(s).compactMap { p in
+                if case .word(let w) = p { return Charset.syllableKey(w) ?? w.lowercased() } else { return nil }
+            }
+        }
+        let a = keys(typed), w = keys(want), g = keys(got)
+        var s = Score()
+        s.syllables = w.count
+        s.exact = same(got, want)
+        // Câu gõ lệch số từ với câu đúng (bộ câu viết tay có thể vậy): chỉ chấm được cả câu.
+        guard a.count == w.count else {
+            s.right = s.exact ? w.count : 0
+            return s
+        }
+        s.errors = zip(a, w).filter { $0 != $1 }.count
+        guard g.count == w.count else {
+            s.reshaped = true
+            s.missed = s.errors
+            return s
+        }
+        for i in w.indices {
+            if g[i] == w[i] {
+                s.right += 1
+            } else if a[i] == w[i] {
+                s.harmed += 1
+            } else {
+                s.missed += 1
+            }
+        }
+        return s
+    }
+
     /// Hai câu giống nhau khi không tính hoa/thường và chỗ đặt dấu thanh ("khoẻ" như "khỏe").
     public static func same(_ a: String, _ b: String) -> Bool {
         func keys(_ s: String) -> [String] {

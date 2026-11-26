@@ -14,6 +14,9 @@ public enum Compounds {
     private static let wordKeys: [String] = words.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init)
     private static let partKeys: [String] = parts.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init)
 
+    /// Khoá của các âm tiết có trong từ điển mà bảng tần suất không có: từ đơn hiếm, rồi âm tiết chỉ gặp trong từ ghép.
+    static var rareKeys: [String] { wordKeys + partKeys }
+
     private static let index: [String: Int] = {
         var out: [String: Int] = [:]
         out.reserveCapacity(CommonWords.keys.count + wordKeys.count + partKeys.count)

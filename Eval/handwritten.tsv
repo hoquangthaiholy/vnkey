@@ -1,0 +1,1013 @@
+# Câu viết tay: lỗi thật đã gặp khi làm bộ soát lỗi. Thêm câu của bạn ở cuối tệp (loại mặc định là `tay`).
+# Loại `da-chinh`: 20 câu đã dùng để chỉnh trọng số và bộ lọc, nên kết quả trên chúng lạc quan; báo riêng.
+# câu gõ<TAB>câu đúng<TAB>loại
+em co muon lam viec voi thay khong	em có muốn làm việc với thầy không	da-chinh
+hom nay troi dep qua	hôm nay trời đẹp quá	da-chinh
+toi dang hoc tieng viet	tôi đang học tiếng việt	da-chinh
+Tiếng viet giàu và đẹp.	Tiếng việt giàu và đẹp.	da-chinh
+tôi đươc nghỉ hai ngày	tôi được nghỉ hai ngày	da-chinh
+Đi vễ nhà thôi	Đi về nhà thôi	da-chinh
+em làm việc dới thầy	em làm việc với thầy	da-chinh
+trời xắp mưa rồi	trời sắp mưa rồi	da-chinh
+chời ơi đẹp quá	trời ơi đẹp quá	da-chinh
+anh lói gì thế	anh nói gì thế	da-chinh
+cảm ơn bạn đã chia sẽ	cảm ơn bạn đã chia sẻ	da-chinh
+xe đang sữa chữa	xe đang sửa chữa	da-chinh
+con hưu cao cổ	con hươu cao cổ	da-chinh
+bánh trưng ngày tết	bánh chưng ngày tết	da-chinh
+dữ gìn sức khoẻ nhé	giữ gìn sức khoẻ nhé	da-chinh
+đi ra ngoài rưng	đi ra ngoài rừng	da-chinh
+tôi uống riệu với bạn	tôi uống rượu với bạn	da-chinh
+anh ấy tậu xe mới	anh ấy tậu xe mới	da-chinh
+gửi file data cho user nhé	gửi file data cho user nhé	da-chinh
+mai hop luc 3 gio chieu o phong 204	mai họp lúc 3 giờ chiều ở phòng 204	da-chinh
+# Loại `xen-anh` (viết 2026-11-26, trước khi train lượt hai): câu Việt xen từ tiếng Anh. Từ tiếng Anh phải giữ nguyên.
+gui file report cho team truoc 5 gio nhe	gửi file report cho team trước 5 giờ nhé	xen-anh
+anh check mail giup em voi	anh check mail giúp em với	xen-anh
+toi dang fix bug tren server	tôi đang fix bug trên server	xen-anh
+hom nay co meeting luc may gio	hôm nay có meeting lúc mấy giờ	xen-anh
+em da update status tren group roi	em đã update status trên group rồi	xen-anh
+chi oi cho em xin link download voi	chị ơi cho em xin link download với	xen-anh
+deadline cua project nay la thu sau	deadline của project này là thứ sáu	xen-anh
+ban co the share man hinh duoc khong	bạn có thể share màn hình được không	xen-anh
+de minh book phong hop cho ca team	để mình book phòng họp cho cả team	xen-anh
+may tinh cua toi bi loi update windows	máy tính của tôi bị lỗi update windows	xen-anh
+tôi đang fix bug trên server	tôi đang fix bug trên server	xen-anh
+anh gửi feedback cho khách hàng chưa	anh gửi feedback cho khách hàng chưa	xen-anh
+em sẽ review code của anh tối nay	em sẽ review code của anh tối nay	xen-anh
+mình mới order một cái laptop mới	mình mới order một cái laptop mới	xen-anh
+cuối tuần này đi shopping với chị không	cuối tuần này đi shopping với chị không	xen-anh
+nhớ backup data trước khi cài lại máy	nhớ backup data trước khi cài lại máy	xen-anh
+The meeting was moved to Friday afternoon.	The meeting was moved to Friday afternoon.	xen-anh
+Please send me the report before lunch.	Please send me the report before lunch.	xen-anh
+anh ấy làm marketing cho một công ty lơn	anh ấy làm marketing cho một công ty lớn	xen-anh
+em sẻ gửi email cho sếp ngay	em sẽ gửi email cho sếp ngay	xen-anh
+app này chạy dất chậm trên iPhone cũ	app này chạy rất chậm trên iPhone cũ	xen-anh
+password của wifi là gi vậy	password của wifi là gì vậy	xen-anh
+chị đã confirm lịch họp với khach hàng	chị đã confirm lịch họp với khách hàng	xen-anh
+toi can them thoi gian de test tinh nang moi	tôi cần thêm thời gian để test tính năng mới	xen-anh
+# Các nhóm dưới đây viết 2026-11-26, SAU khi đã train lượt hai nhưng không dùng để chỉnh gì. Người viết là người làm
+# bộ đo (không phải câu gõ thật của người dùng); lỗi lấy theo các lỗi chính tả quen thuộc trong sách và báo.
+# `tay-chinh-ta`: lỗi chính tả quen thuộc (lẫn âm, hỏi / ngã) trong câu đời thường.
+công ty đang xử dụng phần mềm mới	công ty đang sử dụng phần mềm mới	tay-chinh-ta
+anh cần bổ xung thêm hồ sơ	anh cần bổ sung thêm hồ sơ	tay-chinh-ta
+em ấy là học sinh xuất xắc của lớp	em ấy là học sinh xuất sắc của lớp	tay-chinh-ta
+tôi xin trân thành cảm ơn quý khách	tôi xin chân thành cảm ơn quý khách	tay-chinh-ta
+hai công ty sẽ sát nhập vào năm sau	hai công ty sẽ sáp nhập vào năm sau	tay-chinh-ta
+đừng dấu diếm chuyện này nữa	đừng giấu giếm chuyện này nữa	tay-chinh-ta
+chúng ta phải nổ lực nhiều hơn	chúng ta phải nỗ lực nhiều hơn	tay-chinh-ta
+mọi việc diễn ra rất suông sẻ	mọi việc diễn ra rất suôn sẻ	tay-chinh-ta
+đừng bắt chướt người khác	đừng bắt chước người khác	tay-chinh-ta
+cô ấy làm việc rất chỉnh chu	cô ấy làm việc rất chỉn chu	tay-chinh-ta
+bài viết ngắn gọn và xúc tích	bài viết ngắn gọn và súc tích	tay-chinh-ta
+em sắp sếp lại bàn làm việc đi	em sắp xếp lại bàn làm việc đi	tay-chinh-ta
+đây là sơ xuất của bộ phận kế toán	đây là sơ suất của bộ phận kế toán	tay-chinh-ta
+kể cho con nghe một câu truyện đi mẹ	kể cho con nghe một câu chuyện đi mẹ	tay-chinh-ta
+bác sĩ chuẩn đoán anh ấy bị cảm	bác sĩ chẩn đoán anh ấy bị cảm	tay-chinh-ta
+một buổi tối thật lãng mạng	một buổi tối thật lãng mạn	tay-chinh-ta
+sếp đang xem sét đề nghị của anh	sếp đang xem xét đề nghị của anh	tay-chinh-ta
+máy đang sử lý dữ liệu	máy đang xử lý dữ liệu	tay-chinh-ta
+cuối tuần này anh có rãnh không	cuối tuần này anh có rảnh không	tay-chinh-ta
+để tôi suy nghỉ thêm đã	để tôi suy nghĩ thêm đã	tay-chinh-ta
+anh nên nghĩ ngơi vài ngày	anh nên nghỉ ngơi vài ngày	tay-chinh-ta
+em muốn học nghành công nghệ thông tin	em muốn học ngành công nghệ thông tin	tay-chinh-ta
+chương trình bị lổi khi khởi động	chương trình bị lỗi khi khởi động	tay-chinh-ta
+tôi củng nghĩ như vậy	tôi cũng nghĩ như vậy	tay-chinh-ta
+mổi ngày tôi đi bộ ba mươi phút	mỗi ngày tôi đi bộ ba mươi phút	tay-chinh-ta
+cho tôi thêm một ly nửa	cho tôi thêm một ly nữa	tay-chinh-ta
+nhửng người bạn cũ đã về quê	những người bạn cũ đã về quê	tay-chinh-ta
+chị giử giúp em cái túi này	chị giữ giúp em cái túi này	tay-chinh-ta
+con đường này rất dể đi	con đường này rất dễ đi	tay-chinh-ta
+anh đổ xe ở đâu vậy	anh đỗ xe ở đâu vậy	tay-chinh-ta
+bạn làm dùm mình việc này nhé	bạn làm giùm mình việc này nhé	tay-chinh-ta
+mẹ dặn con phải dữ lời hứa	mẹ dặn con phải giữ lời hứa	tay-chinh-ta
+trời lạnh quá nhớ mặc áo ấm vào không lại bị cãm	trời lạnh quá nhớ mặc áo ấm vào không lại bị cảm	tay-chinh-ta
+tôi rất chân trọng tình cảm của mọi người	tôi rất trân trọng tình cảm của mọi người	tay-chinh-ta
+anh ấy rất có trách nhiệm với công việc được dao	anh ấy rất có trách nhiệm với công việc được giao	tay-chinh-ta
+căn phòng này rộng dãi và thoáng mát	căn phòng này rộng rãi và thoáng mát	tay-chinh-ta
+cô giáo khen em viết chử đẹp	cô giáo khen em viết chữ đẹp	tay-chinh-ta
+hôm nay trời nắn đẹp quá	hôm nay trời nắng đẹp quá	tay-chinh-ta
+em bé đang ngũ say	em bé đang ngủ say	tay-chinh-ta
+cả nhà cùng ăn cơm tói	cả nhà cùng ăn cơm tối	tay-chinh-ta
+# `tay-khong-dau`: tin nhắn gõ không dấu, dài hơn câu Tatoeba.
+chieu nay anh co ranh khong di uong ca phe voi em nhe	chiều nay anh có rảnh không đi uống cà phê với em nhé	tay-khong-dau
+em dang o dau vay anh den don em nhe	em đang ở đâu vậy anh đến đón em nhé	tay-khong-dau
+toi nay ca nha minh di an lau nhe	tối nay cả nhà mình đi ăn lẩu nhé	tay-khong-dau
+cam on ban rat nhieu vi da giup do minh	cảm ơn bạn rất nhiều vì đã giúp đỡ mình	tay-khong-dau
+ngay mai toi phai day som de di lam	ngày mai tôi phải dậy sớm để đi làm	tay-khong-dau
+anh gui giup em bao cao truoc thu sau duoc khong	anh gửi giúp em báo cáo trước thứ sáu được không	tay-khong-dau
+me oi con ve muon mot chut nha	mẹ ơi con về muộn một chút nha	tay-khong-dau
+xin loi vi da tra loi cham	xin lỗi vì đã trả lời chậm	tay-khong-dau
+chuc mung sinh nhat ban nhe	chúc mừng sinh nhật bạn nhé	tay-khong-dau
+hop dong nay can ky truoc cuoi thang	hợp đồng này cần ký trước cuối tháng	tay-khong-dau
+troi mua to qua nen toi khong di duoc	trời mưa to quá nên tôi không đi được	tay-khong-dau
+ban da an com chua	bạn đã ăn cơm chưa	tay-khong-dau
+toi se goi lai cho anh sau nhe	tôi sẽ gọi lại cho anh sau nhé	tay-khong-dau
+cuoi tuan nay gia dinh toi ve que tham ong ba	cuối tuần này gia đình tôi về quê thăm ông bà	tay-khong-dau
+gia ve may bay di da nang bao nhieu tien	giá vé máy bay đi đà nẵng bao nhiêu tiền	tay-khong-dau
+chi cho em hoi duong den benh vien gan nhat	chị cho em hỏi đường đến bệnh viện gần nhất	tay-khong-dau
+hom qua toi quen mang chia khoa nha	hôm qua tôi quên mang chìa khoá nhà	tay-khong-dau
+lop minh thi cuoi ky vao tuan sau	lớp mình thi cuối kỳ vào tuần sau	tay-khong-dau
+anh ay moi chuyen den thanh pho ho chi minh	anh ấy mới chuyển đến thành phố hồ chí minh	tay-khong-dau
+chung toi rat vui duoc hop tac voi quy cong ty	chúng tôi rất vui được hợp tác với quý công ty	tay-khong-dau
+# `tay-go-loi`: lỗi gõ, không phải lỗi chính tả: sót dấu mũ / móc / thanh, đảo chữ, lặp chữ, sót chữ.
+tôi đươc nghỉ phép ba ngày	tôi được nghỉ phép ba ngày	tay-go-loi
+nguời ta nói đúng đấy	người ta nói đúng đấy	tay-go-loi
+truờng em ở gần nhà	trường em ở gần nhà	tay-go-loi
+anh thuơng em nhiều lắm	anh thương em nhiều lắm	tay-go-loi
+tôi muôn mua một chiếc xe mới	tôi muốn mua một chiếc xe mới	tay-go-loi
+hôm nay tôi khôgn đi làm	hôm nay tôi không đi làm	tay-go-loi
+chúng ta gặp nhau lcú tám giờ	chúng ta gặp nhau lúc tám giờ	tay-go-loi
+em đang lamf bài tập	em đang làm bài tập	tay-go-loi
+cho tôi xin mộtt ly nước	cho tôi xin một ly nước	tay-go-loi
+anh ấy đãã về nhà rồi	anh ấy đã về nhà rồi	tay-go-loi
+chị ơi giúpp em với	chị ơi giúp em với	tay-go-loi
+tôi sẽ gử thư cho anh	tôi sẽ gửi thư cho anh	tay-go-loi
+bạn có thẻ giúp tôi không	bạn có thể giúp tôi không	tay-go-loi
+mọi nguời đang chờ anh	mọi người đang chờ anh	tay-go-loi
+cảm ơn bạn nhièu	cảm ơn bạn nhiều	tay-go-loi
+trơì hôm nay đẹp quá	trời hôm nay đẹp quá	tay-go-loi
+tôi rât thích món này	tôi rất thích món này	tay-go-loi
+chúc bạn một ngày tôt lành	chúc bạn một ngày tốt lành	tay-go-loi
+em chưa hiêu ý anh	em chưa hiểu ý anh	tay-go-loi
+con mèo đang ngu trên ghế	con mèo đang ngủ trên ghế	tay-go-loi
+# `tay-dung`: câu đúng có từ hiếm, tên riêng, thành ngữ: không được đổi gì.
+Nguyễn Du là tác giả của Truyện Kiều.	Nguyễn Du là tác giả của Truyện Kiều.	tay-dung
+Chị Thuỷ quê ở Quảng Ngãi.	Chị Thuỷ quê ở Quảng Ngãi.	tay-dung
+Gần mực thì đen, gần đèn thì rạng.	Gần mực thì đen, gần đèn thì rạng.	tay-dung
+Có công mài sắt có ngày nên kim.	Có công mài sắt có ngày nên kim.	tay-dung
+Anh ấy tậu được căn nhà ở Thủ Đức.	Anh ấy tậu được căn nhà ở Thủ Đức.	tay-dung
+Bà ngoại đang têm trầu ngoài hiên.	Bà ngoại đang têm trầu ngoài hiên.	tay-dung
+Con trâu đang gặm cỏ bên bờ ruộng.	Con trâu đang gặm cỏ bên bờ ruộng.	tay-dung
+Mẹ nấu canh chua cá lóc và thịt kho tàu.	Mẹ nấu canh chua cá lóc và thịt kho tàu.	tay-dung
+Tương lai của em rất xán lạn.	Tương lai của em rất xán lạn.	tay-dung
+Đường sá ở đây rất lầy lội.	Đường sá ở đây rất lầy lội.	tay-dung
+Tôi đã dành dụm được một khoản tiền nhỏ.	Tôi đã dành dụm được một khoản tiền nhỏ.	tay-dung
+Hai đội đang giành giật từng điểm.	Hai đội đang giành giật từng điểm.	tay-dung
+Bé Na nũng nịu đòi mẹ bế.	Bé Na nũng nịu đòi mẹ bế.	tay-dung
+Chiếc áo này hơi chật so với tôi.	Chiếc áo này hơi chật so với tôi.	tay-dung
+Ông ấy là người khẳng khái và chính trực.	Ông ấy là người khẳng khái và chính trực.	tay-dung
+Em sẽ chia sẻ tài liệu cho cả nhóm.	Em sẽ chia sẻ tài liệu cho cả nhóm.	tay-dung
+Thợ đang sửa chữa đường ống nước.	Thợ đang sửa chữa đường ống nước.	tay-dung
+Phòng họp ở tầng ba, cạnh thang máy.	Phòng họp ở tầng ba, cạnh thang máy.	tay-dung
+Tiếng Việt giàu và đẹp.	Tiếng Việt giàu và đẹp.	tay-dung
+Con hươu cao cổ đang ăn lá cây.	Con hươu cao cổ đang ăn lá cây.	tay-dung
+# Phần dưới (viết 2026-11-26, đợt hai) mở rộng các nhóm trên cho đủ khoảng 1.000 câu viết tay. Cùng người viết, cùng
+# cách làm: câu đúng viết tay, lỗi chọn tay cho từng câu (riêng câu không dấu là bỏ dấu cả câu). Không dùng để chỉnh gì.
+chúng tôi xử dụng dịch vụ này đã lâu	chúng tôi sử dụng dịch vụ này đã lâu	tay-chinh-ta
+vui lòng bổ xung giấy tờ còn thiếu	vui lòng bổ sung giấy tờ còn thiếu	tay-chinh-ta
+đội bóng đã thi đấu rất xuất xắc	đội bóng đã thi đấu rất xuất sắc	tay-chinh-ta
+xin trân thành cảm ơn sự giúp đỡ của anh chị	xin chân thành cảm ơn sự giúp đỡ của anh chị	tay-chinh-ta
+hai phòng ban sẽ được sát nhập trong quý tới	hai phòng ban sẽ được sáp nhập trong quý tới	tay-chinh-ta
+anh ấy không bao giờ dấu diếm điều gì	anh ấy không bao giờ giấu giếm điều gì	tay-chinh-ta
+cả đội đã nổ lực hết mình	cả đội đã nỗ lực hết mình	tay-chinh-ta
+chuyến đi diễn ra suông sẻ từ đầu đến cuối	chuyến đi diễn ra suôn sẻ từ đầu đến cuối	tay-chinh-ta
+trẻ con hay bắt chướt người lớn	trẻ con hay bắt chước người lớn	tay-chinh-ta
+bản báo cáo được chuẩn bị rất chỉnh chu	bản báo cáo được chuẩn bị rất chỉn chu	tay-chinh-ta
+hãy trình bày xúc tích hơn	hãy trình bày súc tích hơn	tay-chinh-ta
+tôi cần sắp sếp lại lịch làm việc	tôi cần sắp xếp lại lịch làm việc	tay-chinh-ta
+chỉ một sơ xuất nhỏ cũng gây hậu quả lớn	chỉ một sơ suất nhỏ cũng gây hậu quả lớn	tay-chinh-ta
+đó là một câu truyện rất cảm động	đó là một câu chuyện rất cảm động	tay-chinh-ta
+kết quả chuẩn đoán sẽ có vào ngày mai	kết quả chẩn đoán sẽ có vào ngày mai	tay-chinh-ta
+bộ phim này rất lãng mạng	bộ phim này rất lãng mạn	tay-chinh-ta
+ban giám đốc sẽ xem sét trường hợp của bạn	ban giám đốc sẽ xem xét trường hợp của bạn	tay-chinh-ta
+yêu cầu của anh đang được sử lý	yêu cầu của anh đang được xử lý	tay-chinh-ta
+khi nào rãnh thì ghé nhà tôi chơi	khi nào rảnh thì ghé nhà tôi chơi	tay-chinh-ta
+anh ấy suy nghỉ rất chín chắn	anh ấy suy nghĩ rất chín chắn	tay-chinh-ta
+bác sĩ khuyên tôi nghĩ ngơi nhiều hơn	bác sĩ khuyên tôi nghỉ ngơi nhiều hơn	tay-chinh-ta
+nghành du lịch đang phát triển mạnh	ngành du lịch đang phát triển mạnh	tay-chinh-ta
+đây không phải lổi của em	đây không phải lỗi của em	tay-chinh-ta
+em cần trao dồi thêm tiếng Anh	em cần trau dồi thêm tiếng Anh	tay-chinh-ta
+bài văn được trao chuốt từng câu chữ	bài văn được trau chuốt từng câu chữ	tay-chinh-ta
+hai bên cọ sát nhau gây ra tiếng ồn	hai bên cọ xát nhau gây ra tiếng ồn	tay-chinh-ta
+thời cơ đã chín mùi	thời cơ đã chín muồi	tay-chinh-ta
+bà giành dụm tiền cho cháu đi học	bà dành dụm tiền cho cháu đi học	tay-chinh-ta
+hai anh em tranh dành đồ chơi	hai anh em tranh giành đồ chơi	tay-chinh-ta
+đội tuyển đã dành chiến thắng	đội tuyển đã giành chiến thắng	tay-chinh-ta
+mẹ để giành phần cơm cho con	mẹ để dành phần cơm cho con	tay-chinh-ta
+chỗ này giành cho người khuyết tật	chỗ này dành cho người khuyết tật	tay-chinh-ta
+cậu bé mãi mê chơi điện tử	cậu bé mải mê chơi điện tử	tay-chinh-ta
+tôi sẽ nhớ mải ngày hôm nay	tôi sẽ nhớ mãi ngày hôm nay	tay-chinh-ta
+hãy kiểm tra kỷ lưỡng trước khi gửi	hãy kiểm tra kỹ lưỡng trước khi gửi	tay-chinh-ta
+đây là kỹ niệm đẹp nhất của tôi	đây là kỷ niệm đẹp nhất của tôi	tay-chinh-ta
+học sinh phải tuân thủ kỹ luật của trường	học sinh phải tuân thủ kỷ luật của trường	tay-chinh-ta
+anh ấy làm kỷ thuật viên máy tính	anh ấy làm kỹ thuật viên máy tính	tay-chinh-ta
+kỷ năng giao tiếp rất quan trọng	kỹ năng giao tiếp rất quan trọng	tay-chinh-ta
+cảm ơn anh đã chia sẽ kinh nghiệm	cảm ơn anh đã chia sẻ kinh nghiệm	tay-chinh-ta
+tiệm sữa chữa xe máy ở đầu ngõ	tiệm sửa chữa xe máy ở đầu ngõ	tay-chinh-ta
+con thích uống sửa tươi mỗi sáng	con thích uống sữa tươi mỗi sáng	tay-chinh-ta
+cảnh sát thu giữ nhiều vủ khí	cảnh sát thu giữ nhiều vũ khí	tay-chinh-ta
+công nhân đang tháo dở giàn giáo	công nhân đang tháo dỡ giàn giáo	tay-chinh-ta
+công việc còn dỡ dang nhiều quá	công việc còn dở dang nhiều quá	tay-chinh-ta
+cảm ơn bạn đã giúp đở tôi	cảm ơn bạn đã giúp đỡ tôi	tay-chinh-ta
+chúng ta phải bão vệ môi trường	chúng ta phải bảo vệ môi trường	tay-chinh-ta
+cơn bảo số ba đang tiến vào đất liền	cơn bão số ba đang tiến vào đất liền	tay-chinh-ta
+toàn bộ giữ liệu đã được sao lưu	toàn bộ dữ liệu đã được sao lưu	tay-chinh-ta
+cần gìn dữ bản sắc văn hoá dân tộc	cần gìn giữ bản sắc văn hoá dân tộc	tay-chinh-ta
+trận đấu diễn ra rất giữ dội	trận đấu diễn ra rất dữ dội	tay-chinh-ta
+tôi vừa mua một quyễn sách hay	tôi vừa mua một quyển sách hay	tay-chinh-ta
+anh ấy vẩn chưa về nhà	anh ấy vẫn chưa về nhà	tay-chinh-ta
+tôi đả gửi thư cho chị rồi	tôi đã gửi thư cho chị rồi	tay-chinh-ta
+ngày mai trời sẻ mưa to	ngày mai trời sẽ mưa to	tay-chinh-ta
+nhửng bông hoa này đẹp quá	những bông hoa này đẹp quá	tay-chinh-ta
+tôi củng thích món này	tôi cũng thích món này	tay-chinh-ta
+mổi người một ý kiến	mỗi người một ý kiến	tay-chinh-ta
+anh ăn thêm bát nửa đi	anh ăn thêm bát nữa đi	tay-chinh-ta
+tôi chỉ ăn hết một nữa cái bánh	tôi chỉ ăn hết một nửa cái bánh	tay-chinh-ta
+nhờ anh cầm dùm em cái này	nhờ anh cầm giùm em cái này	tay-chinh-ta
+căn nhà mới rất rộng dãi	căn nhà mới rất rộng rãi	tay-chinh-ta
+cô ấy ăn mặc rất dản dị	cô ấy ăn mặc rất giản dị	tay-chinh-ta
+ông chủ tỏ ra rất dận dữ	ông chủ tỏ ra rất giận dữ	tay-chinh-ta
+bài toán này giải rất dể dàng	bài toán này giải rất dễ dàng	tay-chinh-ta
+con gái tôi học rất dỏi	con gái tôi học rất giỏi	tay-chinh-ta
+chúc cả nhà có một dấc ngủ ngon	chúc cả nhà có một giấc ngủ ngon	tay-chinh-ta
+nhớ mang đầy đủ dấy tờ tuỳ thân	nhớ mang đầy đủ giấy tờ tuỳ thân	tay-chinh-ta
+tôi muốn mua một đôi dày mới	tôi muốn mua một đôi giày mới	tay-chinh-ta
+ông bà tôi đã dà rồi	ông bà tôi đã già rồi	tay-chinh-ta
+dá cả dạo này tăng nhanh quá	giá cả dạo này tăng nhanh quá	tay-chinh-ta
+cô giáo dải thích lại bài cho cả lớp	cô giáo giải thích lại bài cho cả lớp	tay-chinh-ta
+để tôi dới thiệu với anh một người bạn	để tôi giới thiệu với anh một người bạn	tay-chinh-ta
+dao thông giờ cao điểm rất đông	giao thông giờ cao điểm rất đông	tay-chinh-ta
+anh nói rỏ ràng hơn được không	anh nói rõ ràng hơn được không	tay-chinh-ta
+đầu tư nào cũng có rũi ro	đầu tư nào cũng có rủi ro	tay-chinh-ta
+phố phường rực rở ánh đèn	phố phường rực rỡ ánh đèn	tay-chinh-ta
+phòng khách lúc nào cũng sạch sẻ	phòng khách lúc nào cũng sạch sẽ	tay-chinh-ta
+cả nhà quây quần vui vẽ bên nhau	cả nhà quây quần vui vẻ bên nhau	tay-chinh-ta
+nền kinh tế đang phục hồi mạnh mẻ	nền kinh tế đang phục hồi mạnh mẽ	tay-chinh-ta
+cô dâu hôm nay thật đẹp đẻ	cô dâu hôm nay thật đẹp đẽ	tay-chinh-ta
+ông cụ lặng lẻ bước ra ngoài	ông cụ lặng lẽ bước ra ngoài	tay-chinh-ta
+chúng tôi đã sẳn sàng lên đường	chúng tôi đã sẵn sàng lên đường	tay-chinh-ta
+tôi chắc chắng anh ấy sẽ đến	tôi chắc chắn anh ấy sẽ đến	tay-chinh-ta
+em sẽ cố gắn hơn nữa	em sẽ cố gắng hơn nữa	tay-chinh-ta
+đi đường nhớ cẫn thận nhé	đi đường nhớ cẩn thận nhé	tay-chinh-ta
+chị ấy làm việc rất tỉ mĩ	chị ấy làm việc rất tỉ mỉ	tay-chinh-ta
+anh hãy bình tỉnh nghe tôi nói	anh hãy bình tĩnh nghe tôi nói	tay-chinh-ta
+uống cà phê cho tĩnh táo	uống cà phê cho tỉnh táo	tay-chinh-ta
+tôi thích những nơi yên tỉnh	tôi thích những nơi yên tĩnh	tay-chinh-ta
+nhân viên ở đây rất lịch xự	nhân viên ở đây rất lịch sự	tay-chinh-ta
+xự kiện sẽ diễn ra vào tối thứ bảy	sự kiện sẽ diễn ra vào tối thứ bảy	tay-chinh-ta
+chuyện gì đã sảy ra vậy	chuyện gì đã xảy ra vậy	tay-chinh-ta
+anh ấy sứng đáng được khen thưởng	anh ấy xứng đáng được khen thưởng	tay-chinh-ta
+mặt trời suất hiện sau cơn mưa	mặt trời xuất hiện sau cơn mưa	tay-chinh-ta
+nhà máy sản suất linh kiện điện tử	nhà máy sản xuất linh kiện điện tử	tay-chinh-ta
+năng xuất lao động tăng rõ rệt	năng suất lao động tăng rõ rệt	tay-chinh-ta
+ngân hàng vừa giảm lãi xuất cho vay	ngân hàng vừa giảm lãi suất cho vay	tay-chinh-ta
+công ty chuyên suất khẩu cà phê	công ty chuyên xuất khẩu cà phê	tay-chinh-ta
+bài phát biểu để lại ấn tượng sâu xắc	bài phát biểu để lại ấn tượng sâu sắc	tay-chinh-ta
+cả nhà xung sướng đón em bé chào đời	cả nhà sung sướng đón em bé chào đời	tay-chinh-ta
+quê tôi ở một vùng núi sa xôi	quê tôi ở một vùng núi xa xôi	tay-chinh-ta
+đừng sấu hổ khi hỏi lại	đừng xấu hổ khi hỏi lại	tay-chinh-ta
+đừng xo sánh con mình với con người khác	đừng so sánh con mình với con người khác	tay-chinh-ta
+công việc này đòi hỏi sự xáng tạo	công việc này đòi hỏi sự sáng tạo	tay-chinh-ta
+bản dịch còn nhiều sai xót	bản dịch còn nhiều sai sót	tay-chinh-ta
+chúng tôi xin lỗi vì những thiếu xót này	chúng tôi xin lỗi vì những thiếu sót này	tay-chinh-ta
+nhìn cảnh ấy ai cũng sót xa	nhìn cảnh ấy ai cũng xót xa	tay-chinh-ta
+kỳ thi xắp tới rất quan trọng	kỳ thi sắp tới rất quan trọng	tay-chinh-ta
+tôi trờ anh ở cổng trường	tôi chờ anh ở cổng trường	tay-chinh-ta
+sao anh không chả lời tin nhắn	sao anh không trả lời tin nhắn	tay-chinh-ta
+hai người chò chuyện đến khuya	hai người trò chuyện đến khuya	tay-chinh-ta
+anh ấy là người rất chung thực	anh ấy là người rất trung thực	tay-chinh-ta
+gia đình tôi sống ở trung cư	gia đình tôi sống ở chung cư	tay-chinh-ta
+em sẽ chình bày ý tưởng trong cuộc họp	em sẽ trình bày ý tưởng trong cuộc họp	tay-chinh-ta
+trương trình bắt đầu lúc tám giờ	chương trình bắt đầu lúc tám giờ	tay-chinh-ta
+bánh chưng là món ăn chuyền thống ngày tết	bánh chưng là món ăn truyền thống ngày tết	tay-chinh-ta
+anh truyển khoản giúp em nhé	anh chuyển khoản giúp em nhé	tay-chinh-ta
+trận đấu được truyền hình chực tiếp	trận đấu được truyền hình trực tiếp	tay-chinh-ta
+dự án sẽ được chiển khai từ tháng sau	dự án sẽ được triển khai từ tháng sau	tay-chinh-ta
+chúng tôi chân trọng mọi ý kiến đóng góp	chúng tôi trân trọng mọi ý kiến đóng góp	tay-chinh-ta
+đây là chách nhiệm của cả nhóm	đây là trách nhiệm của cả nhóm	tay-chinh-ta
+chanh thủ lúc rỗi tôi đọc sách	tranh thủ lúc rỗi tôi đọc sách	tay-chinh-ta
+chẻ em cần được yêu thương	trẻ em cần được yêu thương	tay-chinh-ta
+chị ấy trăm sóc bố mẹ rất chu đáo	chị ấy chăm sóc bố mẹ rất chu đáo	tay-chinh-ta
+con số này chưa trính xác	con số này chưa chính xác	tay-chinh-ta
+căn phòng trọ rất trật chội	căn phòng trọ rất chật chội	tay-chinh-ta
+anh đang nàm gì đấy	anh đang làm gì đấy	tay-chinh-ta
+em lói thật đấy	em nói thật đấy	tay-chinh-ta
+cho tôi xin cốc lước lọc	cho tôi xin cốc nước lọc	tay-chinh-ta
+lăm nay tôi ba mươi tuổi	năm nay tôi ba mươi tuổi	tay-chinh-ta
+núc nào anh cũng bận	lúc nào anh cũng bận	tay-chinh-ta
+con lên đi ngủ sớm	con nên đi ngủ sớm	tay-chinh-ta
+mời anh nên tầng hai	mời anh lên tầng hai	tay-chinh-ta
+nâu rồi không gặp bạn	lâu rồi không gặp bạn	tay-chinh-ta
+hôm nay trời lóng quá	hôm nay trời nóng quá	tay-chinh-ta
+mùa đông ở đây rất nạnh	mùa đông ở đây rất lạnh	tay-chinh-ta
+đừng no lắng quá nhé	đừng lo lắng quá nhé	tay-chinh-ta
+cái vali này lặng quá	cái vali này nặng quá	tay-chinh-ta
+mẹ đang lấu cơm trong bếp	mẹ đang nấu cơm trong bếp	tay-chinh-ta
+nớp tôi có bốn mươi học sinh	lớp tôi có bốn mươi học sinh	tay-chinh-ta
+con trai tôi nớn nhanh quá	con trai tôi lớn nhanh quá	tay-chinh-ta
+ý kiến của anh khát với tôi	ý kiến của anh khác với tôi	tay-chinh-ta
+buổi tối trời mác hơn	buổi tối trời mát hơn	tay-chinh-ta
+rửa mặc xong rồi ăn sáng	rửa mặt xong rồi ăn sáng	tay-chinh-ta
+trời lạnh nhớ mặt thêm áo	trời lạnh nhớ mặc thêm áo	tay-chinh-ta
+chắt anh ấy quên rồi	chắc anh ấy quên rồi	tay-chinh-ta
+em bé đang tập bướt đi	em bé đang tập bước đi	tay-chinh-ta
+tôi rất tiết vì không đến được	tôi rất tiếc vì không đến được	tay-chinh-ta
+đoạn thơ này tôi đã thuột lòng	đoạn thơ này tôi đã thuộc lòng	tay-chinh-ta
+cuột họp kéo dài hai tiếng	cuộc họp kéo dài hai tiếng	tay-chinh-ta
+chúng ta bắc đầu thôi	chúng ta bắt đầu thôi	tay-chinh-ta
+tấc cả mọi người đã có mặt	tất cả mọi người đã có mặt	tay-chinh-ta
+tôi bị mấc ví trên xe buýt	tôi bị mất ví trên xe buýt	tay-chinh-ta
+bài hát này rấc hay	bài hát này rất hay	tay-chinh-ta
+tóc cô ấy cắt ngắng	tóc cô ấy cắt ngắn	tay-chinh-ta
+đặt sách lên bàng giúp tôi	đặt sách lên bàn giúp tôi	tay-chinh-ta
+cả nhà đang ăng tối	cả nhà đang ăn tối	tay-chinh-ta
+quàng khăng vào cho ấm	quàng khăn vào cho ấm	tay-chinh-ta
+tôi không tinh chuyện đó	tôi không tin chuyện đó	tay-chinh-ta
+cho tôi xinh số điện thoại của anh	cho tôi xin số điện thoại của anh	tay-chinh-ta
+mìn đi trước nhé	mình đi trước nhé	tay-chinh-ta
+vui lòng điền đầy đủ thông tinh	vui lòng điền đầy đủ thông tin	tay-chinh-ta
+làn tôi nằm bên bờ sông	làng tôi nằm bên bờ sông	tay-chinh-ta
+nhớ man theo ô nhé	nhớ mang theo ô nhé	tay-chinh-ta
+cửa hàn mở cửa lúc mấy giờ	cửa hàng mở cửa lúc mấy giờ	tay-chinh-ta
+anh ấy đan nghe điện thoại	anh ấy đang nghe điện thoại	tay-chinh-ta
+lá cây chuyển sang màu vàn	lá cây chuyển sang màu vàng	tay-chinh-ta
+sán mai tôi có hẹn	sáng mai tôi có hẹn	tay-chinh-ta
+thán sau tôi đi công tác	tháng sau tôi đi công tác	tay-chinh-ta
+chìa khoá ở tron ngăn kéo	chìa khoá ở trong ngăn kéo	tay-chinh-ta
+côn việc mới thế nào rồi	công việc mới thế nào rồi	tay-chinh-ta
+chúng ta cùn đi nhé	chúng ta cùng đi nhé	tay-chinh-ta
+sao hôm nay trông em buồng thế	sao hôm nay trông em buồn thế	tay-chinh-ta
+con muống ăn kem	con muốn ăn kem	tay-chinh-ta
+cho tôi mượn cuống sách này	cho tôi mượn cuốn sách này	tay-chinh-ta
+anh ấy luông đúng giờ	anh ấy luôn đúng giờ	tay-chinh-ta
+nhớ uốn thuốc đúng giờ	nhớ uống thuốc đúng giờ	tay-chinh-ta
+chuôn cửa vừa reo	chuông cửa vừa reo	tay-chinh-ta
+bé rất thích vẻ tranh	bé rất thích vẽ tranh	tay-chinh-ta
+cô ấy có vẽ mệt mỏi	cô ấy có vẻ mệt mỏi	tay-chinh-ta
+tôi mới chuyễn nhà tuần trước	tôi mới chuyển nhà tuần trước	tay-chinh-ta
+chị ấy rất giõi nấu ăn	chị ấy rất giỏi nấu ăn	tay-chinh-ta
+anh có hiễu ý tôi không	anh có hiểu ý tôi không	tay-chinh-ta
+tôi phãi đi ngay bây giờ	tôi phải đi ngay bây giờ	tay-chinh-ta
+đừng bõ cuộc giữa chừng	đừng bỏ cuộc giữa chừng	tay-chinh-ta
+để tôi thữ xem sao	để tôi thử xem sao	tay-chinh-ta
+nhà tôi ở cuối ngỏ này	nhà tôi ở cuối ngõ này	tay-chinh-ta
+anh ấy vừa nghĩ việc	anh ấy vừa nghỉ việc	tay-chinh-ta
+tôi nghỉ là anh nói đúng	tôi nghĩ là anh nói đúng	tay-chinh-ta
+cữa sổ phòng tôi nhìn ra vườn	cửa sổ phòng tôi nhìn ra vườn	tay-chinh-ta
+em gái tôi mới cưỡi chồng	em gái tôi mới cưới chồng	tay-chinh-ta
+anh hõi thăm sức khoẻ ông bà giúp em	anh hỏi thăm sức khoẻ ông bà giúp em	tay-chinh-ta
+quã táo này ngọt quá	quả táo này ngọt quá	tay-chinh-ta
+tôi đã đọc kỷ hợp đồng	tôi đã đọc kỹ hợp đồng	tay-chinh-ta
+giử gìn vệ sinh chung	giữ gìn vệ sinh chung	tay-chinh-ta
+mẹ dặn con ngũ sớm	mẹ dặn con ngủ sớm	tay-chinh-ta
+chiếc mủ này hợp với anh	chiếc mũ này hợp với anh	tay-chinh-ta
+mủi tôi bị nghẹt	mũi tôi bị nghẹt	tay-chinh-ta
+anh ấy bị gảy chân	anh ấy bị gãy chân	tay-chinh-ta
+con đường này dẩn ra biển	con đường này dẫn ra biển	tay-chinh-ta
+đừng lảng phí thời gian	đừng lãng phí thời gian	tay-chinh-ta
+anh nhớ khoá cữa cẩn thận	anh nhớ khoá cửa cẩn thận	tay-chinh-ta
+tôi rất ngưởng mộ cô ấy	tôi rất ngưỡng mộ cô ấy	tay-chinh-ta
+bửa tối đã sẵn sàng	bữa tối đã sẵn sàng	tay-chinh-ta
+cho tôi gữi lời hỏi thăm gia đình	cho tôi gửi lời hỏi thăm gia đình	tay-chinh-ta
+em đã chuẫn bị xong bài thuyết trình	em đã chuẩn bị xong bài thuyết trình	tay-chinh-ta
+chị ấy rất thẵng thắn	chị ấy rất thẳng thắn	tay-chinh-ta
+anh ấy làm việc ở sở dáo dục	anh ấy làm việc ở sở giáo dục	tay-chinh-ta
+đây là dải pháp tốt nhất	đây là giải pháp tốt nhất	tay-chinh-ta
+cô ấy đoạt dải nhất cuộc thi	cô ấy đoạt giải nhất cuộc thi	tay-chinh-ta
+tôi rất gị ứng với hải sản	tôi rất dị ứng với hải sản	tay-chinh-ta
+mời anh rùng trà	mời anh dùng trà	tay-chinh-ta
+nhớ rọn dẹp phòng trước khi đi	nhớ dọn dẹp phòng trước khi đi	tay-chinh-ta
+da đường nhớ đội mũ bảo hiểm	ra đường nhớ đội mũ bảo hiểm	tay-chinh-ta
+con sông này rất dộng	con sông này rất rộng	tay-chinh-ta
+bố tôi rất thích dau muống	bố tôi rất thích rau muống	tay-chinh-ta
+anh ấy bị đau dăng	anh ấy bị đau răng	tay-chinh-ta
+tôi dun vì lạnh	tôi run vì lạnh	tay-chinh-ta
+đừng rựa vào người khác quá nhiều	đừng dựa vào người khác quá nhiều	tay-chinh-ta
+ngày mai tôi rậy sớm	ngày mai tôi dậy sớm	tay-chinh-ta
+bài này rài quá	bài này dài quá	tay-chinh-ta
+rạo này anh thế nào	dạo này anh thế nào	tay-chinh-ta
+cô ấy rất rịu dàng	cô ấy rất dịu dàng	tay-chinh-ta
+chiếc áo này màu ra cam	chiếc áo này màu da cam	tay-chinh-ta
+đi cẩn thận kẻo chượt chân	đi cẩn thận kẻo trượt chân	tay-chinh-ta
+buổi chưa tôi thường ngủ một lát	buổi trưa tôi thường ngủ một lát	tay-chinh-ta
+tôi trưa ăn sáng	tôi chưa ăn sáng	tay-chinh-ta
+chời hôm nay nhiều mây	trời hôm nay nhiều mây	tay-chinh-ta
+con chai anh ấy học lớp năm	con trai anh ấy học lớp năm	tay-chinh-ta
+anh chai tôi làm bác sĩ	anh trai tôi làm bác sĩ	tay-chinh-ta
+cái trai này bị vỡ rồi	cái chai này bị vỡ rồi	tay-chinh-ta
+chên bàn có một lọ hoa	trên bàn có một lọ hoa	tay-chinh-ta
+chúng tôi sẽ chở lại sau	chúng tôi sẽ trở lại sau	tay-chinh-ta
+anh trở em đi học nhé	anh chở em đi học nhé	tay-chinh-ta
+tôi chồng rau trên sân thượng	tôi trồng rau trên sân thượng	tay-chinh-ta
+vợ trồng anh ấy rất hạnh phúc	vợ chồng anh ấy rất hạnh phúc	tay-chinh-ta
+quả chứng này chưa chín	quả trứng này chưa chín	tay-chinh-ta
+ông ấy làm trứng cho tôi	ông ấy làm chứng cho tôi	tay-chinh-ta
+xe buýt xắp đến rồi	xe buýt sắp đến rồi	tay-chinh-ta
+cô ấy hác rất hay	cô ấy hát rất hay	tay-chinh-ta
+xau bữa ăn nên đi bộ	sau bữa ăn nên đi bộ	tay-chinh-ta
+mời anh sem thực đơn	mời anh xem thực đơn	tay-chinh-ta
+tôi xống ở đây đã mười năm	tôi sống ở đây đã mười năm	tay-chinh-ta
+con xâu đang bò trên lá	con sâu đang bò trên lá	tay-chinh-ta
+ngôi xao sáng nhất trên bầu trời	ngôi sao sáng nhất trên bầu trời	tay-chinh-ta
+đường phố xạch và đẹp	đường phố sạch và đẹp	tay-chinh-ta
+anh ấy sây nhà mới	anh ấy xây nhà mới	tay-chinh-ta
+cho tôi suống ở ngã tư	cho tôi xuống ở ngã tư	tay-chinh-ta
+xức khoẻ là quan trọng nhất	sức khoẻ là quan trọng nhất	tay-chinh-ta
+xinh nhật em là ngày nào	sinh nhật em là ngày nào	tay-chinh-ta
+cô bé rất sinh xắn	cô bé rất xinh xắn	tay-chinh-ta
+tôi thích màu sanh lá cây	tôi thích màu xanh lá cây	tay-chinh-ta
+anh ấy đi se đạp đến trường	anh ấy đi xe đạp đến trường	tay-chinh-ta
+xố điện thoại này không liên lạc được	số điện thoại này không liên lạc được	tay-chinh-ta
+anh ấy rất kiên nhẩn với học trò	anh ấy rất kiên nhẫn với học trò	tay-chinh-ta
+tôi sẽ cân nhắt đề nghị này	tôi sẽ cân nhắc đề nghị này	tay-chinh-ta
+căn bếp gọn gàng ngăn nắm	căn bếp gọn gàng ngăn nắp	tay-chinh-ta
+chị ấy nói năng rất nhẹ nhàn	chị ấy nói năng rất nhẹ nhàng	tay-chinh-ta
+đừng vội vàn quyết định	đừng vội vàng quyết định	tay-chinh-ta
+cậu bé rất ngoan ngoản	cậu bé rất ngoan ngoãn	tay-chinh-ta
+tôi rất hài nòng về dịch vụ	tôi rất hài lòng về dịch vụ	tay-chinh-ta
+chúng tôi luôn nắng nghe khách hàng	chúng tôi luôn lắng nghe khách hàng	tay-chinh-ta
+hôm nay tôi đươc nghỉ làm	hôm nay tôi được nghỉ làm	tay-go-loi
+anh ấy là nguời tốt bụng	anh ấy là người tốt bụng	tay-go-loi
+truờng tôi có sân bóng rất rộng	trường tôi có sân bóng rất rộng	tay-go-loi
+mẹ thuơng con nhất nhà	mẹ thương con nhất nhà	tay-go-loi
+em muôn đi du lịch Đà Lạt	em muốn đi du lịch Đà Lạt	tay-go-loi
+tôi khôgn biết chuyện này	tôi không biết chuyện này	tay-go-loi
+lcú đó tôi đang ở nhà	lúc đó tôi đang ở nhà	tay-go-loi
+em đang lamf bài kiểm tra	em đang làm bài kiểm tra	tay-go-loi
+cho tôi mộtt cốc trà đá	cho tôi một cốc trà đá	tay-go-loi
+cô ấy đãã đi rồi	cô ấy đã đi rồi	tay-go-loi
+anh gử địa chỉ cho em nhé	anh gửi địa chỉ cho em nhé	tay-go-loi
+bạn có thẻ nói chậm hơn không	bạn có thể nói chậm hơn không	tay-go-loi
+hôm nay có nhièu việc quá	hôm nay có nhiều việc quá	tay-go-loi
+trơì sắp tối rồi	trời sắp tối rồi	tay-go-loi
+món này rât ngon	món này rất ngon	tay-go-loi
+chúc anh chị mọi điều tôt đẹp	chúc anh chị mọi điều tốt đẹp	tay-go-loi
+tôi hiêu ý của chị rồi	tôi hiểu ý của chị rồi	tay-go-loi
+bé đang ngu trưa	bé đang ngủ trưa	tay-go-loi
+tôi sẽ đến đung giờ	tôi sẽ đến đúng giờ	tay-go-loi
+chúng ta cần nói chuyên	chúng ta cần nói chuyện	tay-go-loi
+cảm ơn bạn đã lăng nghe	cảm ơn bạn đã lắng nghe	tay-go-loi
+anh ấy rất thong minh	anh ấy rất thông minh	tay-go-loi
+buôi họp bắt đầu lúc chín giờ	buổi họp bắt đầu lúc chín giờ	tay-go-loi
+tôi dang chờ xe buýt	tôi đang chờ xe buýt	tay-go-loi
+em về đên nhà chưa	em về đến nhà chưa	tay-go-loi
+bạn tên la gì	bạn tên là gì	tay-go-loi
+nhà tôi o gần đây	nhà tôi ở gần đây	tay-go-loi
+tôi thich nghe nhạc nhẹ	tôi thích nghe nhạc nhẹ	tay-go-loi
+anh ấy vưa mua xe mới	anh ấy vừa mua xe mới	tay-go-loi
+chúng tôi sẽ liên hê lại sau	chúng tôi sẽ liên hệ lại sau	tay-go-loi
+bạn có khoe không	bạn có khoẻ không	tay-go-loi
+tôi cần thêm thơi gian	tôi cần thêm thời gian	tay-go-loi
+con đuờng này đang sửa	con đường này đang sửa	tay-go-loi
+cửa hàng đóng cửa lúc mừơi giờ	cửa hàng đóng cửa lúc mười giờ	tay-go-loi
+anh ấy nói tiêng Anh rất giỏi	anh ấy nói tiếng Anh rất giỏi	tay-go-loi
+tôi muốn hoi một chuyện	tôi muốn hỏi một chuyện	tay-go-loi
+để em xem lại lich	để em xem lại lịch	tay-go-loi
+mọi thứ đều ôn cả	mọi thứ đều ổn cả	tay-go-loi
+anh chờ em một chut nhé	anh chờ em một chút nhé	tay-go-loi
+tôi vừa ăn com xong	tôi vừa ăn cơm xong	tay-go-loi
+cô giáo đang giang bài	cô giáo đang giảng bài	tay-go-loi
+em bị ôm từ hôm qua	em bị ốm từ hôm qua	tay-go-loi
+bố mẹ tôi đều đã nghỉ huu	bố mẹ tôi đều đã nghỉ hưu	tay-go-loi
+tôi quên mang điên thoại	tôi quên mang điện thoại	tay-go-loi
+anh ấy sông ở Hà Nội	anh ấy sống ở Hà Nội	tay-go-loi
+ngày mai là thư bảy	ngày mai là thứ bảy	tay-go-loi
+con mèo nằm trên6 ghế	con mèo nằm trên ghế	tay-go-loi
+em đang hocj bài	em đang học bài	tay-go-loi
+tôi đi làm bawfng xe máy	tôi đi làm bằng xe máy	tay-go-loi
+anh ấy rất vuii tính	anh ấy rất vui tính	tay-go-loi
+chị goij lại cho em sau nhé	chị gọi lại cho em sau nhé	tay-go-loi
+hôm qua tôi thuwcs khuya	hôm qua tôi thức khuya	tay-go-loi
+chúng ta đi ăn truwa thôi	chúng ta đi ăn trưa thôi	tay-go-loi
+bạn đã xemm phim này chưa	bạn đã xem phim này chưa	tay-go-loi
+tôi thâý hơi mệt	tôi thấy hơi mệt	tay-go-loi
+cho em xin sô tài khoản	cho em xin số tài khoản	tay-go-loi
+em cảm on anh rất nhiều	em cảm ơn anh rất nhiều	tay-go-loi
+tôi không nhớ mật khâu	tôi không nhớ mật khẩu	tay-go-loi
+anh ấy làm việc rất chăm chi	anh ấy làm việc rất chăm chỉ	tay-go-loi
+con chó chay ra sân	con chó chạy ra sân	tay-go-loi
+em sẽ gọi lại ngayy	em sẽ gọi lại ngay	tay-go-loi
+trời đang mua to	trời đang mưa to	tay-go-loi
+tôi muaa vé rồi	tôi mua vé rồi	tay-go-loi
+cô ấy cừơi rất tươi	cô ấy cười rất tươi	tay-go-loi
+chúng tôi đang trên đừơng đến	chúng tôi đang trên đường đến	tay-go-loi
+bạn làm nghê gì	bạn làm nghề gì	tay-go-loi
+tôi là giáo viêm tiểu học	tôi là giáo viên tiểu học	tay-go-loi
+bài tập này khso quá	bài tập này khó quá	tay-go-loi
+anh ấy đang lasi xe	anh ấy đang lái xe	tay-go-loi
+em chưa nhânj được thư	em chưa nhận được thư	tay-go-loi
+nhà hàng này đông khcáh lắm	nhà hàng này đông khách lắm	tay-go-loi
+tôi cần dổi tiền	tôi cần đổi tiền	tay-go-loi
+dừng quên tắt đèn	đừng quên tắt đèn	tay-go-loi
+dây là lần đầu tôi đến	đây là lần đầu tôi đến	tay-go-loi
+anh đi dâu đấy	anh đi đâu đấy	tay-go-loi
+dêm qua tôi mất ngủ	đêm qua tôi mất ngủ	tay-go-loi
+bạn dọc sách gì thế	bạn đọc sách gì thế	tay-go-loi
+dể tôi giúp bạn	để tôi giúp bạn	tay-go-loi
+hai dứa trẻ đang chơi đùa	hai đứa trẻ đang chơi đùa	tay-go-loi
+tôi dợi anh ở quán cà phê	tôi đợi anh ở quán cà phê	tay-go-loi
+mẹ đi chọ từ sáng sớm	mẹ đi chợ từ sáng sớm	tay-go-loi
+con cá này tuoi lắm	con cá này tươi lắm	tay-go-loi
+tôi rất vui được gạp anh	tôi rất vui được gặp anh	tay-go-loi
+chúng ta sẽ thăng	chúng ta sẽ thắng	tay-go-loi
+anh ấy thừơng dậy sớm	anh ấy thường dậy sớm	tay-go-loi
+cô ấy mặc váy trăng	cô ấy mặc váy trắng	tay-go-loi
+quyển vơ này của ai	quyển vở này của ai	tay-go-loi
+tôi cần mua thuôc ho	tôi cần mua thuốc ho	tay-go-loi
+em bé khóc suôt đêm	em bé khóc suốt đêm	tay-go-loi
+bạn nên đi kham bác sĩ	bạn nên đi khám bác sĩ	tay-go-loi
+chúng tôi sống rất hạnh phuc	chúng tôi sống rất hạnh phúc	tay-go-loi
+thời tiêt hôm nay đẹp	thời tiết hôm nay đẹp	tay-go-loi
+tôi phải nôp bài trước thứ hai	tôi phải nộp bài trước thứ hai	tay-go-loi
+anh ấy bận suốt cả tuân	anh ấy bận suốt cả tuần	tay-go-loi
+chuyên bay bị hoãn hai tiếng	chuyến bay bị hoãn hai tiếng	tay-go-loi
+phòng này có điêu hoà không	phòng này có điều hoà không	tay-go-loi
+tôi muốn đặt bàn cho bôn người	tôi muốn đặt bàn cho bốn người	tay-go-loi
+em gửi anh bản dự thao	em gửi anh bản dự thảo	tay-go-loi
+giá này đã bao gồm thuê chưa	giá này đã bao gồm thuế chưa	tay-go-loi
+xin vui lòng xêp hàng	xin vui lòng xếp hàng	tay-go-loi
+nhớ mang thoe áo mưa	nhớ mang theo áo mưa	tay-go-loi
+tôi sihn ra ở Huế	tôi sinh ra ở Huế	tay-go-loi
+anh ấy thích chơi bógn đá	anh ấy thích chơi bóng đá	tay-go-loi
+chị ấy đang nấu bưã tối	chị ấy đang nấu bữa tối	tay-go-loi
+ông tôi năm nay tám mươi tuôỉ	ông tôi năm nay tám mươi tuổi	tay-go-loi
+cả lớp im lặng nghee giảng	cả lớp im lặng nghe giảng	tay-go-loi
+tôi vừa nhậnn được tin vui	tôi vừa nhận được tin vui	tay-go-loi
+đừng nói to quas	đừng nói to quá	tay-go-loi
+mọi người đã về hêts rồi	mọi người đã về hết rồi	tay-go-loi
+anh có thể giusp tôi không	anh có thể giúp tôi không	tay-go-loi
+em sẽ cố hết sưc	em sẽ cố hết sức	tay-go-loi
+tôi đông ý với anh	tôi đồng ý với anh	tay-go-loi
+cuôc sống ở đây rất yên bình	cuộc sống ở đây rất yên bình	tay-go-loi
+chúc bạn thanh công	chúc bạn thành công	tay-go-loi
+tôi rất biêt ơn anh	tôi rất biết ơn anh	tay-go-loi
+em đang tim việc làm	em đang tìm việc làm	tay-go-loi
+anh ấy vẽ rất đep	anh ấy vẽ rất đẹp	tay-go-loi
+chúng ta găp nhau ở đâu	chúng ta gặp nhau ở đâu	tay-go-loi
+tôi không đông ý	tôi không đồng ý	tay-go-loi
+xin hãy giữ trât tự	xin hãy giữ trật tự	tay-go-loi
+mai tôi sẽ tra lời anh	mai tôi sẽ trả lời anh	tay-go-loi
+bà tôi kê chuyện rất hay	bà tôi kể chuyện rất hay	tay-go-loi
+tôi thích ăn phơ bò	tôi thích ăn phở bò	tay-go-loi
+anh ấy uông bia với bạn	anh ấy uống bia với bạn	tay-go-loi
+nhà tôi nuoi hai con chó	nhà tôi nuôi hai con chó	tay-go-loi
+cô ấy học nganh y	cô ấy học ngành y	tay-go-loi
+bạn có ranh tối nay không	bạn có rảnh tối nay không	tay-go-loi
+tôi đang rất vôi	tôi đang rất vội	tay-go-loi
+đây là số may của tôi	đây là số máy của tôi	tay-go-loi
+anh ấy đến muôn mười phút	anh ấy đến muộn mười phút	tay-go-loi
+anh oi toi nay may gio anh ve	anh ơi tối nay mấy giờ anh về	tay-khong-dau
+em dang tren duong den cong ty	em đang trên đường đến công ty	tay-khong-dau
+me oi con doi bung qua	mẹ ơi con đói bụng quá	tay-khong-dau
+hom nay troi mua ca ngay	hôm nay trời mưa cả ngày	tay-khong-dau
+cho em hoi chut duoc khong a	cho em hỏi chút được không ạ	tay-khong-dau
+anh an com chua	anh ăn cơm chưa	tay-khong-dau
+toi se den muon khoang muoi phut	tôi sẽ đến muộn khoảng mười phút	tay-khong-dau
+mai may gio hop vay chi	mai mấy giờ họp vậy chị	tay-khong-dau
+em gui mail cho anh roi nhe	em gửi mail cho anh rồi nhé	tay-khong-dau
+cam on anh chi da quan tam	cảm ơn anh chị đã quan tâm	tay-khong-dau
+chuc ca nha ngu ngon	chúc cả nhà ngủ ngon	tay-khong-dau
+ban co biet quan an nao ngon khong	bạn có biết quán ăn nào ngon không	tay-khong-dau
+toi dang tim nha tro gan truong	tôi đang tìm nhà trọ gần trường	tay-khong-dau
+chi cho em xin dia chi nha nhe	chị cho em xin địa chỉ nhà nhé	tay-khong-dau
+hen gap lai anh vao tuan sau	hẹn gặp lại anh vào tuần sau	tay-khong-dau
+bao gio thi co ket qua a	bao giờ thì có kết quả ạ	tay-khong-dau
+em xin phep nghi mot ngay de di kham benh	em xin phép nghỉ một ngày để đi khám bệnh	tay-khong-dau
+anh co the goi lai sau muoi phut khong	anh có thể gọi lại sau mười phút không	tay-khong-dau
+toi vua chuyen tien cho ban roi do	tôi vừa chuyển tiền cho bạn rồi đó	tay-khong-dau
+nho mua sua va banh mi tren duong ve nhe	nhớ mua sữa và bánh mì trên đường về nhé	tay-khong-dau
+con hoc bai xong chua	con học bài xong chưa	tay-khong-dau
+ong ba khoe khong chau	ông bà khoẻ không cháu	tay-khong-dau
+cuoi tuan nay ban co ke hoach gi chua	cuối tuần này bạn có kế hoạch gì chưa	tay-khong-dau
+thoi tiet dao nay that thuong qua	thời tiết dạo này thất thường quá	tay-khong-dau
+toi can mua mot chiec dien thoai moi	tôi cần mua một chiếc điện thoại mới	tay-khong-dau
+quan nay may gio dong cua vay	quán này mấy giờ đóng cửa vậy	tay-khong-dau
+em van chua nhan duoc hang	em vẫn chưa nhận được hàng	tay-khong-dau
+anh kiem tra lai giup em don hang nay voi	anh kiểm tra lại giúp em đơn hàng này với	tay-khong-dau
+chung ta nen bat dau tu dau	chúng ta nên bắt đầu từ đâu	tay-khong-dau
+toi khong hieu cau hoi nay	tôi không hiểu câu hỏi này	tay-khong-dau
+bai kiem tra hom nay kho qua	bài kiểm tra hôm nay khó quá	tay-khong-dau
+con gai toi nam nay vao lop mot	con gái tôi năm nay vào lớp một	tay-khong-dau
+vo toi dang mang thai thang thu sau	vợ tôi đang mang thai tháng thứ sáu	tay-khong-dau
+bo toi vua nghi huu nam ngoai	bố tôi vừa nghỉ hưu năm ngoái	tay-khong-dau
+nha minh sap chuyen ve que song	nhà mình sắp chuyển về quê sống	tay-khong-dau
+toi muon dang ky hoc tieng nhat	tôi muốn đăng ký học tiếng nhật	tay-khong-dau
+lop hoc bat dau vao thu hai tuan toi	lớp học bắt đầu vào thứ hai tuần tới	tay-khong-dau
+hoc phi mot thang bao nhieu tien	học phí một tháng bao nhiêu tiền	tay-khong-dau
+thay giao dan ve nha lam bai tap	thầy giáo dặn về nhà làm bài tập	tay-khong-dau
+toi se co gang hoan thanh dung han	tôi sẽ cố gắng hoàn thành đúng hạn	tay-khong-dau
+bao cao thang nay da xong chua	báo cáo tháng này đã xong chưa	tay-khong-dau
+phong ke toan can them hoa don	phòng kế toán cần thêm hoá đơn	tay-khong-dau
+khach hang muon doi sang mau khac	khách hàng muốn đổi sang mẫu khác	tay-khong-dau
+chung toi se giao hang trong ba ngay	chúng tôi sẽ giao hàng trong ba ngày	tay-khong-dau
+anh vui long thanh toan truoc mot nua	anh vui lòng thanh toán trước một nửa	tay-khong-dau
+hop dong co hieu luc tu ngay ky	hợp đồng có hiệu lực từ ngày ký	tay-khong-dau
+toi da doc va dong y voi cac dieu khoan	tôi đã đọc và đồng ý với các điều khoản	tay-khong-dau
+xin anh chi cho y kien ve de xuat nay	xin anh chị cho ý kiến về đề xuất này	tay-khong-dau
+cuoc hop doi sang chieu thu nam	cuộc họp dời sang chiều thứ năm	tay-khong-dau
+sep bao em chuan bi tai lieu cho buoi hop	sếp bảo em chuẩn bị tài liệu cho buổi họp	tay-khong-dau
+em da dat ve may bay cho anh roi	em đã đặt vé máy bay cho anh rồi	tay-khong-dau
+chuyen tau khoi hanh luc sau gio sang	chuyến tàu khởi hành lúc sáu giờ sáng	tay-khong-dau
+khach san o ngay trung tam thanh pho	khách sạn ở ngay trung tâm thành phố	tay-khong-dau
+tu day ra san bay mat bao lau	từ đây ra sân bay mất bao lâu	tay-khong-dau
+di thang roi re trai o nga tu thu hai	đi thẳng rồi rẽ trái ở ngã tư thứ hai	tay-khong-dau
+toi bi lac duong roi	tôi bị lạc đường rồi	tay-khong-dau
+cho toi mot bat pho tai va mot coc tra da	cho tôi một bát phở tái và một cốc trà đá	tay-khong-dau
+mon nay co cay khong em	món này có cay không em	tay-khong-dau
+tinh tien giup anh voi	tính tiền giúp anh với	tay-khong-dau
+do an o day ngon ma re	đồ ăn ở đây ngon mà rẻ	tay-khong-dau
+toi bi dau dau tu sang den gio	tôi bị đau đầu từ sáng đến giờ	tay-khong-dau
+bac si dan uong thuoc sau khi an	bác sĩ dặn uống thuốc sau khi ăn	tay-khong-dau
+em be bi sot cao phai dua di vien	em bé bị sốt cao phải đưa đi viện	tay-khong-dau
+dao nay toi hay mat ngu	dạo này tôi hay mất ngủ	tay-khong-dau
+anh nen tap the duc thuong xuyen hon	anh nên tập thể dục thường xuyên hơn	tay-khong-dau
+toi dang co bo thuoc la	tôi đang cố bỏ thuốc lá	tay-khong-dau
+hom qua doi minh thang ba khong	hôm qua đội mình thắng ba không	tay-khong-dau
+toi nay co tran bong da hay lam	tối nay có trận bóng đá hay lắm	tay-khong-dau
+ban da xem bo phim moi chua	bạn đã xem bộ phim mới chưa	tay-khong-dau
+bai hat nay nghe quen qua	bài hát này nghe quen quá	tay-khong-dau
+toi thich doc sach vao buoi toi	tôi thích đọc sách vào buổi tối	tay-khong-dau
+cuon tieu thuyet nay rat cam dong	cuốn tiểu thuyết này rất cảm động	tay-khong-dau
+minh di dao mot vong quanh ho di	mình đi dạo một vòng quanh hồ đi	tay-khong-dau
+cuoi nam ca cong ty di du lich	cuối năm cả công ty đi du lịch	tay-khong-dau
+tet nay ban co ve que khong	tết này bạn có về quê không	tay-khong-dau
+chuc mung nam moi an khang thinh vuong	chúc mừng năm mới an khang thịnh vượng	tay-khong-dau
+nam nay nha toi goi banh chung som	năm nay nhà tôi gói bánh chưng sớm	tay-khong-dau
+trung thu nam nay roi vao thu may	trung thu năm nay rơi vào thứ mấy	tay-khong-dau
+sinh nhat me la ngay muoi hai thang tam	sinh nhật mẹ là ngày mười hai tháng tám	tay-khong-dau
+dam cuoi to chuc o nha hang gan nha	đám cưới tổ chức ở nhà hàng gần nhà	tay-khong-dau
+chuc hai ban tram nam hanh phuc	chúc hai bạn trăm năm hạnh phúc	tay-khong-dau
+toi rat tiec khi nghe tin nay	tôi rất tiếc khi nghe tin này	tay-khong-dau
+xin chia buon cung gia dinh	xin chia buồn cùng gia đình	tay-khong-dau
+ban dung buon nua moi chuyen se on thoi	bạn đừng buồn nữa mọi chuyện sẽ ổn thôi	tay-khong-dau
+toi nho nha qua	tôi nhớ nhà quá	tay-khong-dau
+lau lam roi minh chua gap nhau	lâu lắm rồi mình chưa gặp nhau	tay-khong-dau
+khi nao ranh thi goi cho toi nhe	khi nào rảnh thì gọi cho tôi nhé	tay-khong-dau
+toi rat vui khi nhan duoc tin cua ban	tôi rất vui khi nhận được tin của bạn	tay-khong-dau
+may tinh cua toi chay cham qua	máy tính của tôi chạy chậm quá	tay-khong-dau
+dien thoai sap het pin roi	điện thoại sắp hết pin rồi	tay-khong-dau
+mang hom nay yeu qua	mạng hôm nay yếu quá	tay-khong-dau
+toi quen mat khau tai khoan ngan hang	tôi quên mật khẩu tài khoản ngân hàng	tay-khong-dau
+ban chup giup toi tam anh duoc khong	bạn chụp giúp tôi tấm ảnh được không	tay-khong-dau
+gui cho minh may tam hinh hom qua nhe	gửi cho mình mấy tấm hình hôm qua nhé	tay-khong-dau
+nha toi vua bi mat dien	nhà tôi vừa bị mất điện	tay-khong-dau
+voi nuoc trong bep bi hong roi	vòi nước trong bếp bị hỏng rồi	tay-khong-dau
+ngay mai tho den sua may giat	ngày mai thợ đến sửa máy giặt	tay-khong-dau
+tien dien thang nay cao qua	tiền điện tháng này cao quá	tay-khong-dau
+toi can tim nguoi trong tre	tôi cần tìm người trông trẻ	tay-khong-dau
+con meo nha toi moi de ba con	con mèo nhà tôi mới đẻ ba con	tay-khong-dau
+ngoai vuon hoa hong dang no	ngoài vườn hoa hồng đang nở	tay-khong-dau
+sang nao bo toi cung tuoi cay	sáng nào bố tôi cũng tưới cây	tay-khong-dau
+troi dep the nay di bien thi tuyet	trời đẹp thế này đi biển thì tuyệt	tay-khong-dau
+mua thu ha noi rat dep	mùa thu hà nội rất đẹp	tay-khong-dau
+sai gon dao nay mua nhieu	sài gòn dạo này mưa nhiều	tay-khong-dau
+toi sinh ra va lon len o da nang	tôi sinh ra và lớn lên ở đà nẵng	tay-khong-dau
+que toi o nghe an	quê tôi ở nghệ an	tay-khong-dau
+anh ay vua di cong tac o can tho ve	anh ấy vừa đi công tác ở cần thơ về	tay-khong-dau
+tuan sau toi bay ra ha noi	tuần sau tôi bay ra hà nội	tay-khong-dau
+chi ay lam viec o ngan hang da muoi nam	chị ấy làm việc ở ngân hàng đã mười năm	tay-khong-dau
+em trai toi dang hoc dai hoc nam cuoi	em trai tôi đang học đại học năm cuối	tay-khong-dau
+toi vua nhan viec o mot cong ty moi	tôi vừa nhận việc ở một công ty mới	tay-khong-dau
+luong thang nay bao gio co	lương tháng này bao giờ có	tay-khong-dau
+toi muon xin nghi phep nam	tôi muốn xin nghỉ phép năm	tay-khong-dau
+cong viec dao nay ap luc qua	công việc dạo này áp lực quá	tay-khong-dau
+anh ay vua duoc thang chuc truong phong	anh ấy vừa được thăng chức trưởng phòng	tay-khong-dau
+toi can vay tien de mua nha	tôi cần vay tiền để mua nhà	tay-khong-dau
+lai suat ngan hang dang giam	lãi suất ngân hàng đang giảm	tay-khong-dau
+gia vang hom nay tang manh	giá vàng hôm nay tăng mạnh	tay-khong-dau
+gia xang lai tang nua roi	giá xăng lại tăng nữa rồi	tay-khong-dau
+duong nay hay ket xe vao gio tan tam	đường này hay kẹt xe vào giờ tan tầm	tay-khong-dau
+toi de quen o o van phong	tôi để quên ô ở văn phòng	tay-khong-dau
+nho khoa cua truoc khi ra ngoai	nhớ khoá cửa trước khi ra ngoài	tay-khong-dau
+dung thuc khuya qua nhe	đừng thức khuya quá nhé	tay-khong-dau
+an nhieu rau xanh tot cho suc khoe	ăn nhiều rau xanh tốt cho sức khoẻ	tay-khong-dau
+uong du nuoc moi ngay	uống đủ nước mỗi ngày	tay-khong-dau
+toi dang hoc nau an	tôi đang học nấu ăn	tay-khong-dau
+mon canh chua me nau ngon nhat	món canh chua mẹ nấu ngon nhất	tay-khong-dau
+cho them chut muoi vao noi canh	cho thêm chút muối vào nồi canh	tay-khong-dau
+banh nay lam tu bot gao	bánh này làm từ bột gạo	tay-khong-dau
+toi khong an duoc do cay	tôi không ăn được đồ cay	tay-khong-dau
+anh dung ca phe hay tra	anh dùng cà phê hay trà	tay-khong-dau
+cho em mot ly nuoc cam it duong	cho em một ly nước cam ít đường	tay-khong-dau
+chung ta chia nhau tra tien nhe	chúng ta chia nhau trả tiền nhé	tay-khong-dau
+de hom nay toi moi	để hôm nay tôi mời	tay-khong-dau
+ban that la tot bung	bạn thật là tốt bụng	tay-khong-dau
+toi rat ngai lam phien anh	tôi rất ngại làm phiền anh	tay-khong-dau
+khong sao dau dung khach sao	không sao đâu đừng khách sáo	tay-khong-dau
+xin loi toi khong co y	xin lỗi tôi không cố ý	tay-khong-dau
+toi hoan toan dong y voi ban	tôi hoàn toàn đồng ý với bạn	tay-khong-dau
+theo toi thi nen cho them	theo tôi thì nên chờ thêm	tay-khong-dau
+y kien cua anh rat hay	ý kiến của anh rất hay	tay-khong-dau
+chung ta can ban them ve viec nay	chúng ta cần bàn thêm về việc này	tay-khong-dau
+de toi suy nghi roi tra loi sau	để tôi suy nghĩ rồi trả lời sau	tay-khong-dau
+viec nay khong gap lam dau	việc này không gấp lắm đâu	tay-khong-dau
+cang som cang tot	càng sớm càng tốt	tay-khong-dau
+toi se bao lai cho anh ngay khi co tin	tôi sẽ báo lại cho anh ngay khi có tin	tay-khong-dau
+moi nguoi da san sang chua	mọi người đã sẵn sàng chưa	tay-khong-dau
+chung ta xuat phat thoi	chúng ta xuất phát thôi	tay-khong-dau
+di duong can than nhe	đi đường cẩn thận nhé	tay-khong-dau
+ve den noi thi nhan cho me	về đến nơi thì nhắn cho mẹ	tay-khong-dau
+con yeu bo me nhieu lam	con yêu bố mẹ nhiều lắm	tay-khong-dau
+anh nho em nhieu	anh nhớ em nhiều	tay-khong-dau
+chuc em mot ngay lam viec vui ve	chúc em một ngày làm việc vui vẻ	tay-khong-dau
+ngu ngon va mo dep nhe	ngủ ngon và mơ đẹp nhé	tay-khong-dau
+hen gap lai vao ngay mai	hẹn gặp lại vào ngày mai	tay-khong-dau
+toi da co gang het suc roi	tôi đã cố gắng hết sức rồi	tay-khong-dau
+dung bo cuoc giua chung	đừng bỏ cuộc giữa chừng	tay-khong-dau
+that bai la me thanh cong	thất bại là mẹ thành công	tay-khong-dau
+co chi thi nen	có chí thì nên	tay-khong-dau
+hoc thay khong tay hoc ban	học thầy không tày học bạn	tay-khong-dau
+an qua nho ke trong cay	ăn quả nhớ kẻ trồng cây	tay-khong-dau
+uong nuoc nho nguon	uống nước nhớ nguồn	tay-khong-dau
+mot cay lam chang nen non	một cây làm chẳng nên non	tay-khong-dau
+di mot ngay dang hoc mot sang khon	đi một ngày đàng học một sàng khôn	tay-khong-dau
+tot go hon tot nuoc son	tốt gỗ hơn tốt nước sơn	tay-khong-dau
+cham ma chac	chậm mà chắc	tay-khong-dau
+em can nop ho so truoc ngay muoi lam	em cần nộp hồ sơ trước ngày mười lăm	tay-khong-dau
+phong nhan su se lien he voi ban sau	phòng nhân sự sẽ liên hệ với bạn sau	tay-khong-dau
+vui long mang theo chung minh nhan dan	vui lòng mang theo chứng minh nhân dân	tay-khong-dau
+toi muon mo mot tai khoan tiet kiem	tôi muốn mở một tài khoản tiết kiệm	tay-khong-dau
+the cua toi bi khoa roi	thẻ của tôi bị khoá rồi	tay-khong-dau
+xin cho biet ho ten va ngay sinh	xin cho biết họ tên và ngày sinh	tay-khong-dau
+anh dien vao mau don nay giup em	anh điền vào mẫu đơn này giúp em	tay-khong-dau
+chu ky cua chi o dong cuoi cung	chữ ký của chị ở dòng cuối cùng	tay-khong-dau
+ket qua se duoc gui qua thu dien tu	kết quả sẽ được gửi qua thư điện tử	tay-khong-dau
+cam on quy khach da su dung dich vu	cảm ơn quý khách đã sử dụng dịch vụ	tay-khong-dau
+Hồ Chí Minh sinh ra ở Nghệ An.	Hồ Chí Minh sinh ra ở Nghệ An.	tay-dung
+Vịnh Hạ Long là di sản thiên nhiên thế giới.	Vịnh Hạ Long là di sản thiên nhiên thế giới.	tay-dung
+Chúng tôi vừa đi Sa Pa về.	Chúng tôi vừa đi Sa Pa về.	tay-dung
+Phố cổ Hội An rất đông khách du lịch.	Phố cổ Hội An rất đông khách du lịch.	tay-dung
+Chị Lan làm việc ở Bình Dương.	Chị Lan làm việc ở Bình Dương.	tay-dung
+Anh Tuấn và chị Hương sắp cưới.	Anh Tuấn và chị Hương sắp cưới.	tay-dung
+Bé Bống năm nay lên ba tuổi.	Bé Bống năm nay lên ba tuổi.	tay-dung
+Cô Nguyệt dạy văn ở trường Lê Quý Đôn.	Cô Nguyệt dạy văn ở trường Lê Quý Đôn.	tay-dung
+Ông Phạm Văn Đồng từng là thủ tướng.	Ông Phạm Văn Đồng từng là thủ tướng.	tay-dung
+Nhà thơ Xuân Diệu viết nhiều bài thơ tình.	Nhà thơ Xuân Diệu viết nhiều bài thơ tình.	tay-dung
+Trịnh Công Sơn là nhạc sĩ tôi yêu thích.	Trịnh Công Sơn là nhạc sĩ tôi yêu thích.	tay-dung
+Sông Hương chảy qua thành phố Huế.	Sông Hương chảy qua thành phố Huế.	tay-dung
+Đỉnh Phan Xi Păng cao nhất Đông Dương.	Đỉnh Phan Xi Păng cao nhất Đông Dương.	tay-dung
+Tôi quê ở Thanh Hoá nhưng sống ở Vũng Tàu.	Tôi quê ở Thanh Hoá nhưng sống ở Vũng Tàu.	tay-dung
+Buôn Ma Thuột nổi tiếng về cà phê.	Buôn Ma Thuột nổi tiếng về cà phê.	tay-dung
+Phú Quốc có nhiều bãi biển đẹp.	Phú Quốc có nhiều bãi biển đẹp.	tay-dung
+Bà con Tây Nguyên đang vào mùa thu hoạch.	Bà con Tây Nguyên đang vào mùa thu hoạch.	tay-dung
+Chùa Một Cột nằm ở quận Ba Đình.	Chùa Một Cột nằm ở quận Ba Đình.	tay-dung
+Em Khoa học lớp mười hai trường Chu Văn An.	Em Khoa học lớp mười hai trường Chu Văn An.	tay-dung
+Bác Tư bán hủ tiếu ở đầu hẻm.	Bác Tư bán hủ tiếu ở đầu hẻm.	tay-dung
+Mẹ làm món bún chả cho cả nhà.	Mẹ làm món bún chả cho cả nhà.	tay-dung
+Sáng nay tôi ăn xôi gấc.	Sáng nay tôi ăn xôi gấc.	tay-dung
+Bà nội muối dưa cải rất ngon.	Bà nội muối dưa cải rất ngon.	tay-dung
+Chả giò và gỏi cuốn là món khai vị.	Chả giò và gỏi cuốn là món khai vị.	tay-dung
+Cho tôi một tô bún bò Huế.	Cho tôi một tô bún bò Huế.	tay-dung
+Nước mắm Phan Thiết thơm và đậm đà.	Nước mắm Phan Thiết thơm và đậm đà.	tay-dung
+Chè đậu đen ăn với đá rất mát.	Chè đậu đen ăn với đá rất mát.	tay-dung
+Bánh xèo miền Tây giòn rụm.	Bánh xèo miền Tây giòn rụm.	tay-dung
+Món nộm đu đủ này hơi chua.	Món nộm đu đủ này hơi chua.	tay-dung
+Canh rau ngót nấu với thịt băm.	Canh rau ngót nấu với thịt băm.	tay-dung
+Trái sầu riêng có mùi rất nồng.	Trái sầu riêng có mùi rất nồng.	tay-dung
+Mùa này vải thiều chín rộ.	Mùa này vải thiều chín rộ.	tay-dung
+Vườn nhà ngoại trồng nhiều chôm chôm và măng cụt.	Vườn nhà ngoại trồng nhiều chôm chôm và măng cụt.	tay-dung
+Con gà trống gáy vang cả xóm.	Con gà trống gáy vang cả xóm.	tay-dung
+Đàn vịt bơi lội dưới ao.	Đàn vịt bơi lội dưới ao.	tay-dung
+Chú chuồn chuồn đậu trên cành tre.	Chú chuồn chuồn đậu trên cành tre.	tay-dung
+Bầy chim sẻ ríu rít ngoài hiên.	Bầy chim sẻ ríu rít ngoài hiên.	tay-dung
+Con ếch kêu ồm ộp sau cơn mưa.	Con ếch kêu ồm ộp sau cơn mưa.	tay-dung
+Luỹ tre làng xanh rì rào trong gió.	Luỹ tre làng xanh rì rào trong gió.	tay-dung
+Cánh đồng lúa chín vàng óng.	Cánh đồng lúa chín vàng óng.	tay-dung
+Bà cụ móm mém nhai trầu.	Bà cụ móm mém nhai trầu.	tay-dung
+Ông lão chống gậy đi chầm chậm.	Ông lão chống gậy đi chầm chậm.	tay-dung
+Cô bé thẹn thùng nấp sau lưng mẹ.	Cô bé thẹn thùng nấp sau lưng mẹ.	tay-dung
+Thằng bé lém lỉnh trả lời rất nhanh.	Thằng bé lém lỉnh trả lời rất nhanh.	tay-dung
+Mưa rả rích suốt đêm.	Mưa rả rích suốt đêm.	tay-dung
+Gió thổi hiu hiu qua khung cửa.	Gió thổi hiu hiu qua khung cửa.	tay-dung
+Sương mù giăng kín lối đi.	Sương mù giăng kín lối đi.	tay-dung
+Trăng rằm sáng vằng vặc.	Trăng rằm sáng vằng vặc.	tay-dung
+Nắng chang chang giữa trưa hè.	Nắng chang chang giữa trưa hè.	tay-dung
+Tiếng ve kêu râm ran trong vườn.	Tiếng ve kêu râm ran trong vườn.	tay-dung
+Có chí thì nên.	Có chí thì nên.	tay-dung
+Ăn quả nhớ kẻ trồng cây.	Ăn quả nhớ kẻ trồng cây.	tay-dung
+Uống nước nhớ nguồn.	Uống nước nhớ nguồn.	tay-dung
+Một cây làm chẳng nên non, ba cây chụm lại nên hòn núi cao.	Một cây làm chẳng nên non, ba cây chụm lại nên hòn núi cao.	tay-dung
+Đi một ngày đàng, học một sàng khôn.	Đi một ngày đàng, học một sàng khôn.	tay-dung
+Tốt gỗ hơn tốt nước sơn.	Tốt gỗ hơn tốt nước sơn.	tay-dung
+Lá lành đùm lá rách.	Lá lành đùm lá rách.	tay-dung
+Thương người như thể thương thân.	Thương người như thể thương thân.	tay-dung
+Chớ thấy sóng cả mà ngã tay chèo.	Chớ thấy sóng cả mà ngã tay chèo.	tay-dung
+Kiến tha lâu cũng đầy tổ.	Kiến tha lâu cũng đầy tổ.	tay-dung
+Nước chảy đá mòn.	Nước chảy đá mòn.	tay-dung
+Ở hiền gặp lành.	Ở hiền gặp lành.	tay-dung
+Trăm nghe không bằng một thấy.	Trăm nghe không bằng một thấy.	tay-dung
+Cái nết đánh chết cái đẹp.	Cái nết đánh chết cái đẹp.	tay-dung
+Bầu ơi thương lấy bí cùng.	Bầu ơi thương lấy bí cùng.	tay-dung
+Công cha như núi Thái Sơn.	Công cha như núi Thái Sơn.	tay-dung
+Giấy rách phải giữ lấy lề.	Giấy rách phải giữ lấy lề.	tay-dung
+Đói cho sạch, rách cho thơm.	Đói cho sạch, rách cho thơm.	tay-dung
+Lời nói chẳng mất tiền mua.	Lời nói chẳng mất tiền mua.	tay-dung
+Học ăn, học nói, học gói, học mở.	Học ăn, học nói, học gói, học mở.	tay-dung
+Tôi đã dành cả buổi chiều để đọc sách.	Tôi đã dành cả buổi chiều để đọc sách.	tay-dung
+Đội nhà giành chức vô địch.	Đội nhà giành chức vô địch.	tay-dung
+Anh ấy chỉ ăn một nửa suất cơm.	Anh ấy chỉ ăn một nửa suất cơm.	tay-dung
+Cho tôi thêm ít cơm nữa.	Cho tôi thêm ít cơm nữa.	tay-dung
+Buổi trưa nay trời nắng gắt.	Buổi trưa nay trời nắng gắt.	tay-dung
+Tôi chưa nghe tin đó.	Tôi chưa nghe tin đó.	tay-dung
+Cô ấy có vẻ không vui.	Cô ấy có vẻ không vui.	tay-dung
+Bé đang tập vẽ con mèo.	Bé đang tập vẽ con mèo.	tay-dung
+Con sẽ ngoan hơn, mẹ nhé.	Con sẽ ngoan hơn, mẹ nhé.	tay-dung
+Chim sẻ đậu trên dây điện.	Chim sẻ đậu trên dây điện.	tay-dung
+Tôi nghĩ anh nên nghỉ một hôm.	Tôi nghĩ anh nên nghỉ một hôm.	tay-dung
+Ngã tư này hay tắc đường.	Ngã tư này hay tắc đường.	tay-dung
+Bà ngã bệnh từ tuần trước.	Bà ngã bệnh từ tuần trước.	tay-dung
+Cái ngả đường này dẫn về làng.	Cái ngả đường này dẫn về làng.	tay-dung
+Chiếc lá rơi lả tả.	Chiếc lá rơi lả tả.	tay-dung
+Lã chã những giọt nước mắt.	Lã chã những giọt nước mắt.	tay-dung
+Anh ấy bảo vệ luận án tiến sĩ.	Anh ấy bảo vệ luận án tiến sĩ.	tay-dung
+Cơn bão đã suy yếu thành áp thấp.	Cơn bão đã suy yếu thành áp thấp.	tay-dung
+Món này dở quá, tôi không ăn nổi.	Món này dở quá, tôi không ăn nổi.	tay-dung
+Công nhân dỡ hàng xuống bến.	Công nhân dỡ hàng xuống bến.	tay-dung
+Tôi kỹ tính trong chuyện ăn uống.	Tôi kỹ tính trong chuyện ăn uống.	tay-dung
+Kỷ lục thế giới vừa bị phá.	Kỷ lục thế giới vừa bị phá.	tay-dung
+Truyện ngắn này rất hay.	Truyện ngắn này rất hay.	tay-dung
+Chuyện đó để mai tính.	Chuyện đó để mai tính.	tay-dung
+Sửa bài xong thì nộp cho cô.	Sửa bài xong thì nộp cho cô.	tay-dung
+Bò sữa được nuôi ở Mộc Châu.	Bò sữa được nuôi ở Mộc Châu.	tay-dung
+Xin giữ trật tự trong thư viện.	Xin giữ trật tự trong thư viện.	tay-dung
+Thú dữ thường săn mồi ban đêm.	Thú dữ thường săn mồi ban đêm.	tay-dung
+Con dao này rất sắc.	Con dao này rất sắc.	tay-dung
+Giao hàng tận nơi miễn phí.	Giao hàng tận nơi miễn phí.	tay-dung
+Chú rể dắt cô dâu ra chào họ hàng.	Chú rể dắt cô dâu ra chào họ hàng.	tay-dung
+Rễ cây ăn sâu xuống đất.	Rễ cây ăn sâu xuống đất.	tay-dung
+Tôi trồng một giàn mướp sau nhà.	Tôi trồng một giàn mướp sau nhà.	tay-dung
+Ban nhạc chơi đàn rất hay.	Ban nhạc chơi đàn rất hay.	tay-dung
+Sáng sớm sương còn đọng trên lá.	Sáng sớm sương còn đọng trên lá.	tay-dung
+Xương cá mắc ở cổ họng.	Xương cá mắc ở cổ họng.	tay-dung
+Hạt sương long lanh trên cỏ.	Hạt sương long lanh trên cỏ.	tay-dung
+Xin mời vào xơi nước.	Xin mời vào xơi nước.	tay-dung
+Thợ may đang đo số đo cho khách.	Thợ may đang đo số đo cho khách.	tay-dung
+Chị ấy sinh con gái đầu lòng.	Chị ấy sinh con gái đầu lòng.	tay-dung
+Cô bé xinh như búp bê.	Cô bé xinh như búp bê.	tay-dung
+Buổi lễ tổ chức rất trang trọng.	Buổi lễ tổ chức rất trang trọng.	tay-dung
+Chang chang nắng hè.	Chang chang nắng hè.	tay-dung
+Tre già măng mọc.	Tre già măng mọc.	tay-dung
+Nhà tranh vách đất.	Nhà tranh vách đất.	tay-dung
+Chanh chua thì khế cũng chua.	Chanh chua thì khế cũng chua.	tay-dung
+Chiếc chiếu trải giữa nhà.	Chiếc chiếu trải giữa nhà.	tay-dung
+Triều đình nhà Nguyễn đóng đô ở Huế.	Triều đình nhà Nguyễn đóng đô ở Huế.	tay-dung
+Buổi chiều tôi thường đi bơi.	Buổi chiều tôi thường đi bơi.	tay-dung
+Anh ấy chiều con quá mức.	Anh ấy chiều con quá mức.	tay-dung
+Tàu về ga lúc nửa đêm.	Tàu về ga lúc nửa đêm.	tay-dung
+Bãi biển Mỹ Khê cát trắng mịn.	Bãi biển Mỹ Khê cát trắng mịn.	tay-dung
+Tôi lỡ chuyến xe cuối cùng.	Tôi lỡ chuyến xe cuối cùng.	tay-dung
+Lở đất làm tắc quốc lộ.	Lở đất làm tắc quốc lộ.	tay-dung
+Căn nhà gỗ nằm lưng chừng đồi.	Căn nhà gỗ nằm lưng chừng đồi.	tay-dung
+Dòng suối róc rách bên bìa rừng.	Dòng suối róc rách bên bìa rừng.	tay-dung
+Bác nông dân cày ruộng từ tinh mơ.	Bác nông dân cày ruộng từ tinh mơ.	tay-dung
+Người thợ rèn đập búa chan chát.	Người thợ rèn đập búa chan chát.	tay-dung
+Bà hàng xóm sang chơi.	Bà hàng xóm sang chơi.	tay-dung
+Cụ ông râu tóc bạc phơ.	Cụ ông râu tóc bạc phơ.	tay-dung
+Đứa trẻ bụ bẫm cười toe toét.	Đứa trẻ bụ bẫm cười toe toét.	tay-dung
+Bé gái tóc tết đuôi sam.	Bé gái tóc tết đuôi sam.	tay-dung
+Anh thanh niên vạm vỡ khuân vác hàng.	Anh thanh niên vạm vỡ khuân vác hàng.	tay-dung
+Cô thợ dệt thoăn thoắt đôi tay.	Cô thợ dệt thoăn thoắt đôi tay.	tay-dung
+Chiếc nón lá nghiêng nghiêng che nắng.	Chiếc nón lá nghiêng nghiêng che nắng.	tay-dung
+Tà áo dài bay trong gió.	Tà áo dài bay trong gió.	tay-dung
+Đôi guốc mộc gõ lộc cộc trên hè phố.	Đôi guốc mộc gõ lộc cộc trên hè phố.	tay-dung
+Chợ quê họp từ lúc tờ mờ sáng.	Chợ quê họp từ lúc tờ mờ sáng.	tay-dung
+Gánh hàng rong đi qua ngõ.	Gánh hàng rong đi qua ngõ.	tay-dung
+Tiếng rao đêm vọng lại từ xa.	Tiếng rao đêm vọng lại từ xa.	tay-dung
+Mái ngói rêu phong cổ kính.	Mái ngói rêu phong cổ kính.	tay-dung
+Giếng nước đầu làng trong vắt.	Giếng nước đầu làng trong vắt.	tay-dung
+Cây đa cổ thụ toả bóng mát.	Cây đa cổ thụ toả bóng mát.	tay-dung
+Con đò nhỏ lướt nhẹ trên sông.	Con đò nhỏ lướt nhẹ trên sông.	tay-dung
+Ngọn hải đăng sáng suốt đêm.	Ngọn hải đăng sáng suốt đêm.	tay-dung
+Thuyền chài ra khơi từ rạng đông.	Thuyền chài ra khơi từ rạng đông.	tay-dung
+Sóng vỗ rì rào vào bờ cát.	Sóng vỗ rì rào vào bờ cát.	tay-dung
+Hoàng hôn buông xuống mặt biển.	Hoàng hôn buông xuống mặt biển.	tay-dung
+Bình minh ló rạng phía chân trời.	Bình minh ló rạng phía chân trời.	tay-dung
+Đàn cò trắng bay về tổ.	Đàn cò trắng bay về tổ.	tay-dung
+Mùa xuân hoa đào nở rộ.	Mùa xuân hoa đào nở rộ.	tay-dung
+Mùa hạ phượng đỏ rực sân trường.	Mùa hạ phượng đỏ rực sân trường.	tay-dung
+Mùa thu lá vàng rơi xào xạc.	Mùa thu lá vàng rơi xào xạc.	tay-dung
+Mùa đông gió bấc thổi lạnh buốt.	Mùa đông gió bấc thổi lạnh buốt.	tay-dung
+Tôi làm lập trình viên đã năm năm.	Tôi làm lập trình viên đã năm năm.	tay-dung
+Máy chủ cần được khởi động lại.	Máy chủ cần được khởi động lại.	tay-dung
+Hãy sao lưu dữ liệu trước khi cập nhật.	Hãy sao lưu dữ liệu trước khi cập nhật.	tay-dung
+Phần mềm này tương thích với mọi thiết bị.	Phần mềm này tương thích với mọi thiết bị.	tay-dung
+Bàn phím của tôi bị kẹt phím.	Bàn phím của tôi bị kẹt phím.	tay-dung
+Màn hình bị nhấp nháy liên tục.	Màn hình bị nhấp nháy liên tục.	tay-dung
+Vui lòng nhập mật khẩu gồm tám ký tự.	Vui lòng nhập mật khẩu gồm tám ký tự.	tay-dung
+Tài khoản của bạn đã được kích hoạt.	Tài khoản của bạn đã được kích hoạt.	tay-dung
+Đường truyền mạng không ổn định.	Đường truyền mạng không ổn định.	tay-dung
+Hệ thống sẽ bảo trì vào cuối tuần.	Hệ thống sẽ bảo trì vào cuối tuần.	tay-dung
+Bệnh nhân cần được truyền dịch ngay.	Bệnh nhân cần được truyền dịch ngay.	tay-dung
+Vết thương đã lành hẳn.	Vết thương đã lành hẳn.	tay-dung
+Bác sĩ kê đơn thuốc kháng sinh.	Bác sĩ kê đơn thuốc kháng sinh.	tay-dung
+Huyết áp của ông hơi cao.	Huyết áp của ông hơi cao.	tay-dung
+Em bé được tiêm phòng đầy đủ.	Em bé được tiêm phòng đầy đủ.	tay-dung
+Luật sư đang soạn thảo hợp đồng.	Luật sư đang soạn thảo hợp đồng.	tay-dung
+Toà án sẽ xét xử vào tháng sau.	Toà án sẽ xét xử vào tháng sau.	tay-dung
+Bị cáo kháng cáo bản án sơ thẩm.	Bị cáo kháng cáo bản án sơ thẩm.	tay-dung
+Doanh thu quý này tăng trưởng khá.	Doanh thu quý này tăng trưởng khá.	tay-dung
+Cổ phiếu ngân hàng tăng kịch trần.	Cổ phiếu ngân hàng tăng kịch trần.	tay-dung
+Tỷ giá ngoại tệ biến động mạnh.	Tỷ giá ngoại tệ biến động mạnh.	tay-dung
+Chính phủ ban hành nghị định mới.	Chính phủ ban hành nghị định mới.	tay-dung
+Quốc hội thông qua dự thảo luật.	Quốc hội thông qua dự thảo luật.	tay-dung
+Uỷ ban nhân dân phường thông báo lịch tiêm chủng.	Uỷ ban nhân dân phường thông báo lịch tiêm chủng.	tay-dung
+Học sinh được nghỉ hè từ tháng sáu.	Học sinh được nghỉ hè từ tháng sáu.	tay-dung
+Sinh viên đang ôn thi cuối kỳ.	Sinh viên đang ôn thi cuối kỳ.	tay-dung
+Luận văn của em cần chỉnh sửa thêm.	Luận văn của em cần chỉnh sửa thêm.	tay-dung
+Thầy hiệu trưởng phát biểu khai giảng.	Thầy hiệu trưởng phát biểu khai giảng.	tay-dung
+Thư viện mở cửa đến chín giờ tối.	Thư viện mở cửa đến chín giờ tối.	tay-dung
+em vua gui file excel cho anh roi	em vừa gửi file excel cho anh rồi	xen-anh
+chi check lai giup em cai link nay voi	chị check lại giúp em cái link này với	xen-anh
+team minh se hop online luc ba gio	team mình sẽ họp online lúc ba giờ	xen-anh
+anh ay lam developer o mot cong ty startup	anh ấy làm developer ở một công ty startup	xen-anh
+toi can reset lai mat khau wifi	tôi cần reset lại mật khẩu wifi	xen-anh
+em dang download phan mem moi	em đang download phần mềm mới	xen-anh
+deadline nop bao cao la thu hai tuan sau	deadline nộp báo cáo là thứ hai tuần sau	xen-anh
+anh forward mail nay cho sep giup em	anh forward mail này cho sếp giúp em	xen-anh
+chung ta can them feedback tu khach hang	chúng ta cần thêm feedback từ khách hàng	xen-anh
+toi nay co livestream ban hang khong	tối nay có livestream bán hàng không	xen-anh
+em moi mua mot cai smartphone moi	em mới mua một cái smartphone mới	xen-anh
+toi thich nghe podcast khi lai xe	tôi thích nghe podcast khi lái xe	xen-anh
+cho em xin file thiet ke ban final	cho em xin file thiết kế bản final	xen-anh
+anh da backup du lieu chua	anh đã backup dữ liệu chưa	xen-anh
+server bi loi tu sang den gio	server bị lỗi từ sáng đến giờ	xen-anh
+em se update tien do vao cuoi ngay	em sẽ update tiến độ vào cuối ngày	xen-anh
+ban co dung facebook hay zalo khong	bạn có dùng facebook hay zalo không	xen-anh
+toi vua dang ky mot khoa hoc online	tôi vừa đăng ký một khoá học online	xen-anh
+laptop cua toi het pin roi	laptop của tôi hết pin rồi	xen-anh
+anh gui em ban demo truoc nhe	anh gửi em bản demo trước nhé	xen-anh
+chi ay lam marketing da nam nam	chị ấy làm marketing đã năm năm	xen-anh
+toi can in hop dong ra giay roi scan lai	tôi cần in hợp đồng ra giấy rồi scan lại	xen-anh
+em da test xong tinh nang moi chua	em đã test xong tính năng mới chưa	xen-anh
+shop nay ban hang rat uy tin	shop này bán hàng rất uy tín	xen-anh
+anh ay la fan cua doi tuyen Viet Nam	anh ấy là fan của đội tuyển Việt Nam	xen-anh
+toi vua dat mot chiec taxi ra san bay	tôi vừa đặt một chiếc taxi ra sân bay	xen-anh
+cuoi tuan ca nhom di camping o Da Lat	cuối tuần cả nhóm đi camping ở Đà Lạt	xen-anh
+ban gui cho minh cai link zoom nhe	bạn gửi cho mình cái link zoom nhé	xen-anh
+em can mua them mot cai mouse khong day	em cần mua thêm một cái mouse không dây	xen-anh
+toi hay xem youtube truoc khi ngu	tôi hay xem youtube trước khi ngủ	xen-anh
+email cua anh la gi a	email của anh là gì ạ	xen-anh
+em se confirm lai voi khach sau	em sẽ confirm lại với khách sau	xen-anh
+phong marketing dang chay mot campaign lon	phòng marketing đang chạy một campaign lớn	xen-anh
+anh ay vua len chuc manager	anh ấy vừa lên chức manager	xen-anh
+toi lam freelance tai nha	tôi làm freelance tại nhà	xen-anh
+chi cho em xin so hotline cua cong ty	chị cho em xin số hotline của công ty	xen-anh
+mat khau phai co it nhat tam ky tu va mot ky tu dac biet de login	mật khẩu phải có ít nhất tám ký tự và một ký tự đặc biệt để login	xen-anh
+sang nay toi uong mot ly cappuccino	sáng nay tôi uống một ly cappuccino	xen-anh
+cuoi nam cong ty to chuc party lon	cuối năm công ty tổ chức party lớn	xen-anh
+em thich an pizza hai san	em thích ăn pizza hải sản	xen-anh
+tôi đang fix lỗi trên bản build mới	tôi đang fix lỗi trên bản build mới	xen-anh
+anh gửi feedback cho team design chưa	anh gửi feedback cho team design chưa	xen-anh
+em sẽ review lại toàn bộ code tối nay	em sẽ review lại toàn bộ code tối nay	xen-anh
+mình mới order một cái tablet cho con	mình mới order một cái tablet cho con	xen-anh
+nhớ backup dữ liệu trước khi format máy	nhớ backup dữ liệu trước khi format máy	xen-anh
+chị đã confirm lịch họp với khách hàng rồi	chị đã confirm lịch họp với khách hàng rồi	xen-anh
+tôi cần thêm thời gian để test tính năng mới	tôi cần thêm thời gian để test tính năng mới	xen-anh
+sếp bảo em chuẩn bị slide cho buổi họp	sếp bảo em chuẩn bị slide cho buổi họp	xen-anh
+anh ấy là leader của nhóm kỹ thuật	anh ấy là leader của nhóm kỹ thuật	xen-anh
+em vừa upload ảnh lên drive rồi	em vừa upload ảnh lên drive rồi	xen-anh
+bạn có thể share màn hình được không	bạn có thể share màn hình được không	xen-anh
+tôi bị mất kết nối internet từ sáng	tôi bị mất kết nối internet từ sáng	xen-anh
+cái app này dùng rất tiện	cái app này dùng rất tiện	xen-anh
+anh nhớ logout khi dùng máy công cộng	anh nhớ logout khi dùng máy công cộng	xen-anh
+chị ấy vừa mua một chiếc iPhone mới	chị ấy vừa mua một chiếc iPhone mới	xen-anh
+tôi dùng Google Maps để tìm đường	tôi dùng Google Maps để tìm đường	xen-anh
+công ty đang tuyển một kỹ sư backend	công ty đang tuyển một kỹ sư backend	xen-anh
+em sẽ gửi báo giá qua email	em sẽ gửi báo giá qua email	xen-anh
+bộ phim này có trên Netflix không	bộ phim này có trên Netflix không	xen-anh
+I will call you back in ten minutes.	I will call you back in ten minutes.	xen-anh
+Thank you for your help.	Thank you for your help.	xen-anh
+Can you send me the file again?	Can you send me the file again?	xen-anh
+See you tomorrow at the office.	See you tomorrow at the office.	xen-anh
+The report is due next Monday.	The report is due next Monday.	xen-anh
+Let me know if you have any questions.	Let me know if you have any questions.	xen-anh
+We need to fix this bug before the release.	We need to fix this bug before the release.	xen-anh
+What time does the meeting start?	What time does the meeting start?	xen-anh
+I am working from home today.	I am working from home today.	xen-anh
+Sorry for the late reply.	Sorry for the late reply.	xen-anh
+Happy birthday to you!	Happy birthday to you!	xen-anh
+Have a nice weekend.	Have a nice weekend.	xen-anh
+Could you please confirm the schedule?	Could you please confirm the schedule?	xen-anh
+The server is down again.	The server is down again.	xen-anh
+Please update the document and share it with the team.	Please update the document and share it with the team.	xen-anh
+em gửi file rồi anh check giúp em nhe	em gửi file rồi anh check giúp em nhé	xen-anh
+team mình cần thêm một người nửa	team mình cần thêm một người nữa	xen-anh
+anh sẻ gửi mail cho khách ngay	anh sẽ gửi mail cho khách ngay	xen-anh
+deadline đả bị dời sang tuần sau	deadline đã bị dời sang tuần sau	xen-anh
+tôi vẩn chưa nhận được email xác nhận	tôi vẫn chưa nhận được email xác nhận	xen-anh
+em củng muốn tham gia workshop này	em cũng muốn tham gia workshop này	xen-anh
+chị ấy rất dỏi về marketing	chị ấy rất giỏi về marketing	xen-anh
+phần mềm này sử lý file rất nhanh	phần mềm này xử lý file rất nhanh	xen-anh
+anh ấy chia sẽ nhiều kinh nghiệm trong buổi training	anh ấy chia sẻ nhiều kinh nghiệm trong buổi training	xen-anh
+team đang nổ lực hoàn thành project	team đang nỗ lực hoàn thành project	xen-anh
+em sắp sếp lại lịch meeting giúp anh	em sắp xếp lại lịch meeting giúp anh	xen-anh
+chúng ta cần bổ xung thêm data	chúng ta cần bổ sung thêm data	xen-anh
+website được thiết kế rất chỉnh chu	website được thiết kế rất chỉn chu	xen-anh
+server đang đươc bảo trì	server đang được bảo trì	xen-anh
+tôi khôgn mở được file này	tôi không mở được file này	xen-anh
+mọi nguời vào zoom được chưa	mọi người vào zoom được chưa	xen-anh
+em muôn đổi password	em muốn đổi password	xen-anh
+app này rât dễ dùng	app này rất dễ dùng	xen-anh
+anh gử link cho em nhé	anh gửi link cho em nhé	xen-anh
+team mình có nhièu việc quá	team mình có nhiều việc quá	xen-anh
+cho em hoi về chính sách bảo hành laptop	cho em hỏi về chính sách bảo hành laptop	xen-anh
+anh ấy chả lời email rất nhanh	anh ấy trả lời email rất nhanh	xen-anh
+tôi đang trờ feedback của khách	tôi đang chờ feedback của khách	xen-anh
+trương trình training bắt đầu lúc chín giờ	chương trình training bắt đầu lúc chín giờ	xen-anh
+xự kiện offline sẽ tổ chức ở Hà Nội	sự kiện offline sẽ tổ chức ở Hà Nội	xen-anh
+em sẽ chình bày slide trong mười phút	em sẽ trình bày slide trong mười phút	xen-anh
+online hay offline điều được	online hay offline đều được	xen-anh
+tôi sẽ xử dụng template này	tôi sẽ sử dụng template này	xen-anh
+project này rất quan chọng với công ty	project này rất quan trọng với công ty	xen-anh
+anh ấy làm việc với khách hàng lước ngoài qua skype	anh ấy làm việc với khách hàng nước ngoài qua skype	xen-anh

@@ -59,6 +59,18 @@ public final class Proofreader {
     /// Từ không soát (chữ thường): từ người dùng bảo bỏ qua, từ đã nhớ là giữ phím gốc / giữ tiếng Việt.
     public var skip: Set<String> = []
 
+    /// THỬ NGHIỆM (bộ đo `vnkey-tool eval --engine hybrid:…`): điểm của một mô hình bên ngoài cho từng từ của câu, để
+    /// `restore` cân cùng bảng tần suất và bảng cặp. Nhận các từ của câu (như `restore` tách), trả về cho mỗi từ một
+    /// bảng khoá âm tiết (`Charset.syllableKey`) -> log xác suất; khoá "" là "giữ nguyên từ đang viết". Trả nil (hoặc
+    /// số từ không khớp) thì `restore` chạy như không có mô hình. Mặc định nil: ứng dụng chưa dùng.
+    public var guide: (([String]) -> [[String: Double]]?)?
+    /// Trọng số của điểm mô hình so với điểm của bảng.
+    public var guideWeight = 2.0
+    /// Điểm cho ứng viên mà mô hình không nhắc tới.
+    public var guideFloor = -10.0
+    /// Số ứng viên đứng đầu của mô hình được thêm vào danh sách ứng viên của mỗi từ.
+    public var guideAdds = 2
+
     public init() {}
 
     private struct Token {
@@ -393,6 +405,37 @@ public final class Proofreader {
         return out
     }
 
+    /// Các âm tiết thông dụng mà người ta hay viết nhầm thành / từ `word` (chữ thường, một âm tiết). `tonesOnly`: chỉ
+    /// lấy những từ khác mỗi dấu thanh (hỏi / ngã / nặng); không thì chỉ lấy những từ khác âm đầu, vần hay âm cuối.
+    /// Dùng cho bộ đo (`vnkey-tool eval-make`) để cấy lỗi chính tả vào câu đúng.
+    /// `anySyllable`: nhận cả âm tiết đúng cấu tạo nhưng không có trong bảng ("về" -> "dề"), tức lỗi lộ rõ là lỗi.
+    public func confusions(of word: String, tonesOnly: Bool = false, anySyllable: Bool = false) -> [String] {
+        let base = Proofreader.split(word).plain
+        return mixups(word, anySyllable: anySyllable).filter { (Proofreader.split($0).plain == base) == tonesOnly }
+    }
+
+    /// `word` (chữ thường, một âm tiết) viết với từng dấu thanh khác, kể cả khi kết quả không phải từ thông dụng
+    /// ("về" -> "ve", "vé", "vẻ", "vễ", "vệ"). Dùng để cấy lỗi sai thanh khi train mô hình sửa câu.
+    public func retoned(_ word: String) -> [String] {
+        let (plain, tone) = Proofreader.split(word)
+        return [Tone.none, .sac, .huyen, .hoi, .nga, .nang].compactMap { other in
+            other != tone && Syl.isValid(plain, tone: other, teen: false) ? spell(plain, other) : nil
+        }
+    }
+
+    /// Cả bảng âm tiết thông dụng kèm số lần gặp và các cách viết nhầm của từng âm tiết (lẫn âm, lẫn thanh). Dùng để
+    /// dựng dữ liệu train mô hình sửa câu (`vnkey-tool train-tables`).
+    public func confusionTable() -> [(word: String, count: Int, sound: [String], tone: [String], anySound: [String], anyTone: [String])] {
+        // Sau bảng thông dụng là các âm tiết hiếm của từ điển từ ghép (số lần = 0): có thật, nhưng ít gặp.
+        (CommonWords.keys + Compounds.rareKeys).compactMap { key in
+            guard let digit = key.last?.wholeNumberValue, let tone = Tone(rawValue: digit), let word = spell(Array(key.dropLast()), tone)
+            else { return nil }
+            return (
+                word, CommonWords.count(word), confusions(of: word), confusions(of: word, tonesOnly: true),
+                confusions(of: word, anySyllable: true), retoned(word))
+        }
+    }
+
     /// Tách một từ (chữ thường) thành các chữ cái đã bỏ thanh và thanh của nó.
     private static func split(_ word: String) -> (plain: [Character], tone: Tone) {
         var plain: [Character] = []
@@ -634,6 +677,27 @@ public final class Proofreader {
             }
             options.append(list)
         }
+        // Điểm của mô hình bên ngoài (nếu có): thêm ứng viên đứng đầu của nó, rồi cộng điểm vào từng ứng viên.
+        var hints = guide?(tokens.map(\.text))
+        if hints?.count != tokens.count { hints = nil }
+        if let hints {
+            for i in tokens.indices where options[i].count > 1 || !(tokens[i].code || skip.contains(tokens[i].lower)) {
+                guard tokens[i].text.allSatisfy(\.isLetter) else { continue }
+                let have = Set(options[i].compactMap(Charset.syllableKey))
+                let top = hints[i].filter { !$0.key.isEmpty && !have.contains($0.key) }.sorted { $0.value > $1.value }.prefix(guideAdds)
+                for (key, _) in top {
+                    guard let digit = key.last?.wholeNumberValue, let tone = Tone(rawValue: digit), let word = spell(Array(key.dropLast()), tone)
+                    else { continue }
+                    options[i].append(word)
+                }
+            }
+        }
+        func hint(_ i: Int, _ w: String, original: Bool) -> Double {
+            guard let hints else { return 0 }
+            var lp = Charset.syllableKey(w).flatMap { hints[i][$0] } ?? guideFloor
+            if original { lp = max(lp, hints[i][""] ?? guideFloor) }
+            return guideWeight * lp
+        }
         // Điểm của một từ: độ thông dụng (thang log). Từ gốc không có trong bảng (chữ chưa có dấu, chữ lạ) được một
         // điểm sàn thấp, nên chỉ thắng khi không ứng viên nào hợp.
         func emission(_ w: String, original: Bool, marked: Bool, english: Bool, contested: Bool) -> Double {
@@ -651,6 +715,7 @@ public final class Proofreader {
             var row: [Double] = [], from: [Int] = []
             for (k, w) in options[i].enumerated() {
                 let e = emission(w, original: k == 0, marked: tokens[i].marked, english: english[i], contested: contested[i])
+                    + hint(i, w, original: k == 0)
                 if i == 0 || !tokens[i].joined {
                     // Đầu câu hoặc sau dấu câu: không có từ đứng trước để xét, nhưng vẫn nối tiếp điểm tốt nhất phía trước.
                     let carry = i == 0 ? 0 : (best[i - 1].max() ?? 0)

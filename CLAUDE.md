@@ -20,6 +20,8 @@ Giao tiếp với người dùng, chú thích trong mã và commit message bằn
 | Chuyển bảng mã một đoạn văn bản | `swift run vnkey-tool convert --to vni "Tiếng Việt"` (thiếu `--from` thì tự đoán) |
 | Soát lỗi một đoạn văn bản | `swift run vnkey-tool check "tôi veeg nhà"` (thêm `--english` để soát cả tiếng Anh) |
 | Thử AI sửa cả câu (mô hình trên máy của macOS) | `swift run -c release vnkey-tool fix-sentence` (không có câu thì chạy 20 câu mẫu) |
+| Đo các đường sửa câu trên bộ câu `Eval/` | `swift run -c release vnkey-tool eval --engine all` (`local`, `apple`, `apple-raw`; `--kind`, `--limit`, `--json`) |
+| Sinh lại bộ câu đo | `swift run -c release vnkey-tool eval-make <tệp câu> --seed 1 > Eval/generated.tsv` (xem `Eval/README.md`) |
 | Đo hiệu năng engine | `swift run -c release vnkey-tool bench` |
 | Xem nhật ký | `tail -50 ~/Library/Logs/VNKey.log` |
 
@@ -128,9 +130,29 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
     chất lượng thất thường ("mở rộng" hay thêm ý). Chỉ dẫn và lời nhắn theo ngôn ngữ của câu (`SentenceTask.prompt`).
   - Không có mô hình: chỉ còn thẻ `fix`, làm bằng `Proofreader.restore` (Viterbi trên bảng tần suất, bảng cặp, từ
     ghép; khoảng 1 ms mỗi câu), không có nút thử lại.
-  - Đo 2026-11-25 trên M4 bằng `vnkey-tool fix-sentence` (20 câu mẫu, do chính người viết mã chọn và đã dùng để chỉnh
-    trọng số, nên con số lạc quan): mô hình + lọc 19/20, 0,3–0,4 giây mỗi câu; `--local` 18/20. `--task <việc>` thử các
-    việc khác. Nhật ký `SENTENCE` chỉ có độ dài và thời gian. Trong ứng dụng thật TẤT CẢ chưa được kiểm chứng.
+  - Đo 2026-11-26 trên M4 bằng `vnkey-tool eval` (420 câu trong `Eval/`: 400 câu Tatoeba cấy lỗi + 20 câu viết tay):
+    câu đúng hoàn toàn: `local` (`Proofreader.restore`) 64,3%, mô hình + lọc 63,8%, mô hình chưa lọc 60,0%. `local`
+    hơn ở câu không dấu (57,5% so với 38,3%) và thiếu dấu (87% / 69%), thua ở lẫn âm (36% / 54%) và sai thanh
+    (20% / 78%), và sửa bậy nhiều hơn (5,6 so với 0,8 âm tiết trên 1.000). Thời gian trung vị 0,6 ms so với 0,41 giây.
+    Mô hình TỪ CHỐI 33/420 câu vì bộ lọc an toàn của nó (câu vô hại), khi đó câu giữ nguyên. Lỗi lẫn âm / sai thanh
+    được cấy bằng chính bảng của `Proofreader` (thiên vị cho `local`); 20 câu viết tay (`da-chinh`) đã dùng để chỉnh
+    nên lạc quan (18/20 và 19/20). `fix-sentence --task <việc>` thử các việc khác. Nhật ký `SENTENCE` chỉ có độ dài
+    và thời gian. Trong ứng dụng thật TẤT CẢ chưa được kiểm chứng.
+- THỬ NGHIỆM mô hình sửa câu tự train (`Training/`, xem `Training/README.md`; ứng dụng CHƯA dùng): Transformer 2,15
+  triệu tham số (tệp 9 MB), mỗi từ chọn một trong 3.320 âm tiết hoặc "giữ nguyên"; train bằng PyTorch
+  (`Training/.venv`, không commit) trên phụ đề OpenSubtitles có cấy lỗi (bỏ dấu, lẫn âm, sai thanh, lỗi ra âm tiết
+  ngoài bảng, trượt phím, chèn tiếng Anh). Lượt hai, đo 2026-11-26 trên 504 câu bằng `vnkey-tool eval --engine
+  local,file:Training/work/predictions.tsv`: câu đúng 83,9% (`local` 68,5%, mô hình macOS + lọc 65,1%), 0,6 ms mỗi
+  câu (PyTorch, CPU). Còn yếu: 14/20 câu lỗi thật viết tay (`local` 18, macOS 19), hay chọn từ phổ biến hơn từ đúng
+  ("tiếng viết", "phòng hợp"), có đổi bậy câu vốn đúng (2/60). Lỗi cấy trong bộ đo cùng kiểu với lúc train: lạc quan.
+  Ghép với từ điển (`Proofreader.guide`, mặc định nil, chỉ bộ đo dùng: `eval --engine hybrid:<điểm.jsonl>`): 85,3%,
+  hơn mô hình đứng riêng 7 câu nhưng sửa bậy tăng từ 3,3 lên 5,4 trên 1.000 âm tiết; lợi nhỏ, chưa đáng tin.
+  Trên 1.001 câu VIẾT TAY (`Eval/handwritten.tsv`, đáng tin hơn câu sinh tự động) thứ tự đảo lại: mô hình macOS + lọc
+  78,7%, ghép 76,3%, mô hình tự train 71,6%, `local` 64,5%. Sửa bậy trên 1.000 âm tiết: 1,0 / 19,9 / 17,9 / 13,5. Mô
+  hình tự train đổi bậy một phần ba số câu đúng có tên riêng / từ hiếm. Đừng trích 83,9% mà không kèm các con số này.
+  Lượt ba (bảng 7.492 âm tiết, 2,96 triệu tham số, 12 MB): viết tay 70,2% đứng riêng, 78,2% khi ghép từ điển (ngang
+  mô hình macOS 78,7%), sửa bậy 12,9 trên 1.000 âm tiết (macOS 1,0); vẫn đổi bậy tên riêng và từ hiếm. Bảng đầy đủ ở
+  `Training/README.md`.
 - Thói quen gõ (bảng đếm từ và cặp từ, không có câu) lưu ở `~/Library/Application Support/VNKey/usage.json`.
   Coi nó riêng tư như nhật ký: không đọc ra, không dán vào câu trả lời.
 

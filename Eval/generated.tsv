@@ -1,0 +1,463 @@
+# TỆP SINH TỰ ĐỘNG bằng `vnkey-tool eval-make` (hạt giống 1): đừng sửa tay. Xem Eval/README.md.
+# Câu đúng lấy từ Tatoeba (https://tatoeba.org), giấy phép CC BY 2.0 FR. Câu gõ là câu đúng bị cấy lỗi.
+# câu gõ<TAB>câu đúng<TAB>loại
+Ba ma tui rat yeu thuong tui.	Ba má tui rất yêu thương tui.	khong-dau
+Ban danh van no nhu the nao?	Bạn đánh vần nó như thế nào?	khong-dau
+Hang Chau o gan Thuong Hai.	Hàng Châu ở gần Thượng Hải.	khong-dau
+Thay giao bao chung toi hoc thuoc long bai tho.	Thầy giáo bảo chúng tôi học thuộc lòng bài thơ.	khong-dau
+Toi dang doc sach. Hay tat ti vi di.	Tôi đang đọc sách. Hãy tắt ti vi đi.	khong-dau
+Toi khong thich ban nua	Tôi không thích bạn nữa	khong-dau
+Ho luc nao cung phan nan.	Họ lúc nào cũng phàn nàn.	khong-dau
+Toi muon ban noi cho toi biet ai da lam chuyen nay.	Tôi muốn bạn nói cho tôi biết ai đã làm chuyện này.	khong-dau
+Dua no cho toi.	Đưa nó cho tôi.	khong-dau
+Tom da chien dau.	Tom đã chiến đấu.	khong-dau
+Toi khong biet la Tom biet noi tieng Phap day.	Tôi không biết là Tom biết nói tiếng Pháp đấy.	khong-dau
+Toi bat ngo khi phat hien Tom co xe may.	Tôi bất ngờ khi phát hiện Tom có xe máy.	khong-dau
+Tat ca moi nguoi deu tho phao nhe nhom.	Tất cả mọi người đều thở phào nhẹ nhõm.	khong-dau
+Dieu nay co nghia la ho dang so hai.	Điều này có nghĩa là họ đang sợ hãi.	khong-dau
+Co that la Tom da di Uc khong vay?	Có thật là Tom đã đi Úc không vậy?	khong-dau
+Chung xoay so bang cach nao nhi?	Chúng xoay sở bằng cách nào nhỉ?	khong-dau
+Chua o dau a?	Chùa ở đâu ạ?	khong-dau
+Chap nhan so phan di.	Chấp nhận số phận đi.	khong-dau
+Anh ay da kiem duoc mot so tien lon tu xo so.	Anh ấy đã kiếm được một số tiền lớn từ xổ số.	khong-dau
+Tai sao moi thu cu phai kho khan the nhi?	Tại sao mọi thứ cứ phải khó khăn thế nhỉ?	khong-dau
+Chac chan. Chuc may man!	Chắc chắn. Chúc may mắn!	khong-dau
+Anh ay khong biet dieu do.	Anh ấy không biết điều đó.	khong-dau
+Giac mo ca doi cua co ay cuoi cung da tro thanh hien thuc.	Giấc mơ cả đời của cô ấy cuối cùng đã trở thành hiện thực.	khong-dau
+Toi muon cho ban mot loi khuyen.	Tôi muốn cho bạn một lời khuyên.	khong-dau
+Tom nghi cau ta la thien tai.	Tom nghĩ cậu ta là thiên tài.	khong-dau
+Hua hen khong co nghia la lay vo.	Hứa hẹn không có nghĩa là lấy vợ.	khong-dau
+Anh ta de noi cau vi nhung chuyen khong dau.	Anh ta dễ nổi cáu vì những chuyện không đâu.	khong-dau
+Ban co muon biet ai mua cai ao khoac nay cho ban khong?	Bạn có muốn biết ai mua cái áo khoác này cho bạn không?	khong-dau
+Toi cung phai an.	Tôi cũng phải ăn.	khong-dau
+Mat troi bi dam may che khuat.	Mặt trời bị đám mây che khuất.	khong-dau
+Ho dang khen ngoi lan nhau.	Họ đang khen ngợi lẫn nhau.	khong-dau
+May dang dua tao a!	Mày đang đùa tao à!	khong-dau
+Toi khong ro la toi co con giu no khong.	Tôi không rõ là tôi có còn giữ nó không.	khong-dau
+Tom da trong thay ho.	Tom đã trông thấy họ.	khong-dau
+Ban me bong chay co nao ?	Bạn mê bóng chày cỡ nào ?	khong-dau
+Co mot so nguoi so chuot.	Có một số người sợ chuột.	khong-dau
+Toi da gia vo khong hieu anh ay dang noi gi.	Tôi đã giả vờ không hiểu anh ấy đang nói gì.	khong-dau
+Da lau toi moi thay chuon chuon o noi nay.	Đã lâu tôi mới thấy chuồn chuồn ở nơi này.	khong-dau
+Bay gio toi dang rat vui.	Bây giờ tôi đang rất vui.	khong-dau
+Cha toi da noi nhu vay.	Cha tôi đã nói như vậy.	khong-dau
+Ba la mot nua cua sau.	Ba là một nửa của sáu.	khong-dau
+De tim hieu mot nguoi, ta chi can di du lich voi ho trong vong mot tuan.	Để tìm hiểu một người, ta chỉ cần đi du lịch với họ trong vòng một tuần.	khong-dau
+Sao may co gai do tan nhan vay?	Sao mấy cô gái đó tàn nhẫn vậy?	khong-dau
+Toi doc bao moi ngay hoi toi con hoc cao dang.	Tôi đọc báo mỗi ngày hồi tôi còn học cao đẳng.	khong-dau
+Toi khong nghi ho thich toi.	Tôi không nghĩ họ thích tôi.	khong-dau
+Anh ay lam viec vao chu nhat.	Anh ấy làm việc vào chủ nhật.	khong-dau
+Ban nen co tan dung toi da nhung co hoi ma minh co.	Bạn nên cố tận dụng tối đa những cơ hội mà mình có.	khong-dau
+Khong phai, toi la nguoi Anh.	Không phải, tôi là người Anh.	khong-dau
+Toi tien den cho anh ay dang dung.	Tôi tiến đến chỗ anh ấy đang đứng.	khong-dau
+Ke giau la ke ve luat.	Kẻ giàu là kẻ vẽ luật.	khong-dau
+Truoc khi ve nha, toi uong mot vai ly de thu gian.	Trước khi về nhà, tôi uống một vài ly để thư giãn.	khong-dau
+Bat ky ai cung co the pham sai lam.	Bất kỳ ai cũng có thể phạm sai lầm.	khong-dau
+Anh ay da khuyen toi di toi do.	Anh ấy đã khuyên tôi đi tới đó.	khong-dau
+Cong ty huong den viec lap chi nhanh o Trung Quoc.	Công ty hướng đến việc lập chi nhánh ở Trung Quốc.	khong-dau
+Khong biet la ban co the dich giup toi cai nay khong nhi?	Không biết là bạn có thể dịch giúp tôi cái này không nhỉ?	khong-dau
+Ai quen canh bat hanh, chi nguoi do danh gia duoc hanh phuc.	Ai quen cảnh bất hạnh, chỉ người đó đánh giá được hạnh phúc.	khong-dau
+Tom da noi cam on.	Tom đã nói cảm ơn.	khong-dau
+Bap la hat giong quan trong trong nuoc my.	Bắp là hạt giống quan trọng trong nước mỹ.	khong-dau
+Gia dinh la co so nen tang cua xa hoi.	Gia đình là cơ sở nền tảng của xã hội.	khong-dau
+Toi thich nhung thu nay.	Tôi thích những thứ này.	khong-dau
+Toi dang dua ho den cong vien.	Tôi đang đưa họ đến công viên.	khong-dau
+Toi rat ban vi tap luyen sau khi tan hoc.	Tôi rất bận vì tập luyện sau khi tan học.	khong-dau
+Va neu ban lan loi thi sao?	Và nếu bạn lần lỗi thì sao?	khong-dau
+Con su tu do dang san mot con linh duong.	Con sư tử đó đang săn một con linh dương.	khong-dau
+Ban la nguoi toi muon.	Bạn là người tôi muốn.	khong-dau
+Lam the nao ma Tom khien cau giup anh ay don dep ga-ra?	Làm thế nào mà Tom khiến cậu giúp anh ấy dọn dẹp ga-ra?	khong-dau
+Chi ay thuc su cham chu va kien nhan.	Chị ấy thực sự chăm chú và kiên nhẫn.	khong-dau
+Ong toi la nguoi qua ti mi.	Ông tôi là người quá tỉ mỉ.	khong-dau
+May gan lam. Dam bo tao a.	Mày gan lắm. Dám bơ tao à.	khong-dau
+Toi nghe mui hoa thom trong vuon.	Tôi nghe mùi hoa thơm trong vườn.	khong-dau
+Lam on ngoi xuong, thu gian va san sang cho chuyen di de doi.	Làm ơn ngồi xuống, thư giãn và sẵn sàng cho chuyến đi để đời.	khong-dau
+Ban quen chung ta dang o dau roi a?	Bạn quên chúng ta đang ở đâu rồi à?	khong-dau
+Anh ay van dang ngu khi toi goi.	Anh ấy vẫn đang ngủ khi tôi gọi.	khong-dau
+Chung toi phai ve som.	Chúng tôi phải về sớm.	khong-dau
+Toi o trong nha vi troi mua.	Tôi ở trong nhà vì trời mưa.	khong-dau
+Neu toi khong lam cho xong som bai tap he, thi ky nghi he se ket thuc mat.	Nếu tôi không làm cho xong sớm bài tập hè, thì kỳ nghỉ hè sẽ kết thúc mất.	khong-dau
+Day la qua Giang sinh cho Tom day.	Đây là quà Giáng sinh cho Tom đấy.	khong-dau
+Tom dang nau khoai tay.	Tom đang nấu khoai tây.	khong-dau
+Tom co le da chet roi.	Tom có lẽ đã chết rồi.	khong-dau
+Anh ta ngoi xuong ghe banh de nghe nhac.	Anh ta ngồi xuống ghế bành để nghe nhạc.	khong-dau
+Ban co biet tai sao Tom khong co mat o day hom nay khong?	Bạn có biết tại sao Tom không có mặt ở đây hôm nay không?	khong-dau
+Co du cho cho tat ca moi nguoi.	Có đủ chỗ cho tất cả mọi người.	khong-dau
+Bo oi cuu con! Con khong muon chet! Con khong muon chet!	Bố ơi cứu con! Con không muốn chết! Con không muốn chết!	khong-dau
+Chung toi da o ben nhau.	Chúng tôi đã ở bên nhau.	khong-dau
+Anh la ke dich.	Anh là kẻ địch.	khong-dau
+Chua day hai muoi phut, nha cua da bi thieu rui.	Chưa đầy hai mươi phút, nhà cửa đã bị thiêu rụi.	khong-dau
+Co ay da mua mot con ga.	Cô ấy đã mua một con gà.	khong-dau
+Ong ta duong nhu duoc vay quanh boi bau khong khi thinh vuong va quyen nang.	Ông ta dường như được vây quanh bởi bầu không khí thịnh vượng và quyền năng.	khong-dau
+Toi se khong lam bat cu viec gi voi bat cu ai.	Tôi sẽ không làm bất cứ việc gì với bất cứ ai.	khong-dau
+Di ra khoi day.	Đi ra khỏi đây.	khong-dau
+Khong ai biet lieu anh ay co yeu co ay hay khong.	Không ai biết liệu anh ấy có yêu cô ấy hay không.	khong-dau
+Tra nay dang qua.	Trà này đắng quá.	khong-dau
+Y toi la nhu the do.	Ý tôi là như thế đó.	khong-dau
+Chung ta thai thuc an len thot.	Chúng ta thái thức ăn lên thớt.	khong-dau
+Hinh nhu toi co nghe qua cai do o dau roi thi phai.	Hình như tôi có nghe qua cái đó ở đâu rồi thì phải.	khong-dau
+Anh ta da dan toi xem cong vien.	Anh ta đã dẫn tôi xem công viên.	khong-dau
+Chiec guong thu hai duoc treo ben canh cua.	Chiếc gương thứ hai được treo bên cạnh cửa.	khong-dau
+Dung mo cai nay ra.	Đừng mở cái này ra.	khong-dau
+"Ma, con co the an mot mieng banh quy duoc khong?" "Khong. Con khong nen an giua bua an."	"Má, con có thể ăn một miếng bánh quy được không?" "Không. Con không nên ăn giữa bữa ăn."	khong-dau
+A, tuyet roi kia!	A, tuyết rơi kìa!	khong-dau
+Con cho cu sua mai.	Con chó cứ sủa mãi.	khong-dau
+Va cung trong khoang thoi gian do, co ay cam ghet nhung nguoi tre tuoi mot cach dang so.	Và cũng trong khoảng thời gian đó, cô ấy căm ghét những người trẻ tuổi một cách đáng sợ.	khong-dau
+Tin tuc co the duoc tim thay tren tat ca cac phuong tien truyen thong.	Tin tức có thể được tìm thấy trên tất cả các phương tiện truyền thông.	khong-dau
+Toi da dung thang de leo len mai nha.	Tôi đã dùng thang để leo lên mái nhà.	khong-dau
+Cai nay doc rat hay.	Cái này đọc rất hay.	khong-dau
+Toi chi dang cho doi dung khoanh khac phu hop.	Tôi chỉ đang chờ đợi đúng khoảnh khắc phù hợp.	khong-dau
+May cho co ay la chong co ay da den noi vao luc do.	May cho cô ấy là chồng cô ấy đã đến nơi vào lúc đó.	khong-dau
+Cam on ve loi khuyen.	Cám ơn về lời khuyên.	khong-dau
+Ung dung nay co the bien dich tu mot buc anh.	Ứng dụng này có thể biên dịch từ một bức ảnh.	khong-dau
+Tom dang uong nuoc ep tao.	Tom đang uống nước ép táo.	khong-dau
+Co ay co nhieu khan mui soa.	Cô ấy có nhiều khăn mùi soa.	khong-dau
+Bat than, no te ngua ra sau.	Bất thần, nó té ngửa ra sau.	khong-dau
+Anh co khoe khong?	Anh có khoẻ không?	khong-dau
+Toi da mua meo o cua hang kia.	Tôi đã mua mèo ở cửa hàng kia.	khong-dau
+Cu ong do la nguoi khon ngoan, biet rat nhieu ve cuoc song nhan sinh.	Cụ ông đó là người khôn ngoan, biết rất nhiều về cuộc sống nhân sinh.	khong-dau
+Yeu em nhat tren doi, hoi nguoi yeu dau cua long anh.	Yêu em nhất trên đời, hỡi người yêu dấu của lòng anh.	khong-dau
+Thang Tam da den.	Tháng Tám đã đến.	khong-dau
+Hom nay troi kha am.	Hôm nay trời khá ấm.	khong-dau
+Anh yeu em rat nhieu.	Anh yêu em rất nhiều.	khong-dau
+Ai da xay cai kia vay?	Ai đã xây cái kia vậy?	khong-dau
+Tôi hieu rằng đã co một sai lầm.	Tôi hiểu rằng đã có một sai lầm.	thieu-dau
+Tom không thich nhảy day.	Tom không thích nhảy dây.	thieu-dau
+Chúng ta cần phai kịp hạn chót.	Chúng ta cần phải kịp hạn chót.	thieu-dau
+Con cho này là một con cho ngu.	Con chó này là một con chó ngu.	thieu-dau
+Mấy con chó này chung nó khôn lắm.	Mấy con chó này chúng nó khôn lắm.	thieu-dau
+Tôi biết điều mà Tom muốn tôi lam	Tôi biết điều mà Tôm muốn tôi làm	thieu-dau
+Có người cho rằng day là bao ứng trong quá khứ của Nhật Bản.	Có người cho rằng đây là báo ứng trong quá khứ của Nhật Bản.	thieu-dau
+Tôi đang bo thuốc.	Tôi đang bỏ thuốc.	thieu-dau
+Chúng toi co cầm tay một lần.	Chúng tôi có cầm tay một lần.	thieu-dau
+Lúc nghe duoc tin đó, mặt cô ấy tái xanh.	Lúc nghe được tin đó, mặt cô ấy tái xanh.	thieu-dau
+Tôi da nghe noi rằng bà ta xấu và béo.	Tôi đã nghe nói rằng bà ta xấu và béo.	thieu-dau
+Chúng tôi không nghĩ la ho sẽ mua một chiếc ô tô mới.	Chúng tôi không nghĩ là họ sẽ mua một chiếc ô tô mới.	thieu-dau
+Bạn đang muốn giam cân à?	Bạn đang muốn giảm cân à?	thieu-dau
+Tôi da tới vườn thú.	Tôi đã tới vườn thú.	thieu-dau
+Hầu hết những người dang học ngoai ngữ đều không thể nói chuyện được như người bản xứ.	Hầu hết những người đang học ngoại ngữ đều không thể nói chuyện được như người bản xứ.	thieu-dau
+Đêm đã xuong khi chúng tôi tới làng.	Đêm đã xuống khi chúng tôi tới làng.	thieu-dau
+Tối nay chung ta sẽ ăn ở đâu?	Tối nay chúng ta sẽ ăn ở đâu?	thieu-dau
+Anh có hut thuoc không?	Anh có hút thuốc không?	thieu-dau
+Vừa moi ngừng mưa, khi mặt đất đóng băng lại.	Vừa mới ngừng mưa, khi mặt đất đóng băng lại.	thieu-dau
+Tôi nghĩ là sẽ không thể có chuyen mẫu tiếp theo sẽ tot hơn mẫu này.	Tôi nghĩ là sẽ không thể có chuyện mẫu tiếp theo sẽ tốt hơn mẫu này.	thieu-dau
+Bạn có muốn nói cho bọn tôi biết lý do tại sao chung ta có mat ở đây không?	Bạn có muốn nói cho bọn tôi biết lý do tại sao chúng ta có mặt ở đây không?	thieu-dau
+Tai sao chó dao?	Tại sao chó đào?	thieu-dau
+Tom co nói được tiếng Pháp khong?	Tom có nói được tiếng Pháp không?	thieu-dau
+Cuối cùng, chúng toi đã có thể bơi qua con sông đó.	Cuối cùng, chúng tôi đã có thể bơi qua con sông đó.	thieu-dau
+Đây là hồ sau nhat nước.	Đây là hồ sâu nhất nước.	thieu-dau
+Điều này thường xuyen xay ra trong những năm gần đây.	Điều này thường xuyên xảy ra trong những năm gần đây.	thieu-dau
+Tôi tưởng bạn đến một mình co mà.	Tôi tưởng bạn đến một mình cơ mà.	thieu-dau
+Hãy den gap tôi bất cứ lúc nào mà bạn thích.	Hãy đến gặp tôi bất cứ lúc nào mà bạn thích.	thieu-dau
+Đó là một ví du.	Đó là một ví dụ.	thieu-dau
+Ong bố vừa đọc báo vừa an sáng.	Ông bố vừa đọc báo vừa ăn sáng.	thieu-dau
+Nghe duoc tin, no liền té xỉu.	Nghe được tin, nó liền té xỉu.	thieu-dau
+Tôi nghĩ la bạn nen đưa Tom đến bệnh viện.	Tôi nghĩ là bạn nên đưa Tom đến bệnh viện.	thieu-dau
+Bấy nhieu viec đã chiếm hết cả thì giờ rồi.	Bấy nhiêu việc đã chiếm hết cả thì giờ rồi.	thieu-dau
+Khong ai đến đây cả.	Không ai đến đây cả.	thieu-dau
+De toi một mình.	Để tôi một mình.	thieu-dau
+Tom không biết lam thế nào để vắt sua con bò	Tom không biết làm thế nào để vắt sữa con bò	thieu-dau
+Mỗi con đường tôi chọn deu chứa đầy những thử thách.	Mỗi con đường tôi chọn đều chứa đầy những thử thách.	thieu-dau
+Ban nói gi đấy?	Bạn nói gì đấy?	thieu-dau
+Tôi se đan cái tất tí hon giữ ấm cho vòi của no.	Tôi sẽ đan cái tất tí hon giữ ấm cho vòi của nó.	thieu-dau
+Bạn đã đọc tiểu thuyet Mỹ bao giờ chua?	Bạn đã đọc tiểu thuyết Mỹ bao giờ chưa?	thieu-dau
+Bạn đã suy nghĩ về vấn đề này hết cả buổi sáng rồi. Đi ăn trua đi.	Bạn đã suy nghĩ về vấn đề này hết cả buổi sáng rồi. Đi ăn trưa đi.	thieu-dau
+Chúng tôi muon song qua đêm nay.	Chúng tôi muốn sống qua đêm nay.	thieu-dau
+Chúng ta có thể di.	Chúng ta có thể đi.	thieu-dau
+Con gà trống khong đẻ trứng.	Con gà trống không đẻ trứng.	thieu-dau
+Chung tôi can nói chuyện với bạn	Chúng tôi cần nói chuyện với bạn	thieu-dau
+Hay quyết định xem bạn sẽ đi tau hỏa hay là đi máy bay.	Hãy quyết định xem bạn sẽ đi tàu hỏa hay là đi máy bay.	thieu-dau
+Tôi thấy khong khoẻ cho lắm.	Tôi thấy không khoẻ cho lắm.	thieu-dau
+Tai sao tôi khong chết?	Tại sao tôi không chết?	thieu-dau
+Đó là cuốn tiểu thuyết hay nhất trong nhung cuốn tieu thuyết mà tôi từng đọc.	Đó là cuốn tiểu thuyết hay nhất trong những cuốn tiểu thuyết mà tôi từng đọc.	thieu-dau
+Súp có mùi toi.	Súp có mùi tỏi.	thieu-dau
+Đây là một trong nhung cuon sách ngắn nhất mà tôi từng đọc.	Đây là một trong những cuốn sách ngắn nhất mà tôi từng đọc.	thieu-dau
+Đừng nói gở nhu thế.	Đừng nói gở như thế.	thieu-dau
+Bạn bè và nguoi thân của tôi da qua đời hết.	Bạn bè và người thân của tôi đã qua đời hết.	thieu-dau
+Bố tôi không hút thuoc, không uống ruou.	Bố tôi không hút thuốc, không uống rượu.	thieu-dau
+Anh ấy đi hoc bằng xe dap.	Anh ấy đi học bằng xe đạp.	thieu-dau
+Đó là một nguoi dễ thông cảm.	Đó là một người dễ thông cảm.	thieu-dau
+Tôi không bắt được đủ số cá như mong doi.	Tôi không bắt được đủ số cá như mong đợi.	thieu-dau
+Tom nhin con sóc choi đùa.	Tom nhìn con sóc chơi đùa.	thieu-dau
+Cô ấy thơm vào má tôi và nói chuc ngu ngon.	Cô ấy thơm vào má tôi và nói chúc ngủ ngon.	thieu-dau
+Toi đã hoang mang.	Tôi đã hoang mang.	thieu-dau
+Im lang là vang.	Im lặng là vàng.	thieu-dau
+Toi yêu vo thuật!	Tôi yêu võ thuật!	thieu-dau
+Anh ta học toan dở te.	Anh ta học toán dở tệ.	thieu-dau
+Tôi sẽ tu rua.	Tôi sẽ tự rửa.	thieu-dau
+Toàn bộ hành khach đều bi thương trong vụ tai nạn xe hơi.	Toàn bộ hành khách đều bị thương trong vụ tai nạn xe hơi.	thieu-dau
+Tìm bạn mà chơi, tim nơi ma ở.	Tìm bạn mà chơi, tìm nơi mà ở.	thieu-dau
+Chúng tôi gọt nhon but chì của mình.	Chúng tôi gọt nhọn bút chì của mình.	thieu-dau
+Tôi thấy khó dậy truoc sáu gio.	Tôi thấy khó dậy trước sáu giờ.	thieu-dau
+Khong thể nao sửa được.	Không thể nào sửa được.	thieu-dau
+Cô ấy đã lớn nhiều! Chẳng bao lâu cô ấy sẽ cao bằng me.	Cô ấy đã lớn nhiều! Chẳng bao lâu cô ấy sẽ cao bằng mẹ.	thieu-dau
+Quý khách vui lòng bỏ vớ vào gio.	Quý khách vui lòng bỏ vớ vào giỏ.	thieu-dau
+Ban có thể trở về nhà.	Bạn có thể trở về nhà.	thieu-dau
+Anh ấy khong thấy cái hố vì trời tối nên đã rơi xuống.	Anh ấy không thấy cái hố vì trời tối nên đã rơi xuống.	thieu-dau
+Đó là mot tiểu đoàn lớn gồm năm nghìn lính.	Đó là một tiểu đoàn lớn gồm năm nghìn lính.	thieu-dau
+Thỉnh thoảng chúng tôi đi cau cá với nhau.	Thỉnh thoảng chúng tôi đi câu cá với nhau.	thieu-dau
+Sữa bị hư lam bụng tôi khó chịu.	Sữa bị hư làm bụng tôi khó chịu.	thieu-dau
+Hãy bảo vệ giac ngủ yên lành của trẻ tho.	Hãy bảo vệ giấc ngủ yên lành của trẻ thơ.	thieu-dau
+Ong ta kết thúc cuộc đời một cách buon thảm.	Ông ta kết thúc cuộc đời một cách buồn thảm.	thieu-dau
+Giáo viên đã thất vong khi nghe câu tra lời của tôi.	Giáo viên đã thất vọng khi nghe câu trả lời của tôi.	thieu-dau
+Tôi thường đi den trường bằng xe buýt.	Tôi thường đi đến trường bằng xe buýt.	thieu-dau
+Giu yen tay của bạn nào.	Giữ yên tay của bạn nào.	thieu-dau
+Tom đã trộm một chiec xe cảnh sát.	Tom đã trộm một chiếc xe cảnh sát.	thieu-dau
+Tôi muốn biet là Tom đã ăn bao nhiêu bánh.	Tôi muốn biết là Tom đã ăn bao nhiêu bánh.	thieu-dau
+Tôi thích đọc sách o thư viện.	Tôi thích đọc sách ở thư viện.	thieu-dau
+Toi chang nhìn thấy gì cả.	Tôi chẳng nhìn thấy gì cả.	thieu-dau
+Bạn cần phải cẩn thận khi di sang duong.	Bạn cần phải cẩn thận khi đi sang đường.	thieu-dau
+Ca sĩ sẽ hát cho khan giả mot bài hát tuyệt vời.	Ca sĩ sẽ hát cho khán giả một bài hát tuyệt vời.	thieu-dau
+Cô ta có nhieu sách hơn nữa.	Cô ta có nhiều sách hơn nữa.	thieu-dau
+Qua bưởi màu gì?	Quả bưởi màu gì?	thieu-dau
+Toi chỉ biết doi.	Tôi chỉ biết đợi.	thieu-dau
+Tom vẫn khong hiểu vấn đề.	Tom vẫn không hiểu vấn đề.	thieu-dau
+Em gái của bạn làm nghe gì?	Em gái của bạn làm nghề gì?	thieu-dau
+Có ai muốn mot miếng bánh khác không?	Có ai muốn một miếng bánh khác không?	thieu-dau
+Lam sao có thể ghi ra tất cả những gì mình nói hằng ngày?	Làm sao có thể ghi ra tất cả những gì mình nói hằng ngày?	thieu-dau
+Rất là khó để noi chuyện với mot người luôn luôn trả lời "Có" hay "Không".	Rất là khó để nói chuyện với một người luôn luôn trả lời "Có" hay "Không".	thieu-dau
+Tom tham gia vào lop học tự ve.	Tom tham gia vào lớp học tự vệ.	thieu-dau
+Anh ta la người duy nhất không tôn trọng tập quán.	Anh ta là người duy nhất không tôn trọng tập quán.	thieu-dau
+Đó co phải là động đất khong?	Đó có phải là động đất không?	thieu-dau
+Cậu thôi dung gặm móng tay nua.	Cậu thôi đừng gặm móng tay nữa.	thieu-dau
+Ban tới sớm quá.	Bạn tới sớm quá.	thieu-dau
+Cô ấy cũng học tiến Trung.	Cô ấy cũng học tiếng Trung.	lan-am
+Tôi e rằng đó không phải là một ý kín hay.	Tôi e rằng đó không phải là một ý kiến hay.	lan-am
+Tom vả vờ là anh trai sinh đôi của anh ấy.	Tom giả vờ là anh trai sinh đôi của anh ấy.	lan-am
+Ông ta luôn đặt lợi ích của bảng thân lên trên hết.	Ông ta luôn đặt lợi ích của bản thân lên trên hết.	lan-am
+Không thể biết được ang ấy là ai.	Không thể biết được anh ấy là ai.	lan-am
+Mày chẳng bao giờ mạnh hơn tao được,mài có nghe tao nói không? Chẳng bao giờ!	Mày chẳng bao giờ mạnh hơn tao được,mày có nghe tao nói không? Chẳng bao giờ!	lan-am
+Tôi cần một trợ lý biết nới tiếng Hàn.	Tôi cần một trợ lý biết nói tiếng Hàn.	lan-am
+Cô ấy dành nhiều thời gian nghĩ về công việt hơn là thời gian để làm việc.	Cô ấy dành nhiều thời gian nghĩ về công việc hơn là thời gian để làm việc.	lan-am
+Nước khôn thể thiếu đối với cuộc sống chúng ta.	Nước không thể thiếu đối với cuộc sống chúng ta.	lan-am
+Thói quên khó thay đổi.	Thói quen khó thay đổi.	lan-am
+Bộ phim đố khiến tôi cảm thấy bất an lo lắng.	Bộ phim đó khiến tôi cảm thấy bất an lo lắng.	lan-am
+Hôm nay tôi ân ngon miệng.	Hôm nay tôi ăn ngon miệng.	lan-am
+Tôi đang yêu cầu tỵ nạn chính trị.	Tôi đang yêu cầu tị nạn chính trị.	lan-am
+Cậu định đứng đố cả ngày hay sao?	Cậu định đứng đó cả ngày hay sao?	lan-am
+Đừng đọc dưới ánh sáng yếu, nó rất hại cho mất bạn.	Đừng đọc dưới ánh sáng yếu, nó rất hại cho mắt bạn.	lan-am
+Bạn có bất cứ suy luận nào về người đã vết Tom không?	Bạn có bất cứ suy luận nào về người đã giết Tom không?	lan-am
+Có ai phát âm đực từ này không ?	Có ai phát âm được từ này không ?	lan-am
+Ở Thái Lan, người ta dùng quả vừa để làm đồ ăn, thức uống và đồ chơi.	Ở Thái Lan, người ta dùng quả dừa để làm đồ ăn, thức uống và đồ chơi.	lan-am
+Lực bắt tòng tâm.	Lực bất tòng tâm.	lan-am
+Sự ra đi của người mẹ đã khiến họ đau buồn rất diều.	Sự ra đi của người mẹ đã khiến họ đau buồn rất nhiều.	lan-am
+Hãy tưởng tượng tình huống khi tất cả các bạn đều đôn độc.	Hãy tưởng tượng tình huống khi tất cả các bạn đều đơn độc.	lan-am
+Từ nài khó phát âm.	Từ này khó phát âm.	lan-am
+Con mèo bức vào vào thời điểm không thích hợp.	Con mèo bước vào vào thời điểm không thích hợp.	lan-am
+Cuối cùng thì ong ấy cũng đã đến.	Cuối cùng thì ông ấy cũng đã đến.	lan-am
+Tôi phải về nhà mỗi khi trời tới.	Tôi phải về nhà mỗi khi trời tối.	lan-am
+Cô ấy sẽ thử lại lằn nữa.	Cô ấy sẽ thử lại lần nữa.	lan-am
+điều đó khôn quan trọng	điều đó không quan trọng	lan-am
+Người bạn thân nhấc của tôi là người Mỹ.	Người bạn thân nhất của tôi là người Mỹ.	lan-am
+Hãy nói tro tôi tên và số điện thoại của bạn.	Hãy nói cho tôi tên và số điện thoại của bạn.	lan-am
+Ông tán thành hay phản đối ý kín của nó?	Ông tán thành hay phản đối ý kiến của nó?	lan-am
+Gần như không thể hoàng thành trong một ngày được.	Gần như không thể hoàn thành trong một ngày được.	lan-am
+Bố mẹ tôi rất thắt vọng về tôi.	Bố mẹ tôi rất thất vọng về tôi.	lan-am
+Có lễ Tom đang ở trong công viên với các bạn.	Có lẽ Tom đang ở trong công viên với các bạn.	lan-am
+Tom đã nhìn thái bạn.	Tom đã nhìn thấy bạn.	lan-am
+Bạn đã đến bao nhiêu vườn quốc gia rời?	Bạn đã đến bao nhiêu vườn quốc gia rồi?	lan-am
+Tom đã đến nhờ chúng tôi giúp đỗ.	Tom đã đến nhờ chúng tôi giúp đỡ.	lan-am
+Bối rối vì say lầm của mình, cô ấy đã bật khóc.	Bối rối vì sai lầm của mình, cô ấy đã bật khóc.	lan-am
+Để làm được việc này, bạn phải có í chí mới được.	Để làm được việc này, bạn phải có ý chí mới được.	lan-am
+Tuyết bắt đầu rơi rồi đáy.	Tuyết bắt đầu rơi rồi đấy.	lan-am
+Tôi mông trời sẽ mưa.	Tôi mong trời sẽ mưa.	lan-am
+Xin đừng đến gần bếp lồ.	Xin đừng đến gần bếp lò.	lan-am
+Trái Đất, Sao Hỏa già Sao Mộc là hành tinh.	Trái Đất, Sao Hỏa và Sao Mộc là hành tinh.	lan-am
+Chúng tôi gập nhau tại trại hè.	Chúng tôi gặp nhau tại trại hè.	lan-am
+Mặt Tom tái mét lạy.	Mặt Tom tái mét lại.	lan-am
+Muỗi mang mầm bệnh sốt vét.	Muỗi mang mầm bệnh sốt rét.	lan-am
+Tôi có thể ngồi ở đây khôn?	Tôi có thể ngồi ở đây không?	lan-am
+Anh ta quá nhúc nhát để tỏ tình với cô ấy.	Anh ta quá nhút nhát để tỏ tình với cô ấy.	lan-am
+Anh hãy thôi, đừng đi lạc đè nữa!	Anh hãy thôi, đừng đi lạc đề nữa!	lan-am
+Ai muốn chơi bón chuyền nào?	Ai muốn chơi bóng chuyền nào?	lan-am
+Tao ghét tắt cả chúng nó.	Tao ghét tất cả chúng nó.	lan-am
+Cái nhẫn nài bao nhiêu tiền?	Cái nhẫn này bao nhiêu tiền?	lan-am
+Tôi đang viết một cuống sách.	Tôi đang viết một cuốn sách.	lan-am
+Mẹ tôi đang làm tro bố tôi một cái bánh.	Mẹ tôi đang làm cho bố tôi một cái bánh.	lan-am
+Tom sẵn sàn giúp.	Tom sẵn sàng giúp.	lan-am
+Tôi chưa tường nghĩ rằng chuyện này lại xảy ra.	Tôi chưa từng nghĩ rằng chuyện này lại xảy ra.	lan-am
+Nó là một côn bão khủng khiếp.	Nó là một cơn bão khủng khiếp.	lan-am
+tôi cố lớp vào ngày mai	tôi có lớp vào ngày mai	lan-am
+Tôi thích ăn ngũ cóc với sữa.	Tôi thích ăn ngũ cốc với sữa.	lan-am
+Tôi khá chắc rằng bạn sẽ không bao vờ quên nó.	Tôi khá chắc rằng bạn sẽ không bao giờ quên nó.	lan-am
+Bé cún nài dễ thương ghê.	Bé cún này dễ thương ghê.	lan-am
+Tôi phải làm cho song bài tập.	Tôi phải làm cho xong bài tập.	lan-am
+Bạn đã nhìn thấy ai trong số người hào của tôi?	Bạn đã nhìn thấy ai trong số người hầu của tôi?	lan-am
+Tại Nhật Bản, học kì mới bắt đầu vào tháng Tư.	Tại Nhật Bản, học kỳ mới bắt đầu vào tháng Tư.	lan-am
+Chà! cậu là anh của cơ ấy !	Chà! cậu là anh của cô ấy !	lan-am
+Đây là một trông những thành phố lớn nhất thế giới.	Đây là một trong những thành phố lớn nhất thế giới.	lan-am
+Thuốc đắn dã tật.	Thuốc đắng dã tật.	lan-am
+Buổi hòa nhạt ngoài trời bị hoãn do cơn bão.	Buổi hòa nhạc ngoài trời bị hoãn do cơn bão.	lan-am
+Bạn có cằn gì không?	Bạn có cần gì không?	lan-am
+Tụi tao không tham gia việc mua xe mối của tụi nó.	Tụi tao không tham gia việc mua xe mới của tụi nó.	lan-am
+Bạn có đến hay không đói với tôi không quan trọng.	Bạn có đến hay không đối với tôi không quan trọng.	lan-am
+Tôi qua anh lút năm giờ để cùng đi với anh.	Tôi qua anh lúc năm giờ để cùng đi với anh.	lan-am
+Vui lòng thử lạy sau.	Vui lòng thử lại sau.	lan-am
+Anh ái đã đâm đầu vào một cái cột.	Anh ấy đã đâm đầu vào một cái cột.	lan-am
+Anh ta bị bắc phải làm thế.	Anh ta bị bắt phải làm thế.	lan-am
+Rượu chảy vào nòng, như hổ chạy vào rừng.	Rượu chảy vào lòng, như hổ chạy vào rừng.	lan-am
+Trả nó nại cho Tom đi.	Trả nó lại cho Tom đi.	lan-am
+Tôi đang nghĩ xem tôi cố nên học ở Đức không.	Tôi đang nghĩ xem tôi có nên học ở Đức không.	lan-am
+Trên ty vi đang có một cuộc đua trượt băng quốc tế.	Trên ti vi đang có một cuộc đua trượt băng quốc tế.	lan-am
+Họ bắt toi làm việc đó suốt cả ngày.	Họ bắt tôi làm việc đó suốt cả ngày.	lan-am
+Chim thì bai lượn.	Chim thì bay lượn.	lan-am
+Chiếc găng tay cho thấy cô ấy đả có mặt tại hiện trường vụ án.	Chiếc găng tay cho thấy cô ấy đã có mặt tại hiện trường vụ án.	sai-thanh
+Anh ấy ngũ thiếp đi đến tận bình minh.	Anh ấy ngủ thiếp đi đến tận bình minh.	sai-thanh
+Đó vẩn là một rủi ro lớn.	Đó vẫn là một rủi ro lớn.	sai-thanh
+Mọi người trong tòa nhà đều cảm nhẫn được động đất.	Mọi người trong tòa nhà đều cảm nhận được động đất.	sai-thanh
+Chẳng bao lâu tôi sẻ trở về.	Chẳng bao lâu tôi sẽ trở về.	sai-thanh
+Sao không ai giúp tôi vẫy?	Sao không ai giúp tôi vậy?	sai-thanh
+Chúng ta đả hoàn thành năm học.	Chúng ta đã hoàn thành năm học.	sai-thanh
+Bạn có nghỉ Tom sẽ cười nhạo chúng ta không?	Bạn có nghĩ Tom sẽ cười nhạo chúng ta không?	sai-thanh
+Tôi ước gì Tom sẻ giúp chúng tôi.	Tôi ước gì Tom sẽ giúp chúng tôi.	sai-thanh
+Trước khi hẹn hò với Tom tôi đả hẹn hò với anh trai của anh ấy.	Trước khi hẹn hò với Tom tôi đã hẹn hò với anh trai của anh ấy.	sai-thanh
+Một lỗi không mong muốn đã xãy ra.	Một lỗi không mong muốn đã xảy ra.	sai-thanh
+Sao lúc nào anh ấy củng đi muộn thế?	Sao lúc nào anh ấy cũng đi muộn thế?	sai-thanh
+Tôi không muốn sau này phải hối hận vì đả bỏ lỡ một điều gì đó trong thời thanh xuân.	Tôi không muốn sau này phải hối hận vì đã bỏ lỡ một điều gì đó trong thời thanh xuân.	sai-thanh
+Tôi thỉnh thoảng nhẫn được một cuộc gọi từ cô ấy.	Tôi thỉnh thoảng nhận được một cuộc gọi từ cô ấy.	sai-thanh
+Anh ấy thường ăn sáng ở chổ này.	Anh ấy thường ăn sáng ở chỗ này.	sai-thanh
+Tôi chắc chắn Tom đả nói thật với bạn.	Tôi chắc chắn Tom đã nói thật với bạn.	sai-thanh
+Bạn đang ngâm nga cái gì vẫy?	Bạn đang ngâm nga cái gì vậy?	sai-thanh
+Tôi đả xem một bộ phim vào buổi sáng.	Tôi đã xem một bộ phim vào buổi sáng.	sai-thanh
+Bạn sẽ đến bựa tiệc tối nay chứ?	Bạn sẽ đến bữa tiệc tối nay chứ?	sai-thanh
+Tại sao Tom lãi có thể nói tiếng Pháp giỏi đến vậy?	Tại sao Tom lại có thể nói tiếng Pháp giỏi đến vậy?	sai-thanh
+Tôi đả gặp anh ấy không biết bao nhiêu lần.	Tôi đã gặp anh ấy không biết bao nhiêu lần.	sai-thanh
+Bạn sẽ có thể xuất viễn trong hai tuần nữa.	Bạn sẽ có thể xuất viện trong hai tuần nữa.	sai-thanh
+Anh ngẫm miệng lại một lúc được không nhỉ?	Anh ngậm miệng lại một lúc được không nhỉ?	sai-thanh
+Có thể một ngày nào đó, bạn sẻ hiểu điều đó.	Có thể một ngày nào đó, bạn sẽ hiểu điều đó.	sai-thanh
+Tại sao cuộc lại đầy những đau khổ vẫy	Tại sao cuộc lại đầy những đau khổ vậy	sai-thanh
+Anh ta đả bật đèn xanh cho chúng tôi bắt đầu.	Anh ta đã bật đèn xanh cho chúng tôi bắt đầu.	sai-thanh
+Có lẹ chúng ta nên hỏi Tom.	Có lẽ chúng ta nên hỏi Tom.	sai-thanh
+Anh ta đột nhiên ngả bệnh.	Anh ta đột nhiên ngã bệnh.	sai-thanh
+Người La Mã cổ đã thành lập thuộc đĩa trên khắp châu Âu.	Người La Mã cổ đã thành lập thuộc địa trên khắp châu Âu.	sai-thanh
+Tôi có sở thích chụp ảnh hoa dãi.	Tôi có sở thích chụp ảnh hoa dại.	sai-thanh
+Tôi đả thôi lo nghĩ.	Tôi đã thôi lo nghĩ.	sai-thanh
+Ăn quá nhiều sẻ béo.	Ăn quá nhiều sẽ béo.	sai-thanh
+Tôi hy vọng anh ấy đả thoát khỏi con thú.	Tôi hy vọng anh ấy đã thoát khỏi con thú.	sai-thanh
+Lẽ ra họ đả có thể thắng cuộc đua, nhưng họ đã không cố gắng đúng mức.	Lẽ ra họ đã có thể thắng cuộc đua, nhưng họ đã không cố gắng đúng mức.	sai-thanh
+Bạn đã bao giờ giúp vỡ nấu nướng chưa?	Bạn đã bao giờ giúp vợ nấu nướng chưa?	sai-thanh
+Cảm thấy hơi chóng mặt, tôi đả ngồi xuống một lúc.	Cảm thấy hơi chóng mặt, tôi đã ngồi xuống một lúc.	sai-thanh
+Tôi đả thoát ra.	Tôi đã thoát ra.	sai-thanh
+Tôi đả không thể hoàn thành được công việc nếu không nhờ sự giúp đỡ của bạn.	Tôi đã không thể hoàn thành được công việc nếu không nhờ sự giúp đỡ của bạn.	sai-thanh
+Nếu nhanh lên, bạn vẩn sẽ kịp chuyến tàu.	Nếu nhanh lên, bạn vẫn sẽ kịp chuyến tàu.	sai-thanh
+Nếu là hoa, tôi sẻ là hoa hướng dương.	Nếu là hoa, tôi sẽ là hoa hướng dương.	sai-thanh
+Cô ấy thích toán.	Cô ấy thích toán.	dung
+Dịch cái bàn sang phải đi.	Dịch cái bàn sang phải đi.	dung
+Bạn có biết cưỡi ngựa không?	Bạn có biết cưỡi ngựa không?	dung
+Tôi thích nước Đức.	Tôi thích nước Đức.	dung
+Tôi cũng đang cân nhắc việc đi Hàn Quốc.	Tôi cũng đang cân nhắc việc đi Hàn Quốc.	dung
+Tôi là người Mỹ.	Tôi là người Mỹ.	dung
+Bạn vừa nói gì?	Bạn vừa nói gì?	dung
+Không biết làm sao họ tìm ra được cái giá chúng tôi đã đặt vào phong bì dán kín.	Không biết làm sao họ tìm ra được cái giá chúng tôi đã đặt vào phong bì dán kín.	dung
+Chính phủ được đa số phiếu trong kỳ bỏ phiếu vừa qua.	Chính phủ được đa số phiếu trong kỳ bỏ phiếu vừa qua.	dung
+Cuộc sống thì khó khăn đấy, nhưng tôi mạnh mẽ hơn nó nhiều.	Cuộc sống thì khó khăn đấy, nhưng tôi mạnh mẽ hơn nó nhiều.	dung
+Ngôi nhà đã bị bán đi.	Ngôi nhà đã bị bán đi.	dung
+Lần này, Tom đã nhanh hơn tôi.	Lần này, Tom đã nhanh hơn tôi.	dung
+Tôi không thể nghỉ thêm một ngày nữa.	Tôi không thể nghỉ thêm một ngày nữa.	dung
+Tôi thích bận rộn.	Tôi thích bận rộn.	dung
+Anh ta chắc sắp tới rồi.	Anh ta chắc sắp tới rồi.	dung
+Thật sự là tôi cũng không chắc nữa.	Thật sự là tôi cũng không chắc nữa.	dung
+Anh ta phải trả tiền cấp dưỡng cho vợ cũ và các con.	Anh ta phải trả tiền cấp dưỡng cho vợ cũ và các con.	dung
+Đa phần mọi người đều nghĩ rằng máy tính không bao giờ có thể suy nghĩ.	Đa phần mọi người đều nghĩ rằng máy tính không bao giờ có thể suy nghĩ.	dung
+Tôi không biết Tom định làm gì.	Tôi không biết Tom định làm gì.	dung
+Anh ấy rất chính xác trong công việc.	Anh ấy rất chính xác trong công việc.	dung
+Càng nghe càng thấy trở nên thú vị.	Càng nghe càng thấy trở nên thú vị.	dung
+Bạn có chắc là không muốn ngủ trên nó?	Bạn có chắc là không muốn ngủ trên nó?	dung
+Tôi không mua gì ở những cửa hàng miễn thuế cả.	Tôi không mua gì ở những cửa hàng miễn thuế cả.	dung
+Anh ấy không hiểu mọi thứ khác đi.	Anh ấy không hiểu mọi thứ khác đi.	dung
+Tôi không biết sự thật.	Tôi không biết sự thật.	dung
+Mọi người thích nắng hơn mưa.	Mọi người thích nắng hơn mưa.	dung
+Chúng ta hãy đậu xe bên ngoài.	Chúng ta hãy đậu xe bên ngoài.	dung
+Tôi chưa từng gặp ai biết nhiều về lịch sử nước Úc nhiều như Tom.	Tôi chưa từng gặp ai biết nhiều về lịch sử nước Úc nhiều như Tom.	dung
+Hãy có một thời gian vui vẻ!	Hãy có một thời gian vui vẻ!	dung
+Chạy đến bưu điện đi nhé?	Chạy đến bưu điện đi nhé?	dung
+Tôi nghĩ là chúng ta cần phải tìm cho ra là Tom định đưa nó cho ai.	Tôi nghĩ là chúng ta cần phải tìm cho ra là Tom định đưa nó cho ai.	dung
+Tom đã học tiếng Pháp được ba năm.	Tom đã học tiếng Pháp được ba năm.	dung
+Anh ấy sống với vợ như chó ở với mèo.	Anh ấy sống với vợ như chó ở với mèo.	dung
+Chúng ta đều đã biết.	Chúng ta đều đã biết.	dung
+Bạn có thể đi, nhưng tôi phải ở lại đây.	Bạn có thể đi, nhưng tôi phải ở lại đây.	dung
+Cách suy nghĩ của con người nơi làng quê này là cổ hủ.	Cách suy nghĩ của con người nơi làng quê này là cổ hủ.	dung
+Bọn họ sợ tới nỗi không làm gì được.	Bọn họ sợ tới nỗi không làm gì được.	dung
+Tiếng Đức sẽ như thế nào nếu không có dấu phẩy!	Tiếng Đức sẽ như thế nào nếu không có dấu phẩy!	dung
+Tom đã mua một cái tai nghe chụp tai.	Tom đã mua một cái tai nghe chụp tai.	dung
+Tôi tự hỏi liệu họ có quay lại không.	Tôi tự hỏi liệu họ có quay lại không.	dung
+Tôi đồng tình với Tom.	Tôi đồng tình với Tom.	dung
+Hôm qua bạn đã ra công viên có đúng không?	Hôm qua bạn đã ra công viên có đúng không?	dung
+Bạn đến từ Úc đúng không?	Bạn đến từ Úc đúng không?	dung
+Thế giới đã đổi thay.	Thế giới đã đổi thay.	dung
+Tôi nhớ mãi việc ấy.	Tôi nhớ mãi việc ấy.	dung
+Tôi cam đoan cô ta sẽ trở thành một ca sĩ xuất sắc.	Tôi cam đoan cô ta sẽ trở thành một ca sĩ xuất sắc.	dung
+Hút thuốc lá bị cấm ở phòng này.	Hút thuốc lá bị cấm ở phòng này.	dung
+Có một điều gì đó rất quyến rũ ở em.	Có một điều gì đó rất quyến rũ ở em.	dung
+Tôi không muốn đến nha sĩ.	Tôi không muốn đến nha sĩ.	dung
+Những cái đó bao nhiêu tiền?	Những cái đó bao nhiêu tiền?	dung
+Điều này ảnh hưởng đến mọi lĩnh vực trong đời sống hằng ngày.	Điều này ảnh hưởng đến mọi lĩnh vực trong đời sống hằng ngày.	dung
+Đi theo chúng tôi.	Đi theo chúng tôi.	dung
+Có lý tưởng là điều tốt... bạn nghĩ sao?	Có lý tưởng là điều tốt... bạn nghĩ sao?	dung
+Mở cửa ra. Tôi biết bạn đang ở đó.	Mở cửa ra. Tôi biết bạn đang ở đó.	dung
+Anh ấy lúc nào cũng ở nhà vào ngày Chủ Nhật.	Anh ấy lúc nào cũng ở nhà vào ngày Chủ Nhật.	dung
+Em ấy rất thân thiết với chúng tôi.	Em ấy rất thân thiết với chúng tôi.	dung
+Tom không tin cảnh sát.	Tom không tin cảnh sát.	dung
+Tôi để cho Tom nói.	Tôi để cho Tom nói.	dung
+Gửi ảnh tin nhắn này đi.	Gửi ảnh tin nhắn này đi.	dung
+Các bạn là giáo viên à?	Các bạn là giáo viên à?	dung
+"Bạn có thàm dự bữa tiệc của Tom không?" "Tôi chưa biết."	"Bạn có tham dự bữa tiệc của Tom không?" "Tôi chưa biết."	ngoai-bang
+Con chó không được phép dào phòng ăn.	Con chó không được phép vào phòng ăn.	ngoai-bang
+Cô ấy đã tắng tôi một món quà sinh nhật.	Cô ấy đã tặng tôi một món quà sinh nhật.	ngoai-bang
+Vâng, tôi hiểu. Cám ơn ãnh.	Vâng, tôi hiểu. Cám ơn anh.	ngoai-bang
+Tôi đã bắn phát đầu tiển.	Tôi đã bắn phát đầu tiên.	ngoai-bang
+Tôi đã thấy ành ta.	Tôi đã thấy anh ta.	ngoai-bang
+Bạn đừng mong là có thể đi lước ngoài vào mùa hè năm nay.	Bạn đừng mong là có thể đi nước ngoài vào mùa hè năm nay.	ngoai-bang
+Cậu bĩ sa thải.	Cậu bị sa thải.	ngoai-bang
+Chạy giề phía khu rừng!	Chạy về phía khu rừng!	ngoai-bang
+Tôi muốn hỏi bạn mợt đặc ân lớn.	Tôi muốn hỏi bạn một đặc ân lớn.	ngoai-bang
+Chiến tranh có lẽ sẽ xảy rả.	Chiến tranh có lẽ sẽ xảy ra.	ngoai-bang
+Anh ấy giơ tay cố gắng chặn xe tấc xi.	Anh ấy giơ tay cố gắng chặn xe tắc xi.	ngoai-bang
+Cơ mà bây giờ đạ sắp mười một rưỡi rồi.	Cơ mà bây giờ đã sắp mười một rưỡi rồi.	ngoai-bang
+Ga tàu điện ngầm gần nhất ổ đâu?	Ga tàu điện ngầm gần nhất ở đâu?	ngoai-bang
+Tôi không thể kếch nối vào mạng.	Tôi không thể kết nối vào mạng.	ngoai-bang
+Đã mợt tuần từ lúc ông ấy rời đi.	Đã một tuần từ lúc ông ấy rời đi.	ngoai-bang
+Bọn tớ vẫn đanh cố	Bọn tớ vẫn đang cố	ngoai-bang
+Mọi người thường phàn nàn vể thời tiết.	Mọi người thường phàn nàn về thời tiết.	ngoai-bang
+Hắn ghét cã rốt.	Hắn ghét cà rốt.	ngoai-bang
+Anh ẩy thú nhận tất cả với tôi.	Anh ấy thú nhận tất cả với tôi.	ngoai-bang
+Bạn phải tự nàm.	Bạn phải tự làm.	ngoai-bang
+Thỉnh thoạng sáng chủ nhật, tôi thích ngủ nướng đến tận trưa.	Thỉnh thoảng sáng chủ nhật, tôi thích ngủ nướng đến tận trưa.	ngoai-bang
+Tôi đã lường trức điều này.	Tôi đã lường trước điều này.	ngoai-bang
+Tôi đã cố liên lạc với ành sáng nay.	Tôi đã cố liên lạc với anh sáng nay.	ngoai-bang
+Tom chỉ muốn sống một cuộc sống yên bính.	Tom chỉ muốn sống một cuộc sống yên bình.	ngoai-bang
+Chúng tôi có một con chó, một con mèo và ba con chim hoàng yễn.	Chúng tôi có một con chó, một con mèo và ba con chim hoàng yến.	ngoai-bang
+Tom nói rằng anh ấy có thể vao tiếp với người chết.	Tom nói rằng anh ấy có thể giao tiếp với người chết.	ngoai-bang
+Tom cõ thể rời đi vào ngày mai.	Tom có thể rời đi vào ngày mai.	ngoai-bang
+Tôi thậm chí không biết điều đõ có nghĩa là gì.	Tôi thậm chí không biết điều đó có nghĩa là gì.	ngoai-bang
+Cô ấy khy đó còn trẻ.	Cô ấy khi đó còn trẻ.	ngoai-bang
+Tôi nghí là có một người đang yêu thầm Tom.	Tôi nghĩ là có một người đang yêu thầm Tom.	ngoai-bang
+Hôm nay là thứ sáu, ngày mai là ngạy cuối tuần rồi!	Hôm nay là thứ sáu, ngày mai là ngày cuối tuần rồi!	ngoai-bang
+Con dào này rất sắc.	Con dao này rất sắc.	ngoai-bang
+Những từ kiểu nhự thế thì không có trong từ điển.	Những từ kiểu như thế thì không có trong từ điển.	ngoai-bang
+Tập thể dục tốt cho các cơ bắp và xường của bạn.	Tập thể dục tốt cho các cơ bắp và xương của bạn.	ngoai-bang
+A ha ha ha! Đó quả là một kệt tác!	A ha ha ha! Đó quả là một kiệt tác!	ngoai-bang
+Tôi đì mua sắm một chút. Một tiếng sau trở lại.	Tôi đi mua sắm một chút. Một tiếng sau trở lại.	ngoai-bang
+Căn nhà đó nà của nó.	Căn nhà đó là của nó.	ngoai-bang
+Tôi đã quyết định đi Mỹ thay rì đi châu Âu.	Tôi đã quyết định đi Mỹ thay vì đi châu Âu.	ngoai-bang
+Ý thức hệ Cộng Sản ở Việt Nam nà gì?	Ý thức hệ Cộng Sản ở Việt Nam là gì?	ngoai-bang
+Tuyết trắng bao phủ khắp mội nơi vào mùa đông.	Tuyết trắng bao phủ khắp mọi nơi vào mùa đông.	ngoai-bang
+Nước chảy đạ mòn.	Nước chảy đá mòn.	ngoai-bang
+Anh ẩy chụp ảnh gia đình.	Anh ấy chụp ảnh gia đình.	ngoai-bang
+Chúng tôi đã đy bộ rất nhiều.	Chúng tôi đã đi bộ rất nhiều.	ngoai-bang
+Anh ấy là nộng dân.	Anh ấy là nông dân.	ngoai-bang
+Tôi mua một bỗ khăn trải bàn.	Tôi mua một bộ khăn trải bàn.	ngoai-bang
+Tôi đang học kách làm cơ sở dữ liệu.	Tôi đang học cách làm cơ sở dữ liệu.	ngoai-bang
+Cứ bốn năm, có mợt năm nhuận.	Cứ bốn năm, có một năm nhuận.	ngoai-bang
+Chào buổi sáng mòi người!	Chào buổi sáng mọi người!	ngoai-bang
+Vài sinh viên nhìn cô với đôi mắt mọng nức.	Vài sinh viên nhìn cô với đôi mắt mọng nước.	ngoai-bang
+Tôi nghĩ chiều náy trời không mưa đâu.	Tôi nghĩ chiều nay trời không mưa đâu.	ngoai-bang
+Điều đó xẽ không xảy ra trong khoảng ba năm nữa.	Điều đó sẽ không xảy ra trong khoảng ba năm nữa.	ngoai-bang
+Có nhiều khạch đến ăn tại nhà hang.	Có nhiều khách đến ăn tại nhà hang.	ngoai-bang
+Tôi cho rằng dự án nạy đang đi đúng hướng.	Tôi cho rằng dự án này đang đi đúng hướng.	ngoai-bang
+Tôi có thể cưỡi con ngựa này khi cõ bão không?	Tôi có thể cưỡi con ngựa này khi có bão không?	ngoai-bang
+Mọi người đệu đang ngủ.	Mọi người đều đang ngủ.	ngoai-bang
+Tôi đi thặng vào bếp.	Tôi đi thẳng vào bếp.	ngoai-bang
+Tôi cuối cùng cũng bỏ hút thuốt.	Tôi cuối cùng cũng bỏ hút thuốc.	ngoai-bang
+Anh ấy không biết mình muốn quọc ngôn ngữ nào.	Anh ấy không biết mình muốn học ngôn ngữ nào.	ngoai-bang
+Chúng tỗi không muốn cho chuyện này lọt ra ngoài.	Chúng tôi không muốn cho chuyện này lọt ra ngoài.	ngoai-bang

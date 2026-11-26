@@ -103,6 +103,10 @@ dẫn xuất từ danh sách từ tiếng Việt Viet74K của Hồ Ngọc Đứ
 Public License, lấy từ bản sao [duyet/vietnamese-wordlist](https://github.com/duyet/vietnamese-wordlist). VNKey chỉ giữ các
 mục một và hai âm tiết đúng chính tả, bỏ viết hoa, và nén lại.
 
+Bộ câu để đo việc sửa cả câu (`Eval/generated.tsv`, chỉ dùng khi phát triển, không nằm trong ứng dụng) lấy câu đúng từ
+[Tatoeba](https://tatoeba.org), giấy phép [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/). VNKey lấy
+mẫu 400 câu thuần Việt và cấy lỗi vào để có cặp câu gõ / câu đúng; xem `Eval/README.md`.
+
 ## Giấy phép
 
 [GPL-3.0](LICENSE). © 2026 Hồ Quang Thái.
