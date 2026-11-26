@@ -510,10 +510,6 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         #expect(z.problem(other: .defaultRestore) == .duplicate)  // nhãn khác nhau vẫn là cùng một phím
     }
 
-    @Test func malformedMacroLinesAreCounted() {
-        #expect(ListFormat.skippedMacroLines(in: "vn = Việt Nam\n\nhn=Hà Nội") == 0)
-        #expect(ListFormat.skippedMacroLines(in: "vn = Việt Nam\nsai dòng\n= thiếu khoá\nthiếu vế =") == 3)
-    }
 }
 
 @Suite struct TableRules {
@@ -535,7 +531,6 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         let r = ListFormat.learned(fromRows: [["This", "0"], ["test", "1"], ["", "0"], ["this", "1"], ["user", "0"]])
         #expect(r.raw == ["user"])
         #expect(r.vn == ["this", "test"])
-        #expect(ListFormat.learnedRows(raw: ["user"], vn: ["test"]) == [["test", "1"], ["user", "0"]])
     }
 }
 

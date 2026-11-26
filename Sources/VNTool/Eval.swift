@@ -5,8 +5,8 @@ import VNEngine
 import FoundationModels
 #endif
 
-// Bộ đo chung cho việc sửa cả câu: cùng một bộ câu, nhiều "đường" sửa (thuật toán trên máy, mô hình của macOS, và
-// sau này là mô hình riêng), cùng một cách chấm. Bộ câu nằm trong `Eval/` ở gốc dự án (xem `Eval/README.md`).
+// Bộ đo chung cho việc sửa cả câu: cùng một bộ câu, nhiều "đường" sửa (thuật toán trên máy, mô hình của macOS), cùng
+// một cách chấm. Bộ câu nằm trong `Eval/` ở gốc dự án (xem `Eval/README.md`).
 
 /// Một câu của bộ đo: câu gõ, câu đúng, loại lỗi.
 struct EvalCase {
@@ -21,86 +21,44 @@ protocol SentenceEngine {
     func fix(_ text: String) async throws -> String
 }
 
-/// Thuật toán không dùng mô hình (`Proofreader.restore`).
-struct LocalEngine: SentenceEngine {
-    let name = "local"
-    let reader = Proofreader()
-    init(lexicon: Lexicon?) { reader.lexicon = lexicon }
-    func fix(_ text: String) async throws -> String { reader.restore(text) }
-}
-
-/// Kết quả tính sẵn của một mô hình chạy ngoài công cụ này (tệp `câu gõ <TAB> kết quả`, ví dụ từ
-/// `Training/fixer.py predict`). `filtered`: qua `SentenceFilter.merge` như mô hình của macOS. Thời gian đo ở đây vô nghĩa.
-struct FileEngine: SentenceEngine {
-    let filtered: Bool
-    let answers: [String: String]
-    var name: String { filtered ? "model" : "model-raw" }
-    struct Missing: Error {}
-    init?(path: String, filtered: Bool) {
-        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
-        var map: [String: String] = [:]
-        for line in text.precomposedStringWithCanonicalMapping.split(whereSeparator: \.isNewline) {
-            let f = line.split(separator: "\t", omittingEmptySubsequences: false)
-            if f.count >= 2 { map[String(f[0])] = String(f[1]) }
-        }
-        self.answers = map
-        self.filtered = filtered
-    }
-    func fix(_ text: String) async throws -> String {
-        guard let raw = answers[text] else { throw Missing() }
-        return filtered ? SentenceFilter.merge(original: text, proposed: raw) : raw
-    }
-}
-
-/// THỬ NGHIỆM: `Proofreader.restore` có thêm điểm của mô hình tự train cho từng từ (tệp JSON mỗi dòng một câu, từ
-/// `Training/fixer.py predict --scores`). Thời gian đo ở đây chỉ là phần của `restore`.
-final class HybridEngine: SentenceEngine {
-    let name = "hybrid"
-    let reader = Proofreader()
-    var scores: [String: [[String: Double]]] = [:]
-    /// Số câu mà mô hình và `restore` tách ra số từ khác nhau (khi đó `restore` chạy không có mô hình).
-    var mismatched = 0
-
-    init?(path: String, lexicon: Lexicon?, weight: Double, floor: Double, adds: Int) {
-        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
-        for line in text.split(whereSeparator: \.isNewline) {
-            guard let row = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                let typed = row["typed"] as? String, let words = row["words"] as? [[String: Double]]
-            else { continue }
-            scores[typed.precomposedStringWithCanonicalMapping] = words.map { word in
-                var out: [String: Double] = [:]
-                for (w, lp) in word { out[w.isEmpty ? "" : (Charset.syllableKey(w) ?? w)] = lp }
-                return out
-            }
-        }
-        reader.lexicon = lexicon
-        reader.guideWeight = weight
-        reader.guideFloor = floor
-        reader.guideAdds = adds
-    }
-
-    func fix(_ text: String) async throws -> String {
-        let hints = scores[text]
-        reader.guide = { [unowned self] words in
-            guard let hints else { return nil }
-            if hints.count != words.count { self.mismatched += 1 }
-            return hints
-        }
-        return reader.restore(text)
-    }
-}
-
 #if canImport(FoundationModels)
 /// Mô hình trên máy của macOS. `filtered`: qua `SentenceFilter.merge` như trong ứng dụng; không thì lấy nguyên câu.
+/// `guard`: `strict` = bộ lọc an toàn mặc định; `retry` = mặc định, bị từ chối thì hỏi lại với mức dành cho việc biến
+/// đổi văn bản (`permissiveContentTransformations`); `open` = luôn dùng mức đó.
 @available(macOS 26.0, *)
-struct AppleEngine: SentenceEngine {
+final class AppleEngine: SentenceEngine {
+    enum Guard: String { case strict, retry, open }
     let filtered: Bool
-    var name: String { filtered ? "apple" : "apple-raw" }
-    func fix(_ text: String) async throws -> String {
+    let mode: Guard
+    let instructions: String
+    /// Số câu bị từ chối ở lần hỏi đầu rồi được trả lời ở lần hỏi lại.
+    var rescued = 0
+    init(filtered: Bool, mode: Guard = .strict, instructions: String = SentenceFilter.instructions) {
+        self.filtered = filtered
+        self.mode = mode
+        self.instructions = instructions
+    }
+    var name: String { (filtered ? "apple" : "apple-raw") + (mode == .strict ? "" : "-" + mode.rawValue) }
+    private func ask(_ text: String, permissive: Bool) async throws -> String {
         // Mỗi câu một phiên mới: câu trước không ảnh hưởng câu sau.
-        let session = LanguageModelSession(instructions: SentenceFilter.instructions)
+        let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
+        let session = LanguageModelSession(model: model, instructions: instructions)
         let answer = try await session.respond(to: text, options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 200))
-        let raw = answer.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return answer.content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    func fix(_ text: String) async throws -> String {
+        var raw: String
+        do {
+            raw = try await ask(text, permissive: mode == .open)
+        } catch let error as LanguageModelSession.GenerationError {
+            guard mode == .retry else { throw error }
+            switch error {
+            case .guardrailViolation, .refusal:
+                raw = try await ask(text, permissive: true)
+                rescued += 1
+            default: throw error
+            }
+        }
         return filtered ? SentenceFilter.merge(original: text, proposed: raw) : raw
     }
 }
@@ -236,40 +194,25 @@ enum EvalRunner {
     }
 
     /// Các đường theo tên. Đường cần mô hình mà máy không có thì bỏ, kèm lý do in ra.
-    /// Tham số của đường ghép (`--guide-weight`, `--guide-floor`, `--guide-adds`).
-    static var guide = (weight: 2.0, floor: -10.0, adds: 2)
-
-    static func engines(_ list: String, lexicon: Lexicon?) -> [any SentenceEngine] {
-        // Nhiều đường thì ngăn bằng dấu phẩy: `local,apple,file:ket-qua.tsv`.
-        list.split(separator: ",").flatMap { one(String($0), lexicon: lexicon) }
+    static func engines(_ list: String) -> [any SentenceEngine] {
+        // Nhiều đường thì ngăn bằng dấu phẩy: `apple,apple-retry`.
+        list.split(separator: ",").flatMap { one(String($0)) }
     }
 
-    private static func one(_ wanted: String, lexicon: Lexicon?) -> [any SentenceEngine] {
+    /// Chỉ dẫn cho mô hình của macOS; `--instructions <tệp>` thay bằng nội dung tệp để thử lời nhắc khác.
+    static var instructions = SentenceFilter.instructions
+
+    private static func one(_ wanted: String) -> [any SentenceEngine] {
         var out: [any SentenceEngine] = []
-        if wanted.hasPrefix("file:") {
-            let path = String(wanted.dropFirst(5))
-            guard let raw = FileEngine(path: path, filtered: false), let merged = FileEngine(path: path, filtered: true) else {
-                print("Không đọc được \(path).")
-                return []
-            }
-            return [merged, raw]
-        }
-        if wanted.hasPrefix("hybrid:") {
-            guard let e = HybridEngine(path: String(wanted.dropFirst(7)), lexicon: lexicon, weight: guide.weight, floor: guide.floor, adds: guide.adds)
-            else {
-                print("Không đọc được \(wanted.dropFirst(7)).")
-                return []
-            }
-            return [e]
-        }
         let all = wanted == "all"
-        if all || wanted == "local" { out.append(LocalEngine(lexicon: lexicon)) }
         if all || wanted.hasPrefix("apple") {
             #if canImport(FoundationModels)
             if #available(macOS 26.0, *) {
                 if case .available = SystemLanguageModel.default.availability {
-                    if all || wanted == "apple" { out.append(AppleEngine(filtered: true)) }
-                    if all || wanted == "apple-raw" { out.append(AppleEngine(filtered: false)) }
+                    if all || wanted == "apple" { out.append(AppleEngine(filtered: true, instructions: instructions)) }
+                    if all || wanted == "apple-raw" { out.append(AppleEngine(filtered: false, instructions: instructions)) }
+                    if wanted == "apple-retry" { out.append(AppleEngine(filtered: true, mode: .retry, instructions: instructions)) }
+                    if wanted == "apple-open" { out.append(AppleEngine(filtered: true, mode: .open, instructions: instructions)) }
                 } else {
                     print("Bỏ qua mô hình của macOS: chưa dùng được (\(SystemLanguageModel.default.availability)).")
                 }
@@ -281,13 +224,6 @@ enum EvalRunner {
             #endif
         }
         return out
-    }
-
-    /// Bộ nhớ đỉnh của tiến trình này, tính bằng MB.
-    static func peakMemory() -> Double {
-        var usage = rusage()
-        getrusage(RUSAGE_SELF, &usage)
-        return Double(usage.ru_maxrss) / 1_048_576
     }
 
     static func percentile(_ sorted: [Double], _ p: Double) -> Double {
@@ -317,8 +253,9 @@ enum EvalRunner {
             results.append(row)
             report(engine.name, cases, row)
             for (name, count) in errors.sorted(by: { $0.value > $1.value }) { print("  lỗi gọi: \(count) lần \(name)") }
-            if let h = engine as? HybridEngine, h.mismatched > 0 { print("  \(h.mismatched) câu tách từ lệch với mô hình: chạy không có mô hình") }
-            if engine is LocalEngine { print(String(format: "  bộ nhớ đỉnh của tiến trình sau đường này: %.0f MB", peakMemory())) }
+            #if canImport(FoundationModels)
+            if #available(macOS 26.0, *), let a = engine as? AppleEngine, a.rescued > 0 { print("  \(a.rescued) câu bị từ chối rồi được trả lời khi hỏi lại") }
+            #endif
         }
         print("\nGhi chú: mô hình của macOS chạy trong tiến trình của hệ thống, bộ nhớ của nó không đo được từ đây.")
         disagreements(cases, engines, results)

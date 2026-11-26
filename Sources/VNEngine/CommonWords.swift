@@ -15,8 +15,6 @@ enum CommonWords {
     /// Mức "thông dụng": ứng viên dưới mức này chỉ được thay cho chữ đã gõ khi có thêm bằng chứng (từ đứng trước
     /// hay đi với nó, hoặc chính người dùng đã gõ nó).
     static let common = 1000
-    /// Hai ứng viên chênh nhau dưới chừng này lần được coi là cùng hạng: ngữ cảnh câu mới phân xử được.
-    static let sameLeague = 50
 
     /// Các khoá của bảng theo thứ tự trong dữ liệu (giảm dần theo số lần). `CommonPairs` đánh số âm tiết theo thứ
     /// tự này, nên sinh lại bảng âm tiết thì phải sinh lại cả bảng cặp từ.

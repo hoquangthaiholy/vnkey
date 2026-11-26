@@ -828,12 +828,15 @@ final class SettingsController: NSObject, NSWindowDelegate {
                     L("Gạch chân từ nghi gõ sai", "Underline words that look mistyped"),
                     L("Đỏ: gõ nhầm (thiếu dấu, trật phím). Cam: sai chính tả. Rê chuột lên nét gạch, hoặc dùng ← → đưa con trỏ vào từ, để xem đề nghị. VNKey không tự thay chữ.", "Red: mistyped (missing marks, a slipped key). Orange: misspelled. Point at an underline, or arrow into the word, for suggestions. Nothing is changed for you."),
                     key: Key.proofread),
-                toggle(
-                    L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
-                    SentenceFix.available
-                        ? L("Rê chuột lên một câu rồi vào nút ✦: sửa chính tả, cải tiến, viết lại, rút gọn, mở rộng, dịch, hoặc viết thành câu từ vài ý. Dùng mô hình chạy trên máy của macOS: không có gì rời khỏi máy. Bạn chọn thì mới thay.", "Rest the pointer on a sentence and move to ✦: fix spelling, improve, rewrite, shorten, expand, translate, or write sentences from notes. Uses the macOS on-device model: nothing leaves this Mac. Nothing changes until you choose.")
-                        : L("Rê chuột lên một câu rồi vào nút ✦ để thêm dấu và sửa chính tả cả câu, bằng dữ liệu trên máy. Các việc khác (viết lại, dịch…) cần macOS 26 trở lên và Apple Intelligence.", "Rest the pointer on a sentence and move to ✦ to add marks and fix spelling for the whole sentence, using data on this Mac. The other tasks (rewrite, translate…) need macOS 26 or later with Apple Intelligence."),
-                    key: Key.proofreadSentence, dependsOn: Key.proofread),
+                // Bảng AI chỉ có khi máy có Apple Intelligence (người dùng chốt 2026-11-26); không có thì nói rõ lý do.
+                SentenceFix.available
+                    ? toggle(
+                        L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
+                        L("Rê chuột lên một câu rồi vào nút ✦: sửa chính tả, cải tiến, viết lại, rút gọn, mở rộng, dịch, hoặc viết thành câu từ vài ý. Dùng mô hình chạy trên máy của macOS: không có gì rời khỏi máy. Bạn chọn thì mới thay.", "Rest the pointer on a sentence and move to ✦: fix spelling, improve, rewrite, shorten, expand, translate, or write sentences from notes. Uses the macOS on-device model: nothing leaves this Mac. Nothing changes until you choose."),
+                        key: Key.proofreadSentence, dependsOn: Key.proofread)
+                    : row(
+                        L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
+                        L("Cần macOS 26 trở lên và Apple Intelligence đang bật. Máy này chưa có nên tính năng này tắt.", "Needs macOS 26 or later with Apple Intelligence turned on. This Mac does not have it, so this feature is off.")),
             ]),
             note(L("Để kiểm tra, VNKey đọc nội dung ô đang nhập, chỉ trên máy này và không lưu lại. Hiện chạy với ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), chưa chạy trên trang web.", "To check, VNKey reads the text of the field you are typing in, only on this Mac, and stores none of it. It works in standard macOS apps (TextEdit, Notes, Mail) for now, not on web pages.")),
             title(L("Học từ cách bạn gõ", "Learning from your typing")),

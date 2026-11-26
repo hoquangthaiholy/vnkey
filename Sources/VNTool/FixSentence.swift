@@ -35,28 +35,6 @@ enum SentenceFixer {
         done.wait()
     }
 
-    /// Đo đường dự phòng không dùng mô hình (`Proofreader.restore`) trên cùng bộ câu mẫu.
-    static func runLocal(_ inputs: [String], lexicon: Lexicon?) {
-        let reader = Proofreader()
-        reader.lexicon = lexicon
-        let cases: [(String, String?)] = inputs.isEmpty ? samples.map { ($0.0, $0.1) } : inputs.map { ($0, nil) }
-        var right = 0, total = 0.0
-        for (text, want) in cases {
-            let start = Date()
-            let fixed = reader.restore(text)
-            let ms = Date().timeIntervalSince(start) * 1000
-            total += ms
-            var mark = ""
-            if let want {
-                let ok = SentenceFilter.same(fixed, want)
-                if ok { right += 1 }
-                mark = ok ? "ĐÚNG" : "SAI "
-            }
-            print(String(format: "%@ %6.1f ms  %@\n               -> %@", mark, ms, text, fixed))
-        }
-        if inputs.isEmpty { print(String(format: "\nThuật toán trên máy: %d/%d câu đúng, trung bình %.1f ms mỗi câu.", right, cases.count, total / Double(cases.count))) }
-    }
-
     static func run(_ inputs: [String]) {
         let model = SystemLanguageModel.default
         guard case .available = model.availability else {

@@ -20,7 +20,8 @@ Giao tiếp với người dùng, chú thích trong mã và commit message bằn
 | Chuyển bảng mã một đoạn văn bản | `swift run vnkey-tool convert --to vni "Tiếng Việt"` (thiếu `--from` thì tự đoán) |
 | Soát lỗi một đoạn văn bản | `swift run vnkey-tool check "tôi veeg nhà"` (thêm `--english` để soát cả tiếng Anh) |
 | Thử AI sửa cả câu (mô hình trên máy của macOS) | `swift run -c release vnkey-tool fix-sentence` (không có câu thì chạy 20 câu mẫu) |
-| Đo các đường sửa câu trên bộ câu `Eval/` | `swift run -c release vnkey-tool eval --engine all` (`local`, `apple`, `apple-raw`; `--kind`, `--limit`, `--json`) |
+| Đo bộ soát lỗi theo từ trên bộ câu `Eval/` | `swift run -c release vnkey-tool check-eval` (`--kind`, `--set`, `--english`, `--examples N`) |
+| Đo các đường sửa câu trên bộ câu `Eval/` | `swift run -c release vnkey-tool eval --engine all` (`apple`, `apple-raw`, `apple-retry`, `apple-open`; `--part`, `--instructions`, `--kind`, `--limit`, `--json`) |
 | Sinh lại bộ câu đo | `swift run -c release vnkey-tool eval-make <tệp câu> --seed 1 > Eval/generated.tsv` (xem `Eval/README.md`) |
 | Đo hiệu năng engine | `swift run -c release vnkey-tool bench` |
 | Xem nhật ký | `tail -50 ~/Library/Logs/VNKey.log` |
@@ -116,6 +117,14 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   trong callback của tap), không bao giờ đọc ô mật khẩu, không lưu và không ghi chữ vào nhật ký (dòng `PROOF` chỉ có
   số lượng, loại, thời gian). Chỉ chạy với ứng dụng trả lời `AXBoundsForRange` theo số ký tự (AppKit); trang web và
   Electron chưa làm. Thay chữ bằng `AXSelectedText`. TOÀN BỘ phần này chưa được kiểm chứng trên ứng dụng thật.
+- Đo bộ soát theo từ 2026-11-26 bằng `vnkey-tool check-eval` (1.461 câu `Eval/`), sau khi thêm luật lặp / đảo chữ và
+  chắn tên riêng: chữ không có thật (không Việt, không Anh) gạch được 93,8% và đề nghị đầu đúng 93,0% (trước 80,6% /
+  78,3%); 98,7% nét gạch là từ sai thật (trước 94,8%); gạch nhầm 5 lần, 0,7 trên 1.000 từ đúng (trước 21 lần); lỗi
+  trùng từ có thật 45,9% (trước 49,8%); viết không dấu cố ý không gạch. 0,12 ms mỗi câu. Luật được chỉnh trên chính
+  bộ câu này nên con số lạc quan; câu do người làm bộ đo viết, không phải câu gõ thật.
+- Đoán từ tiếp theo, đo 2026-11-26 (bảng đếm từ 4,9 triệu câu phụ đề, thử trên Tatoeba / câu viết tay; kịch bản đo
+  không nằm trong dự án): đúng ngay 16% / 12% với cặp từ, 24% / 20% với bộ ba từ, 25% / 21% khi thêm các từ trong câu;
+  biết chữ cái đầu thì 55% / 47%. Chưa làm gì trong ứng dụng.
 - Chuyển động (`Motion.swift`: thời lượng, đường cong, tôn trọng "Giảm chuyển động") không kiểm được bằng test hay
   `--snapshot`: nét gạch trượt ra, dải sáng khi chữ được thay (`Proofing.pulse`), bảng nổi phóng nhẹ lúc hiện. Nét gạch
   ẩn khi cửa sổ chứa ô nhập dời / đổi cỡ (`AXObserver` + so khung mỗi nhịp). Tất cả CHƯA được kiểm chứng trên app thật.
@@ -128,8 +137,14 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
     macOS 12): mọi việc do mô hình TRÊN MÁY làm. Chỉ `fix` qua `SentenceFilter.merge` (giữ dấu câu, hoa thường, từ tiếng
     Anh của người gõ; mô hình tự thêm dấu chấm, viết hoa và DỊCH tiếng Anh). Các việc khác lấy nguyên câu mô hình viết,
     chất lượng thất thường ("mở rộng" hay thêm ý). Chỉ dẫn và lời nhắn theo ngôn ngữ của câu (`SentenceTask.prompt`).
-  - Không có mô hình: chỉ còn thẻ `fix`, làm bằng `Proofreader.restore` (Viterbi trên bảng tần suất, bảng cặp, từ
-    ghép; khoảng 1 ms mỗi câu), không có nút thử lại.
+  - Không có mô hình thì KHÔNG có nút ✦ và bảng AI (người dùng chốt 2026-11-26: bỏ sửa cả câu bằng thuật toán, tính
+    năng AI chỉ dành cho máy có Apple Intelligence; ưu tiên nhẹ, không giật, tương thích). Thẻ Cài đặt khi đó chỉ ghi
+    lý do. Thuật toán thêm dấu cả câu (`Proofreader.restore`, đường đo `local`) đã gỡ khỏi mã 2026-11-26; các con số
+    `local` bên dưới là số đo cũ. `Proofing` xét `SentenceFix.available` lúc áp cài đặt: bật Apple Intelligence sau đó thì phải mở lại app.
+  - Câu bị bộ lọc an toàn của mô hình từ chối (`guardrailViolation`, `refusal`) được hỏi lại một lần ở mức
+    `SystemLanguageModel(guardrails: .permissiveContentTransformations)`, mức Apple dành cho việc biến đổi văn bản. Đo
+    2026-11-26 trên 1.001 câu viết tay (`eval --engine apple,apple-retry`): 30 câu bị từ chối đều được trả lời khi hỏi
+    lại, câu đúng 78,7% lên 79,8%, sửa bậy giữ 1,0 trên 1.000 âm tiết. Trong ứng dụng thật chưa kiểm chứng.
   - Đo 2026-11-26 trên M4 bằng `vnkey-tool eval` (420 câu trong `Eval/`: 400 câu Tatoeba cấy lỗi + 20 câu viết tay):
     câu đúng hoàn toàn: `local` (`Proofreader.restore`) 64,3%, mô hình + lọc 63,8%, mô hình chưa lọc 60,0%. `local`
     hơn ở câu không dấu (57,5% so với 38,3%) và thiếu dấu (87% / 69%), thua ở lẫn âm (36% / 54%) và sai thanh
@@ -138,21 +153,11 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
     được cấy bằng chính bảng của `Proofreader` (thiên vị cho `local`); 20 câu viết tay (`da-chinh`) đã dùng để chỉnh
     nên lạc quan (18/20 và 19/20). `fix-sentence --task <việc>` thử các việc khác. Nhật ký `SENTENCE` chỉ có độ dài
     và thời gian. Trong ứng dụng thật TẤT CẢ chưa được kiểm chứng.
-- THỬ NGHIỆM mô hình sửa câu tự train (`Training/`, xem `Training/README.md`; ứng dụng CHƯA dùng): Transformer 2,15
-  triệu tham số (tệp 9 MB), mỗi từ chọn một trong 3.320 âm tiết hoặc "giữ nguyên"; train bằng PyTorch
-  (`Training/.venv`, không commit) trên phụ đề OpenSubtitles có cấy lỗi (bỏ dấu, lẫn âm, sai thanh, lỗi ra âm tiết
-  ngoài bảng, trượt phím, chèn tiếng Anh). Lượt hai, đo 2026-11-26 trên 504 câu bằng `vnkey-tool eval --engine
-  local,file:Training/work/predictions.tsv`: câu đúng 83,9% (`local` 68,5%, mô hình macOS + lọc 65,1%), 0,6 ms mỗi
-  câu (PyTorch, CPU). Còn yếu: 14/20 câu lỗi thật viết tay (`local` 18, macOS 19), hay chọn từ phổ biến hơn từ đúng
-  ("tiếng viết", "phòng hợp"), có đổi bậy câu vốn đúng (2/60). Lỗi cấy trong bộ đo cùng kiểu với lúc train: lạc quan.
-  Ghép với từ điển (`Proofreader.guide`, mặc định nil, chỉ bộ đo dùng: `eval --engine hybrid:<điểm.jsonl>`): 85,3%,
-  hơn mô hình đứng riêng 7 câu nhưng sửa bậy tăng từ 3,3 lên 5,4 trên 1.000 âm tiết; lợi nhỏ, chưa đáng tin.
-  Trên 1.001 câu VIẾT TAY (`Eval/handwritten.tsv`, đáng tin hơn câu sinh tự động) thứ tự đảo lại: mô hình macOS + lọc
-  78,7%, ghép 76,3%, mô hình tự train 71,6%, `local` 64,5%. Sửa bậy trên 1.000 âm tiết: 1,0 / 19,9 / 17,9 / 13,5. Mô
-  hình tự train đổi bậy một phần ba số câu đúng có tên riêng / từ hiếm. Đừng trích 83,9% mà không kèm các con số này.
-  Lượt ba (bảng 7.492 âm tiết, 2,96 triệu tham số, 12 MB): viết tay 70,2% đứng riêng, 78,2% khi ghép từ điển (ngang
-  mô hình macOS 78,7%), sửa bậy 12,9 trên 1.000 âm tiết (macOS 1,0); vẫn đổi bậy tên riêng và từ hiếm. Bảng đầy đủ ở
-  `Training/README.md`.
+- ĐÃ BỎ (2026-11-26, người dùng chốt): mô hình sửa câu tự train. Ba lượt train Transformer nhỏ (2–3 triệu tham số) trên
+  phụ đề OpenSubtitles: trên 1.001 câu viết tay, đứng riêng 70–72% câu đúng, ghép từ điển 78,2% (mô hình macOS + lọc
+  78,7%, `local` 64,5%), nhưng sửa bậy 12–20 âm tiết trên 1.000 (macOS 1,0), nhất là tên riêng và từ hiếm. Mô hình
+  nhỏ đoán từ tiếp theo cũng thua bảng đếm bộ ba từ (20% so với 24% đúng ngay). Mã train đã xoá khỏi dự án (còn ở
+  commit 40d7e2d). Hướng đi: tối ưu từ điển (bộ soát theo từ) và Apple Intelligence; đừng đề xuất train lại.
 - Thói quen gõ (bảng đếm từ và cặp từ, không có câu) lưu ở `~/Library/Application Support/VNKey/usage.json`.
   Coi nó riêng tư như nhật ký: không đọc ra, không dán vào câu trả lời.
 

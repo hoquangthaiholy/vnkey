@@ -80,6 +80,16 @@ paths:
     dấu CUỐI sang phím kề (`slipped`; `telexSlips` / `vniSlips`, không có "k", nguyên âm, m, n vì chữ teen "bik",
     "hok"; phải có từ bên cạnh ủng hộ ≥ `CommonPairs.floor`), rồi chữ có dấu mà chuỗi phím đó gõ ra ("duojc",
     "tieesng"). Không có đề nghị thì không gạch. VNI: chữ số sau chữ cái thuộc về từ ("tie61gn").
+  - LẶP / ĐẢO CHỮ CÁI (`letterSlip`, bộ test `repeatedAndSwappedLetters`; 2026-11-26): chữ không phải âm tiết, không có
+    trong bảng, mà bỏ một chữ cái lặp (`.doubledKey`: "mộtt", "đãã", "xemm") hoặc đổi chỗ hai chữ cái liền nhau
+    (`.swappedKeys`: "khôgn", "lcú") thì ra từ trong bảng. Làm trên CHỮ đang hiện (khác `swapped`, làm trên chuỗi phím).
+    Ứng viên không dấu phải ≥ `plainSlipFloor` = 1000. Với từ không dấu, loại lặp đi TRƯỚC việc thêm dấu ("muaa" là
+    "mua", không phải "mâu").
+  - TÊN RIÊNG (bộ test `properNamesAreLeftAlone`): từ viết hoa đứng giữa câu, hoặc viết hoa và đứng trước một từ viết
+    hoa, không nhận đề nghị loại lẫn âm / đổi thanh ("Huế" không phải "Huệ", "Nguyễn Du", "Sông Hương"). Thiếu dấu,
+    lặp, đảo chữ vẫn gạch ("Viêt Nam"). `wrongCompound` bỏ qua từ ≥ `tooCommonToDoubt` (= `veryCommon` 5000): "bánh
+    khác" không phải "bánh khách". Đổi lại, lỗi trùng từ có thật bắt được ít hơn (49,8% xuống 45,9% trên `Eval/`).
+    Còn gạch nhầm: "mài sắt" → sắc, "tậu được" → tạo, "gỏi cuốn" → gọi, "đàn vịt" → việt, "còn đọng" → động.
   - Lỗi gõ đã học đi trước mọi luật trên, kể cả với từ thật ("muôn" → "muốn"): bảng lưu chuỗi phím nên mỗi lần
     soát dựng lại bảng "chữ đang hiện → phím đúng" (`learned`). Số lần để nguyên (`keepTypo`) chặn gạch nhầm.
   - Cụm: cặp không dấu người dùng hay gõ có dấu (`ContextModel.phrase`: ≥ 3 lần, ≥ 2 lần cụm khác, nhiều hơn dạng
@@ -127,10 +137,6 @@ paths:
   hỏng hai chỗ: test giữ luật cũ, và việc học khi gõ lại ("test" xoá dần thành "tes" rồi ra "té"). Chỗ thứ hai đã
   chặn bằng `Engine.reopened` (không áp dụng cho từ mở lại bằng phím xoá); phím xoá đang giữ (`held`) không bao giờ
   đổi chữ. CHƯA thử trên ứng dụng thật, nơi luật cũ sinh ra vì màn hình lệch khi phát phím lúc đang xoá.
-- Thêm dấu cả câu không cần mô hình (`Proofreader.restore`, test `restoresAWholeSentence`): Viterbi qua các từ của
-  câu. Ứng viên của một từ: chính nó; các cách THÊM dấu ra từ trong bảng (từ không dấu); đề nghị của `missingMark` (từ
-  có dấu ngoài bảng); và, với từ có dấu TRONG bảng, chỉ những cách lẫn âm tạo thành từ ghép với từ bên cạnh khi chính
-  nó không tạo thành từ ghép ("chia sẽ" → sẻ; "ngày tết" giữ). Điểm = log tần suất + 2·log(cặp + cặp của người dùng +
-  `compoundBonus`); từ gốc được cộng điểm giữ (có dấu +2, lạ +2, tiếng Anh +3 nữa). Từ tiếng Anh KHÔNG bị khoá cứng: từ
-  điển macOS nhận cả "co", "lam", "hop", "muon". Đã biết sai: "mai hop luc" ra "hợp lực" (từ ghép thắng "họp lúc").
+- Thêm dấu cả câu bằng thuật toán (`Proofreader.restore`, Viterbi trên bảng tần suất / bảng cặp / từ ghép) ĐÃ GỠ
+  2026-11-26: người dùng bỏ việc sửa cả câu ngoài Apple Intelligence. Bản cuối ở commit 40d7e2d; đừng thêm lại.
 - Sau khi sửa: `./Scripts/test.sh` và `swift run -c release vnkey-tool bench`.

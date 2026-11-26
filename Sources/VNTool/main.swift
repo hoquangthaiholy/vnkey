@@ -6,7 +6,7 @@ import VNKeyCore
 //                                              "<" = Backspace, "~" = phím đổi từ vừa gõ, "\n" "\t" như thường.
 // vnkey-tool bench [tuỳ chọn]                  Đo thời gian xử lý mỗi phím.
 // vnkey-tool fix-sentence ["<câu>"]           THỬ NGHIỆM: sửa cả câu bằng mô hình chạy trên máy của macOS.
-// vnkey-tool eval [--engine local|apple|apple-raw|all]   Đo các đường sửa câu trên bộ câu trong `Eval/`.
+// vnkey-tool eval [--engine apple|apple-raw|apple-retry|apple-open|all]   Đo các đường sửa câu trên bộ câu trong `Eval/`.
 // vnkey-tool eval-make <tệp câu> [--count N] [--seed S]  Sinh `Eval/generated.tsv` từ một tệp câu tiếng Việt sạch.
 // vnkey-tool check [--english] "<văn bản>"     Soát lỗi một đoạn văn bản (`Proofreader`), in từng chỗ nghi sai.
 // vnkey-tool convert [--from X] [--to Y] [--strip] "<văn bản>"   Chuyển bảng mã (unicode, decomposed, tcvn3, vni, viqr).
@@ -225,14 +225,6 @@ case "rare-words":
         print("\(word)\t\(top)\t\(Proofreader.frequency(of: top))\t\(issue.kind.rawValue)")
     }
 
-case "train-tables":
-    // Bảng cho việc train mô hình sửa câu (`Training/`): âm tiết <TAB> số lần <TAB> lẫn âm <TAB> lẫn thanh
-    // <TAB> lẫn âm kể cả ra âm tiết ngoài bảng <TAB> mọi dấu thanh khác.
-    for row in Proofreader().confusionTable() {
-        print("\(row.word)\t\(row.count)\t\(row.sound.joined(separator: " "))\t\(row.tone.joined(separator: " "))"
-            + "\t\(row.anySound.joined(separator: " "))\t\(row.anyTone.joined(separator: " "))")
-    }
-
 case "eval-make":
     // Sinh bộ câu kiểm tra từ một tệp câu tiếng Việt sạch: `vnkey-tool eval-make <tệp> [--count 400] [--seed 1]`.
     var rest = Array(args.dropFirst())
@@ -246,9 +238,30 @@ case "eval-make":
     guard let path = rest.first else { fatalError("thiếu tệp câu") }
     EvalSet.make(from: path, count: count, seed: seed)
 
+case "check-eval":
+    // Đo bộ soát lỗi theo từ trên bộ câu `Eval/`:
+    // `vnkey-tool check-eval [--set <tệp.tsv>] [--kind <loại>] [--english] [--examples N]`.
+    var rest = Array(args.dropFirst())
+    func option(_ name: String) -> String? {
+        guard let i = rest.firstIndex(of: name), i + 1 < rest.count else { return nil }
+        defer { rest.removeSubrange(i...(i + 1)) }
+        return rest[i + 1]
+    }
+    var cases: [EvalCase] = []
+    if let set = option("--set") {
+        guard let loaded = EvalSet.load(set) else { fatalError("không đọc được \(set)") }
+        cases = loaded
+    } else {
+        for path in [EvalSet.generated, EvalSet.handwritten] {
+            if let loaded = EvalSet.load(path) { cases += loaded } else { print("Không có \(path) (chạy từ gốc dự án).") }
+        }
+    }
+    if let kind = option("--kind") { cases = cases.filter { $0.kind == kind } }
+    CheckEval.run(cases: cases, lexicon: lexicon, english: flag("--english"), examples: option("--examples").flatMap(Int.init) ?? 25)
+
 case "eval":
     // Đo các đường sửa câu trên bộ câu trong `Eval/`:
-    // `vnkey-tool eval [--engine local|apple|apple-raw|all] [--set <tệp.tsv>] [--kind <loại>] [--limit N] [--json <tệp>]`.
+    // `vnkey-tool eval [--engine apple|apple-raw|apple-retry|apple-open|all] [--set <tệp.tsv>] [--kind <loại>] [--limit N] [--json <tệp>]`.
     var rest = Array(args.dropFirst())
     func option(_ name: String) -> String? {
         guard let i = rest.firstIndex(of: name), i + 1 < rest.count else { return nil }
@@ -266,12 +279,15 @@ case "eval":
         }
     }
     if let kind = option("--kind") { cases = cases.filter { $0.kind == kind } }
+    // `--part a|b`: nửa câu ở vị trí chẵn / lẻ, để chỉnh lời nhắc trên một nửa rồi đo trên nửa kia.
+    if let part = option("--part") { cases = cases.enumerated().filter { ($0.offset % 2 == 0) == (part == "a") }.map(\.element) }
     if let limit = option("--limit").flatMap(Int.init) { cases = Array(cases.prefix(limit)) }
+    if let path = option("--instructions") {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { fatalError("không đọc được \(path)") }
+        EvalRunner.instructions = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     let json = option("--json")
-    if let w = option("--guide-weight").flatMap(Double.init) { EvalRunner.guide.weight = w }
-    if let f = option("--guide-floor").flatMap(Double.init) { EvalRunner.guide.floor = f }
-    if let a = option("--guide-adds").flatMap(Int.init) { EvalRunner.guide.adds = a }
-    let engines = EvalRunner.engines(wanted, lexicon: lexicon)
+    let engines = EvalRunner.engines(wanted)
     guard !cases.isEmpty, !engines.isEmpty else { print("Không có câu hoặc không có đường nào để đo."); exit(1) }
     print("\(cases.count) câu, đường: \(engines.map(\.name).joined(separator: ", "))")
     let finished = DispatchSemaphore(value: 0)
@@ -286,11 +302,8 @@ case "fix-sentence":
     #if canImport(FoundationModels)
     if #available(macOS 26.0, *) {
         var rest = Array(args.dropFirst())
-        // `--local`: đường dự phòng không dùng mô hình (bảng cặp, từ ghép). `--task …`: thử một việc khác với câu.
-        if let i = rest.firstIndex(of: "--local") {
-            rest.remove(at: i)
-            SentenceFixer.runLocal(rest, lexicon: lexicon)
-        } else if let i = rest.firstIndex(of: "--task"), i + 1 < rest.count, let task = SentenceTask(rawValue: rest[i + 1]) {
+        // `--task …`: thử một việc khác với câu.
+        if let i = rest.firstIndex(of: "--task"), i + 1 < rest.count, let task = SentenceTask(rawValue: rest[i + 1]) {
             rest.removeSubrange(i...(i + 1))
             SentenceFixer.run(task: task, rest)
         } else {

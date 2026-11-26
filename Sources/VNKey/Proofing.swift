@@ -136,8 +136,6 @@ final class Proofing {
         aiPanel.onUse = { [weak self] text in self?.useAI(text) }
         aiPanel.onClose = { [weak self] in self?.closeAI() }
         chip.onOpen = { [weak self] in self.map { me in me.hint.map { me.openAI(index: $0.index, anchor: $0.rects.first) } } }
-        // Máy không có mô hình: việc sửa chính tả cả câu làm bằng bảng cặp và từ ghép (cùng luồng chính với bộ soát).
-        SentenceFix.local = { [reader] in reader.restore($0) }
         popover.onAdd = { [weak self] in self?.ignoreShown(forever: true) }
         popover.onIgnore = { [weak self] in self?.ignoreShown(forever: false) }
     }
@@ -167,7 +165,8 @@ final class Proofing {
     // MARK: - Cài đặt
 
     func configure(on: Bool, config: Config, lexicon: Lexicon, context: ContextModel?, english: Bool, sentence: Bool, skip: Set<String>) {
-        sentenceOn = sentence
+        // Bảng AI chỉ có khi máy có Apple Intelligence; không có thì không hiện nút ✦ và không theo dõi chuột.
+        sentenceOn = sentence && SentenceFix.available
         reader.config = config
         reader.lexicon = lexicon
         reader.context = context
@@ -802,7 +801,7 @@ final class Proofing {
             let below = found.rects.min(by: { $0.minY < $1.minY }) ?? place
             Log.write("PROOF mở bảng AI: \(self.aiParagraph ? "đoạn" : "câu") \(found.original.utf16.count) ký tự")
             self.aiPanel.show(
-                tasks: SentenceFix.tasks, task: .fix, paragraph: self.aiParagraph, canRefresh: SentenceFix.available,
+                tasks: SentenceTask.allCases, task: .fix, paragraph: self.aiParagraph, canRefresh: true,
                 original: found.original, state: .loading, anchor: NSRect(x: place.minX, y: below.minY, width: place.width, height: below.height))
             SentenceFix.warm()
             self.ask(.fix)
@@ -1474,6 +1473,7 @@ private final class SuggestionPanel: FloatingPanel {
         case .missingMark: return L("Có thể thiếu dấu", "Possibly missing marks")
         case .slippedKey: return L("Có thể trật phím dấu", "Possibly a slipped tone key")
         case .swappedKeys: return L("Có thể gõ đảo phím", "Possibly swapped keys")
+        case .doubledKey: return L("Có thể gõ lặp phím", "Possibly a repeated key")
         case .learnedTypo: return L("Lỗi gõ bạn hay sửa", "A typo you often fix")
         case .phrase: return L("Đề nghị cho cả cụm", "Suggestion for the phrase")
         case .english: return L("Chính tả tiếng Anh", "English spelling")

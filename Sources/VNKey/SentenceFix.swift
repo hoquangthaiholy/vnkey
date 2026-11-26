@@ -38,46 +38,50 @@ enum SentenceFix {
         #endif
     }
 
-    /// Hỏi mô hình cho `sentence`. `done` chạy ở luồng chính với câu đã lọc, hoặc nil nếu không có gì để sửa hay mô
-    /// hình không trả lời được.
-    /// Việc dùng được trên máy này: có mô hình thì đủ cả; không thì chỉ còn sửa chính tả bằng thuật toán trên máy.
-    static var tasks: [SentenceTask] { available ? SentenceTask.allCases : [.fix] }
-    /// Đường dự phòng cho việc sửa chính tả khi máy không có mô hình (hoặc mô hình lỗi): `Proofreader.restore`, không
-    /// cần Apple Intelligence. `Proofing` cấp.
-    static var local: ((String) -> String)?
-
+    /// Hỏi mô hình cho `sentence`. `done` chạy ở luồng chính với câu mô hình đề nghị, hoặc nil nếu không có gì để sửa
+    /// hay mô hình không trả lời được. Máy không có mô hình thì không có bảng AI (người dùng chốt 2026-11-26: không sửa
+    /// cả câu bằng thuật toán nữa), nên hàm này chỉ trả nil.
     /// `fresh`: người dùng bấm "thử lại": bỏ kết quả đã nhớ và để mô hình chọn từ ngẫu nhiên hơn, để ra câu khác.
     static func fix(_ sentence: String, task: SentenceTask = .fix, fresh: Bool = false, done: @escaping (String?) -> Void) {
         let key = task.rawValue + "\u{1}" + sentence
         if !fresh, let hit = cache[key] { return done(hit == sentence ? nil : hit) }
-        if !available {
-            // Không có mô hình: chỉ việc sửa chính tả làm được, bằng bảng cặp và từ ghép.
-            let result = task == .fix ? local?(sentence) : nil
-            Log.write("SENTENCE \(task.rawValue) \(sentence.utf16.count) ký tự: thuật toán trên máy, \(result == nil ? "không làm được" : result == sentence ? "không có gì để sửa" : "có đề nghị")")
-            return done(result == sentence ? nil : result)
-        }
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *), available {
             let start = Date()
             Task.detached(priority: .userInitiated) {
                 var fixed: String?
                 var failure = ""
-                do {
-                    // Mỗi câu một phiên mới: câu trước không ảnh hưởng câu sau. Luôn chọn từ có xác suất cao nhất, để
-                    // cùng một câu luôn cho cùng một đề nghị.
-                    let session = LanguageModelSession(instructions: task.instructions(for: sentence))
+                var retried = false
+                // Mỗi câu một phiên mới: câu trước không ảnh hưởng câu sau. Luôn chọn từ có xác suất cao nhất, để cùng
+                // một câu luôn cho cùng một đề nghị.
+                func ask(permissive: Bool) async throws -> String {
+                    let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
+                    let session = LanguageModelSession(model: model, instructions: task.instructions(for: sentence))
                     let answer = try await session.respond(
                         to: task.prompt(for: sentence),
                         options: fresh
                             ? GenerationOptions(temperature: 0.9, maximumResponseTokens: 400)
                             : GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 400))
-                    fixed = task.clean(answer.content, original: sentence)
+                    return task.clean(answer.content, original: sentence)
+                }
+                do {
+                    fixed = try await ask(permissive: false)
+                } catch let error as LanguageModelSession.GenerationError {
+                    // Bộ lọc an toàn của mô hình từ chối cả câu vô hại (đo 2026-11-26: 30 trong 1.001 câu). Hỏi lại ở mức
+                    // Apple dành cho việc BIẾN ĐỔI văn bản của chính người dùng; cả 30 câu đều được trả lời.
+                    switch error {
+                    case .guardrailViolation, .refusal:
+                        retried = true
+                        do { fixed = try await ask(permissive: true) } catch { failure = String(describing: type(of: error)) }
+                    default: failure = String(describing: type(of: error))
+                    }
                 } catch {
                     failure = String(describing: type(of: error))
                 }
                 let ms = Date().timeIntervalSince(start) * 1000
                 let result = fixed
-                let note = failure
+                let again = retried
+                let note = failure + (again ? ", đã hỏi lại" : "")
                 await MainActor.run {
                     if let result {
                         if cache.count > 200 { cache.removeAll() }
@@ -85,7 +89,7 @@ enum SentenceFix {
                     }
                     Log.write(
                         String(format: "SENTENCE %@ %d ký tự, %.0f ms: ", task.rawValue, sentence.utf16.count, ms)
-                            + (result == nil ? "mô hình lỗi (\(note))" : result == sentence ? "không có gì để sửa" : "có đề nghị"))
+                            + (result == nil ? "mô hình lỗi (\(note))" : (result == sentence ? "không có gì để sửa" : "có đề nghị") + (again ? " (hỏi lại sau khi bị từ chối)" : "")))
                     done(result == sentence ? nil : result)
                 }
             }

@@ -1,7 +1,7 @@
 # Bộ câu để đo việc sửa cả câu
 
 Dùng cho `vnkey-tool eval`: cùng một bộ câu, cùng một cách chấm, cho mọi đường sửa câu (thuật toán trên máy
-`Proofreader.restore`, mô hình của macOS, và mô hình khác sau này). Thư mục này không nằm trong gói ứng dụng.
+mô hình của macOS ở các chế độ khác nhau; thuật toán `Proofreader.restore` từng là mốc so sánh, đã gỡ 2026-11-26). Thư mục này không nằm trong gói ứng dụng.
 
 Mỗi dòng: `câu gõ <TAB> câu đúng <TAB> loại`. Dòng bắt đầu bằng `#` là ghi chú.
 
@@ -47,7 +47,17 @@ có thể ra bộ câu khác; bản hiện tại sinh ngày 2026-11-26.
 swift run -c release vnkey-tool eval --engine all --json ket-qua.json
 ```
 
-`--engine local|apple|apple-raw|all`, `--kind <loại>`, `--limit N`, `--set <tệp.tsv>`. Chạy từ gốc dự án.
+`--engine apple|apple-raw|apple-retry|apple-open|all` (`apple-retry`: bị bộ lọc an toàn từ chối thì hỏi lại ở mức dành cho việc biến đổi văn bản, như ứng dụng làm), `--kind <loại>`, `--limit N`, `--set <tệp.tsv>`, `--part a|b` (nửa câu chẵn / lẻ), `--instructions <tệp>` (thử lời nhắc khác). Chạy từ gốc dự án.
+
+## Đo bộ soát lỗi theo từ
+
+```bash
+swift run -c release vnkey-tool check-eval
+```
+
+Chạy `Proofreader.check` (thứ ứng dụng gạch chân) trên cột "câu gõ" rồi so từng từ với cột "câu đúng": từ sai nào được
+gạch, đề nghị đứng đầu có đúng không, từ đúng nào bị gạch nhầm. Từ sai chia ba loại: viết không dấu (bộ soát cố ý không
+gạch riêng lẻ), chữ không có thật (không phải tiếng Việt cũng không phải tiếng Anh), trùng một từ có thật.
 
 ## Nguồn và giấy phép
 

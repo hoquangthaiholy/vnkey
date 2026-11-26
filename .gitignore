@@ -6,5 +6,3 @@ build/
 *.xcuserstate
 *.xcuserdatad/
 .claude/launch.json
-Training/.venv/
-Training/work/

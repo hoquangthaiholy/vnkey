@@ -37,6 +37,48 @@ final class EnglishLexicon: Lexicon {
         #expect(issues.first?.kind == .missingMark)
     }
 
+    /// Chữ không phải tiếng Việt cũng không phải tiếng Anh vì LẶP hoặc ĐẢO chữ cái (đo 2026-11-26 bằng
+    /// `vnkey-tool check-eval`: 25 chữ kiểu này bị bỏ sót vì không cách thêm dấu nào ra từ).
+    @Test(arguments: [
+        ("tôi khôgn biết", "khôgn>không"), ("đợi mộtt chút", "mộtt>một"), ("tôi đãã về", "đãã>đã"),
+        ("đến lcú đó", "lcú>lúc"), ("để tôi xemm", "xemm>xem"), ("tôi rất vuii", "vuii>vui"),
+        ("anh giúpp tôi", "giúpp>giúp"), ("đi ngayy đi", "ngayy>ngay"), ("tôi muaa sách", "muaa>mua"),
+        ("tôi nghee nhạc", "nghee>nghe"), ("Khôgn sao đâu", "Khôgn>Không"),
+    ])
+    func repeatedAndSwappedLetters(text: String, want: String) {
+        #expect(found(text) == [want])
+    }
+
+    @Test func repeatedLetterKinds() {
+        #expect(reader().check("đợi mộtt chút").first?.kind == .doubledKey)
+        #expect(reader().check("tôi khôgn biết").first?.kind == .swappedKeys)
+    }
+
+    /// Tên riêng viết hoa không bị đoán là viết sai của một từ thường (đo 2026-11-26: "Huế" bị đề nghị "Huệ",
+    /// "Nguyễn" thành "Nguyện"). Thiếu dấu rõ ràng ("Viêt") vẫn gạch.
+    @Test(arguments: [
+        "Nguyễn Du là tác giả của Truyện Kiều.", "Cho tôi một tô bún bò Huế.", "Trịnh Công Sơn là nhạc sĩ tôi yêu thích.",
+        "Sông Hương chảy qua thành phố Huế.", "Buôn Ma Thuột nổi tiếng về cà phê.", "Bé Bống năm nay lên ba tuổi.",
+        "Chị Thuỷ quê ở Quảng Ngãi.",
+    ])
+    func properNamesAreLeftAlone(text: String) {
+        #expect(found(text) == [])
+    }
+
+    @Test func capitalisedWordStillFlaggedForMissingMark() {
+        #expect(found("tôi ở Viêt Nam") == ["Viêt>Việt"])
+    }
+
+    /// Từ rất thông dụng đứng cạnh một từ mà cặp đó không có trong bảng: không vì thế mà đoán nó viết sai.
+    @Test(arguments: [
+        "Có ai muốn một miếng bánh khác không?", "Bạn tới sớm quá.", "Ông ta luôn đặt lợi ích của bản thân lên trên hết.",
+        "Sóng vỗ rì rào vào bờ cát.",
+    ])
+    // Chưa chắn được: "mài sắt" vẫn bị đề nghị "sắc" ("mài sắc" là từ ghép, "sắt" không đủ thông dụng).
+    func commonWordsAreNotSecondGuessed(text: String) {
+        #expect(found(text) == [])
+    }
+
     /// Người dùng yêu cầu (2026-11-25): phân biệt chữ GÕ NHẦM ("duojc", "viêt": thiếu hoặc trật phím) với chữ SAI
     /// CHÍNH TẢ ("dới" viết cho "với": lẫn d / v / gi). Chữ là âm tiết đúng cấu tạo nhưng không có trong bảng thì thử
     /// thêm các cặp âm hay lẫn; đề nghị đứng đầu thuộc loại nào thì chỗ đó mang loại ấy (app tô đỏ / cam).
@@ -213,34 +255,6 @@ final class EnglishLexicon: Lexicon {
         #expect(found("tôi lam việc") == [])  // "lam" không kết thúc bằng c/ch/p/t: có thể là từ không dấu thật
         let lex = EnglishLexicon(words: ["chat", "at"])
         #expect(found("tôi chat với bạn at đây", reader(lexicon: lex)) == [])
-    }
-
-    /// Thêm dấu cả câu không cần mô hình ngôn ngữ (`restore`): đường dự phòng cho máy không có Apple Intelligence.
-    @Test(arguments: [
-        ("em co muon lam viec voi thay khong", "em có muốn làm việc với thầy không"),
-        ("hom nay troi dep qua", "hôm nay trời đẹp quá"),
-        ("toi dang hoc tieng viet", "tôi đang học tiếng việt"),
-        ("Tiếng viet giàu và đẹp.", "Tiếng việt giàu và đẹp."),
-        ("tôi đươc nghỉ hai ngày", "tôi được nghỉ hai ngày"),
-        ("Đi vễ nhà thôi", "Đi về nhà thôi"),
-        ("em làm việc dới thầy", "em làm việc với thầy"),
-        ("cảm ơn bạn đã chia sẽ", "cảm ơn bạn đã chia sẻ"),
-        ("bánh trưng ngày tết", "bánh chưng ngày tết"),
-        ("dữ gìn sức khoẻ nhé", "giữ gìn sức khoẻ nhé"),
-        // Câu đã đúng, tiếng Anh xen kẽ, code, chữ viết hoa: giữ nguyên.
-        ("anh ấy tậu xe mới", "anh ấy tậu xe mới"), ("hôm nay trời đẹp quá", "hôm nay trời đẹp quá"),
-        ("mở tệp user_name.txt đi", "mở tệp user_name.txt đi"), ("", ""), ("123 !!!", "123 !!!"),
-    ])
-    func restoresAWholeSentence(text: String, want: String) {
-        #expect(reader().restore(text) == want)
-    }
-
-    /// Có từ điển tiếng Anh: từ tiếng Anh xen trong câu được giữ, nhưng "co", "lam" (cũng là từ tiếng Anh theo từ điển)
-    /// giữa câu tiếng Việt vẫn được thêm dấu.
-    @Test func restoreKeepsEnglishWords() {
-        let lex = EnglishLexicon(words: ["file", "data", "user", "co", "lam", "cho"])
-        #expect(reader(lexicon: lex).restore("gửi file data cho user nhé") == "gửi file data cho user nhé")
-        #expect(reader(lexicon: lex).restore("em co muon lam viec khong") == "em có muốn làm việc không")
     }
 
     @Test func skippedWordsAreNotFlagged() {

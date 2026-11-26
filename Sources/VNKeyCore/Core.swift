@@ -247,15 +247,6 @@ public enum ListFormat {
         return d
     }
 
-    /// Số dòng trong ô gõ tắt sẽ bị bỏ qua vì sai định dạng (thiếu dấu =, hoặc trống một vế).
-    public static func skippedMacroLines(in text: String) -> Int {
-        lines(text).filter { l in
-            let p = l.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-            return !(p.count == 2 && !p[0].isEmpty && !p[1].isEmpty)
-        }.count
-    }
-
     /// Các dòng của bảng gõ tắt -> từ điển gõ tắt. Dòng chưa dùng được bị bỏ qua và được đếm: thiếu từ tắt
     /// hoặc nội dung, hay từ tắt có ký tự không phải chữ (engine tra theo TỪ vừa gõ xong, mà dấu cách, dấu
     /// câu, chữ số đều ngắt từ). Từ tắt trùng nhau: dòng sau thắng.
@@ -285,10 +276,6 @@ public enum ListFormat {
             choice[key] = r.count > 1 && r[1] == "1"
         }
         return (order.filter { choice[$0] == false }, order.filter { choice[$0] == true })
-    }
-
-    public static func learnedRows(raw: [String], vn: [String]) -> [[String]] {
-        (raw.map { [$0, "0"] } + vn.map { [$0, "1"] }).sorted { $0[0] < $1[0] }
     }
 
     public static func text(from macros: [String: String]) -> String {

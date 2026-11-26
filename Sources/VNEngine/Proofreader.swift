@@ -10,6 +10,8 @@ public struct ProofIssue: Equatable, Sendable {
         case slippedKey
         /// Hai phím gõ đảo chỗ ("tieegns" là "tiếng").
         case swappedKeys
+        /// Một chữ cái gõ lặp ("mộtt" là "một", "xemm" là "xem").
+        case doubledKey
         /// Lỗi gõ người dùng đã tự sửa nhiều lần ("goc" là "gõ").
         case learnedTypo
         /// Từ có dấu thanh gõ nhầm ("vễ" là "về").
@@ -58,18 +60,6 @@ public final class Proofreader {
     public static func frequency(of word: String) -> Int { CommonWords.count(word) }
     /// Từ không soát (chữ thường): từ người dùng bảo bỏ qua, từ đã nhớ là giữ phím gốc / giữ tiếng Việt.
     public var skip: Set<String> = []
-
-    /// THỬ NGHIỆM (bộ đo `vnkey-tool eval --engine hybrid:…`): điểm của một mô hình bên ngoài cho từng từ của câu, để
-    /// `restore` cân cùng bảng tần suất và bảng cặp. Nhận các từ của câu (như `restore` tách), trả về cho mỗi từ một
-    /// bảng khoá âm tiết (`Charset.syllableKey`) -> log xác suất; khoá "" là "giữ nguyên từ đang viết". Trả nil (hoặc
-    /// số từ không khớp) thì `restore` chạy như không có mô hình. Mặc định nil: ứng dụng chưa dùng.
-    public var guide: (([String]) -> [[String: Double]]?)?
-    /// Trọng số của điểm mô hình so với điểm của bảng.
-    public var guideWeight = 2.0
-    /// Điểm cho ứng viên mà mô hình không nhắc tới.
-    public var guideFloor = -10.0
-    /// Số ứng viên đứng đầu của mô hình được thêm vào danh sách ứng viên của mỗi từ.
-    public var guideAdds = 2
 
     public init() {}
 
@@ -136,7 +126,16 @@ public final class Proofreader {
         for (i, t) in tokens.enumerated() where !taken.contains(i) && usable(t) {
             let prev = t.joined ? tokens[i - 1] : nil
             let next = i + 1 < tokens.count && tokens[i + 1].joined ? tokens[i + 1] : nil
-            findings[i] = learnedTypo(t) ?? (t.marked ? missingMark(t, prev, next) ?? wrongCompound(t, prev, next) : plainWord(t, prev, next))
+            findings[i] = learnedTypo(t)
+                ?? (t.marked ? missingMark(t, prev, next) ?? letterSlip(t, prev, next) ?? wrongCompound(t, prev, next) : plainWord(t, prev, next))
+            // Tên riêng (viết hoa giữa câu, hoặc viết hoa và đứng trước một từ viết hoa: "bún bò Huế", "Nguyễn Du", "Sông
+            // Hương") không bị đoán là viết sai của một từ thường. Lẫn âm và đổi thanh chỉ là phỏng đoán; thiếu dấu, lặp
+            // và đảo chữ ("Viêt", "Khôgn") thì chữ đang viết không phải từ nào cả nên vẫn gạch. Đo 2026-11-26.
+            if let f = findings[i], f.kind == .spelling || f.kind == .wrongTone, t.text.first?.isUppercase == true,
+                t.joined || (next?.text.first?.isUppercase ?? false)
+            {
+                findings[i] = nil
+            }
         }
 
         // Hai từ liền nhau cùng cần sửa: gộp thành một chỗ, đề nghị cả cụm (cặp nào hay đi với nhau đứng trước).
@@ -423,17 +422,11 @@ public final class Proofreader {
         }
     }
 
-    /// Cả bảng âm tiết thông dụng kèm số lần gặp và các cách viết nhầm của từng âm tiết (lẫn âm, lẫn thanh). Dùng để
-    /// dựng dữ liệu train mô hình sửa câu (`vnkey-tool train-tables`).
-    public func confusionTable() -> [(word: String, count: Int, sound: [String], tone: [String], anySound: [String], anyTone: [String])] {
-        // Sau bảng thông dụng là các âm tiết hiếm của từ điển từ ghép (số lần = 0): có thật, nhưng ít gặp.
-        (CommonWords.keys + Compounds.rareKeys).compactMap { key in
-            guard let digit = key.last?.wholeNumberValue, let tone = Tone(rawValue: digit), let word = spell(Array(key.dropLast()), tone)
-            else { return nil }
-            return (
-                word, CommonWords.count(word), confusions(of: word), confusions(of: word, tonesOnly: true),
-                confusions(of: word, anySyllable: true), retoned(word))
-        }
+    /// Từ tiếng Việt có thật theo dữ liệu của bộ soát: có trong bảng tần suất, hoặc là từ đơn hiếm của từ điển từ ghép.
+    /// Cho bộ đo (`vnkey-tool check-eval`) phân loại lỗi "ra chữ không có thật" và "trùng một từ có thật".
+    public func isKnownWord(_ word: String) -> Bool {
+        let w = word.lowercased()
+        return CommonWords.count(w) >= CommonWords.tableFloor || Compounds.isRareWord(w)
     }
 
     /// Tách một từ (chữ thường) thành các chữ cái đã bỏ thanh và thanh của nó.
@@ -471,7 +464,10 @@ public final class Proofreader {
     /// thì ra một từ ghép trong từ điển. Điều kiện chặt để không gạch từ đúng: "ăn chưa" hay gặp nên không bị đổi
     /// thành "ăn trưa". Không đụng tới i / y ("xử lí" và "xử lý" đều được chấp nhận).
     private func wrongCompound(_ t: Token, _ prev: Token?, _ next: Token?) -> Finding? {
-        guard CommonWords.count(t.lower) >= CommonWords.tableFloor, prev != nil || next != nil,
+        // Từ rất thông dụng ("khác", "tới", "đặt", "vào") đi được với gần như mọi từ, nên cặp không có trong bảng chưa
+        // nói lên điều gì: "bánh khác" không phải "bánh khách" viết sai (đo 2026-11-26 trên `Eval/`).
+        guard CommonWords.count(t.lower) >= CommonWords.tableFloor, CommonWords.count(t.lower) < Proofreader.tooCommonToDoubt,
+            prev != nil || next != nil,
             !inCompound(t.lower, prev, next), neighbours(t.lower, prev, next).mine == 0
         else { return nil }
         func plainIY(_ w: String) -> String { String(Charset.stripMarks(w).map { $0 == "y" ? "i" : $0 }) }
@@ -548,7 +544,9 @@ public final class Proofreader {
         if Engine.builtinEnglish.contains(t.lower) || lexicon?.isEnglish(t.lower) == true { return nil }
         if Charset.syllableKey(t.lower) != nil { return nil }  // âm tiết không dấu đúng cấu tạo: người ta vẫn viết vậy
         if plainKeys, let comp = Composer.replay(keys, config) {
-            if let f = swapped(keys, comp) ?? slipped(keys, comp, prev, next) { return f }
+            // `letterSlip` đi trước việc thêm dấu: "muaa" trên màn hình là "mua" gõ lặp, không phải "mâu" thiếu dấu.
+            if let f = letterSlip(t, prev, next), f.kind == .doubledKey { return f }
+            if let f = swapped(keys, comp) ?? slipped(keys, comp, prev, next) ?? letterSlip(t, prev, next) { return f }
             // Chuỗi phím còn nằm nguyên trên màn hình vì gõ ra chữ chưa thành từ ("duojc" là "duọc"), hoặc gõ khi
             // VNKey đang tắt ("tieesng"): đề nghị từ có dấu gần nhất.
             if !comp.isLiteral, comp.hasVowel, comp.shown.contains(where: { !$0.isASCII }), let f = marks(for: comp, prev, next) {
@@ -562,7 +560,44 @@ public final class Proofreader {
                 return f
             }
         }
-        return english(t, prev, next)
+        return letterSlip(t, prev, next) ?? english(t, prev, next)
+    }
+
+    /// Từ thông dụng tới mức này thì `wrongCompound` không nghi là viết sai của từ khác. Thử 20.000 / 10.000 / 5.000
+    /// (2026-11-26): ở 10.000 "đặt lợi ích" còn bị đề nghị "đặc"; ở 5.000 "bánh trưng", "dữ gìn" vẫn bắt được.
+    static let tooCommonToDoubt = CommonWords.veryCommon
+    /// Ứng viên KHÔNG dấu của `letterSlip` ("xem", "vui") phải thông dụng cỡ này: chữ lạ không dấu có thể là tên, từ mượn.
+    private static let plainSlipFloor = 1000
+
+    /// Chữ không phải âm tiết, không có trong bảng, mà BỎ một chữ cái gõ lặp ("mộtt", "đãã", "xemm") hoặc ĐỔI CHỖ hai
+    /// chữ cái liền nhau ("khôgn", "lcú") thì ra một từ trong bảng. Làm trên chữ đang hiện, không phải chuỗi phím
+    /// (`swapped` lo chuỗi phím còn nguyên trên màn hình). Xếp theo từ bên cạnh rồi độ thông dụng.
+    private func letterSlip(_ t: Token, _ prev: Token?, _ next: Token?) -> Finding? {
+        let chars = Array(t.lower)
+        guard (3...10).contains(chars.count), chars.allSatisfy(\.isLetter), Charset.syllableKey(t.lower) == nil,
+            CommonWords.count(t.lower) < CommonWords.tableFloor, (context?.count(t.lower) ?? 0) < 2
+        else { return nil }
+        var found: [(word: String, kind: ProofIssue.Kind, mine: Int, corpus: Int, base: Int)] = []
+        func consider(_ c: [Character], _ kind: ProofIssue.Kind) {
+            let w = String(c), n = CommonWords.count(w)
+            guard n >= (w.allSatisfy(\.isASCII) ? Proofreader.plainSlipFloor : CommonWords.tableFloor), !found.contains(where: { $0.word == w })
+            else { return }
+            let around = neighbours(w, prev, next)
+            found.append((w, kind, around.mine, around.corpus, n + 1000 * (context?.count(w) ?? 0)))
+        }
+        for i in 0..<(chars.count - 1) {
+            var c = chars
+            if chars[i] == chars[i + 1] {
+                c.remove(at: i + 1)
+                consider(c, .doubledKey)
+            } else {
+                c.swapAt(i, i + 1)
+                consider(c, .swappedKeys)
+            }
+        }
+        guard !found.isEmpty else { return nil }
+        found.sort { ($0.mine, $0.corpus, $0.base) > ($1.mine, $1.corpus, $1.base) }
+        return Finding(kind: found[0].kind, suggestions: found.prefix(Proofreader.limit).map { Proofreader.cased($0.word, like: t.text) })
     }
 
     /// Đổi chỗ hai phím liền nhau thì ra một từ có dấu trong bảng ("tieegns" -> "tiếng").
@@ -628,122 +663,6 @@ public final class Proofreader {
         let guesses = lex.englishGuesses(t.lower).filter { $0.lowercased() != t.lower }
         guard !guesses.isEmpty else { return nil }
         return Finding(kind: .english, suggestions: Array(guesses.prefix(Proofreader.limit)))
-    }
-
-    // MARK: - Thêm dấu cả câu
-
-    /// Sửa cả câu KHÔNG cần mô hình ngôn ngữ (đường dự phòng cho máy không có Apple Intelligence, người dùng chốt
-    /// 2026-11-25): chọn cho mỗi từ một cách viết sao cho cả câu "thuận" nhất, bằng bảng tần suất âm tiết, bảng cặp âm
-    /// tiết, từ điển từ ghép và thói quen của người dùng (thuật toán Viterbi: mỗi từ được chọn theo cả từ trước lẫn từ
-    /// sau). Ứng viên của một từ là chính nó và các cách THÊM dấu ra từ có trong bảng; từ có dấu mà không có trong bảng
-    /// thì thêm cả các cách lẫn âm / đổi thanh. Từ có dấu đã đúng, từ tiếng Anh, chữ viết tắt, ngữ cảnh code giữ nguyên.
-    /// Chỉ sửa chính tả và dấu: không viết lại, không dịch.
-    public func restore(_ text: String) -> String {
-        let tokens = tokenize(text)
-        guard !tokens.isEmpty else { return text }
-        learned = [:]
-        // Ứng viên của từng từ (chữ thường); phần tử đầu luôn là chính từ đó.
-        var options: [[String]] = []
-        var english = [Bool](repeating: false, count: tokens.count)
-        /// Từ có dấu, có trong bảng, nhưng có cách viết khác tạo thành từ ghép với từ bên cạnh: không được ưu tiên giữ.
-        var contested = [Bool](repeating: false, count: tokens.count)
-        for (i, t) in tokens.enumerated() {
-            var list = [t.lower]
-            let fixed = t.code || skip.contains(t.lower) || (t.text.count > 1 && t.text == t.text.uppercased() && t.text != t.lower)
-                || !t.text.allSatisfy(\.isLetter)
-            // Từ tiếng Anh không bị khoá cứng: từ điển tiếng Anh nhận cả "co", "lam", "hop", "dang", "hoc". Nó chỉ được
-            // cộng điểm cho cách viết gốc; câu quanh nó là tiếng Việt thì ứng viên có dấu vẫn thắng.
-            english[i] = !t.marked && (Engine.builtinEnglish.contains(t.lower) || lexicon?.isEnglish(t.lower) == true)
-            if !fixed {
-                let prev = t.joined ? tokens[i - 1] : nil
-                let next = i + 1 < tokens.count && tokens[i + 1].joined ? tokens[i + 1] : nil
-                if t.marked, CommonWords.count(t.lower) >= CommonWords.tableFloor {
-                    // Từ có dấu, có trong bảng: chỉ xét đổi khi một cách viết lẫn âm tạo thành TỪ GHÉP với từ bên cạnh
-                    // ("chia sẽ" -> sẻ, "bánh trưng" -> chưng, "dữ gìn" -> giữ).
-                    // Từ đang viết đã tạo thành từ ghép với từ bên cạnh ("ngày tết") thì không xét.
-                    if !inCompound(t.lower, prev, next) {
-                        list += mixups(t.lower, anySyllable: true).filter { inCompound($0, prev, next) }
-                        contested[i] = list.count > 1
-                    }
-                } else if t.marked {
-                    list += (missingMark(t, prev, next)?.suggestions ?? []).map { $0.lowercased() }
-                } else if let comp = composer(from: t.text), comp.hasVowel {
-                    var seen: Set<String> = [t.lower]
-                    let marked = Predictor.candidates(for: comp, teen: false).map { $0.shown.lowercased() }
-                        .filter { CommonWords.count($0) >= CommonWords.tableFloor && seen.insert($0).inserted }
-                        .sorted { CommonWords.count($0) > CommonWords.count($1) }
-                    list += marked.prefix(8)
-                }
-            }
-            options.append(list)
-        }
-        // Điểm của mô hình bên ngoài (nếu có): thêm ứng viên đứng đầu của nó, rồi cộng điểm vào từng ứng viên.
-        var hints = guide?(tokens.map(\.text))
-        if hints?.count != tokens.count { hints = nil }
-        if let hints {
-            for i in tokens.indices where options[i].count > 1 || !(tokens[i].code || skip.contains(tokens[i].lower)) {
-                guard tokens[i].text.allSatisfy(\.isLetter) else { continue }
-                let have = Set(options[i].compactMap(Charset.syllableKey))
-                let top = hints[i].filter { !$0.key.isEmpty && !have.contains($0.key) }.sorted { $0.value > $1.value }.prefix(guideAdds)
-                for (key, _) in top {
-                    guard let digit = key.last?.wholeNumberValue, let tone = Tone(rawValue: digit), let word = spell(Array(key.dropLast()), tone)
-                    else { continue }
-                    options[i].append(word)
-                }
-            }
-        }
-        func hint(_ i: Int, _ w: String, original: Bool) -> Double {
-            guard let hints else { return 0 }
-            var lp = Charset.syllableKey(w).flatMap { hints[i][$0] } ?? guideFloor
-            if original { lp = max(lp, hints[i][""] ?? guideFloor) }
-            return guideWeight * lp
-        }
-        // Điểm của một từ: độ thông dụng (thang log). Từ gốc không có trong bảng (chữ chưa có dấu, chữ lạ) được một
-        // điểm sàn thấp, nên chỉ thắng khi không ứng viên nào hợp.
-        func emission(_ w: String, original: Bool, marked: Bool, english: Bool, contested: Bool) -> Double {
-            let n = CommonWords.count(w) + 1000 * (context?.count(w) ?? 0)
-            var score = log(Double(n) + 1)
-            if original, !contested { score += (marked ? 2 : n > 0 ? 0 : 2) + (english ? 3 : 0) }
-            return score
-        }
-        func transition(_ a: String, _ b: String) -> Double {
-            let n = CommonPairs.count(b, after: a) + 1000 * (context?.pairCount(b, after: a) ?? 0) + (Compounds.contains(a, b) ? Proofreader.compoundBonus : 0)
-            return 2 * log(Double(n) + 1)
-        }
-        var best: [[Double]] = [], back: [[Int]] = []
-        for i in tokens.indices {
-            var row: [Double] = [], from: [Int] = []
-            for (k, w) in options[i].enumerated() {
-                let e = emission(w, original: k == 0, marked: tokens[i].marked, english: english[i], contested: contested[i])
-                    + hint(i, w, original: k == 0)
-                if i == 0 || !tokens[i].joined {
-                    // Đầu câu hoặc sau dấu câu: không có từ đứng trước để xét, nhưng vẫn nối tiếp điểm tốt nhất phía trước.
-                    let carry = i == 0 ? 0 : (best[i - 1].max() ?? 0)
-                    row.append(carry + e)
-                    from.append(i == 0 ? 0 : best[i - 1].firstIndex(of: best[i - 1].max() ?? 0) ?? 0)
-                } else {
-                    var top = -Double.infinity, arg = 0
-                    for (j, p) in options[i - 1].enumerated() {
-                        let s = best[i - 1][j] + transition(p, w)
-                        if s > top { top = s; arg = j }
-                    }
-                    row.append(top + e)
-                    from.append(arg)
-                }
-            }
-            best.append(row)
-            back.append(from)
-        }
-        var pick = [Int](repeating: 0, count: tokens.count)
-        pick[tokens.count - 1] = best[tokens.count - 1].firstIndex(of: best[tokens.count - 1].max() ?? 0) ?? 0
-        for i in stride(from: tokens.count - 1, to: 0, by: -1) { pick[i - 1] = back[i][pick[i]] }
-        // Ghép lại: thay từng từ theo vị trí UTF-16, từ cuối lên để vị trí phía trước không xê dịch.
-        var units = Array(text.utf16)
-        for i in tokens.indices.reversed() where pick[i] != 0 {
-            let word = Proofreader.cased(options[i][pick[i]], like: tokens[i].text)
-            units.replaceSubrange(tokens[i].range, with: Array(word.utf16))
-        }
-        return String(utf16CodeUnits: units, count: units.count)
     }
 
     /// `word` (chữ thường) viết theo kiểu hoa/thường của `sample`.
