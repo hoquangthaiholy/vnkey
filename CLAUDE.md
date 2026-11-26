@@ -136,7 +136,7 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   `--snapshot`: nét gạch trượt ra, dải sáng khi chữ được thay (`Proofing.pulse`), bảng nổi phóng nhẹ lúc hiện. Nét gạch
   ẩn khi cửa sổ chứa ô nhập dời / đổi cỡ (`AXObserver` + so khung mỗi nhịp). Tất cả CHƯA được kiểm chứng trên app thật.
 - Bảng AI cho câu và đoạn văn (`AIPanel` trong `Proofing.swift`, `SentenceFix.swift`, công tắc `proofreadSentence`),
-  RIÊNG với bảng đề nghị cho từ. Mở bằng nút ✦ (`AIChip`) hiện ra khi chuột dừng 0,45 giây trên một câu (hỏi ứng dụng
+  RIÊNG với bảng đề nghị cho từ. Mở bằng cách BẤM nút ✦ (`AIChip`; rê chuột vào không mở, và nút vẫn hiện khi bảng đề nghị của một từ trong câu mở ra: người dùng yêu cầu 2026-11-26, chưa kiểm chứng) hiện ra khi chuột dừng 0,45 giây trên một câu (hỏi ứng dụng
   `AXRangeForPosition`), hoặc biểu tượng ✦ trong bảng từ. Bảng được ghim; có thẻ theo `SentenceTask` (fix, improve,
   rewrite, shorten, expand, translate Việt ↔ Anh, compose = viết thành câu từ vài ý), hai nút phạm vi (câu / đoạn),
   nút thử lại (`fresh`: bỏ bộ đệm, cho mô hình chọn từ ngẫu nhiên hơn), và "Dùng". Không tự thay.

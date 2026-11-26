@@ -832,7 +832,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 SentenceFix.available
                     ? toggle(
                         L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
-                        L("Rê chuột lên một câu rồi vào nút ✦: sửa chính tả, cải tiến, viết lại, rút gọn, mở rộng, dịch, hoặc viết thành câu từ vài ý. Dùng mô hình chạy trên máy của macOS: không có gì rời khỏi máy. Bạn chọn thì mới thay.", "Rest the pointer on a sentence and move to ✦: fix spelling, improve, rewrite, shorten, expand, translate, or write sentences from notes. Uses the macOS on-device model: nothing leaves this Mac. Nothing changes until you choose."),
+                        L("Rê chuột lên một câu rồi bấm nút ✦: sửa chính tả, cải tiến, viết lại, rút gọn, mở rộng, dịch, hoặc viết thành câu từ vài ý. Dùng mô hình chạy trên máy của macOS: không có gì rời khỏi máy. Bạn chọn thì mới thay.", "Rest the pointer on a sentence and click ✦: fix spelling, improve, rewrite, shorten, expand, translate, or write sentences from notes. Uses the macOS on-device model: nothing leaves this Mac. Nothing changes until you choose."),
                         key: Key.proofreadSentence, dependsOn: Key.proofread)
                     : row(
                         L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),

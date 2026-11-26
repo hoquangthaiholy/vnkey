@@ -22,9 +22,9 @@ and English without switching modes, underlines likely typos with suggestions, a
   dấu (`veeg` thay cho `veef`), gõ đảo phím (`tieegns`), và cả tiếng Anh nếu bạn bật. Rê chuột lên đó (hoặc đưa con trỏ vào bằng `←` `→`) để chọn đề
   nghị (xếp theo từ đứng cạnh: `tiếng viêt` → `việt`, `bài viêt` → `viết`) hoặc thêm từ vào từ điển của bạn. VNKey không tự thay chữ của bạn. Hiện
   chạy trong ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), chưa chạy trên trang web.
-- **Trợ lý cho câu và đoạn văn (✦):** để chuột dừng trên một câu rồi vào nút ✦ để thêm dấu và sửa chính tả cả câu.
-  Trên macOS 26 trở lên có Apple Intelligence còn có cải tiến, viết lại, rút gọn, mở rộng, dịch Việt ↔ Anh và viết thành
-  câu từ vài ý, bằng mô hình ngôn ngữ chạy ngay trên máy. Bạn xem kết quả rồi mới thay.
+- **Trợ lý cho câu và đoạn văn (✦):** để chuột dừng trên một câu rồi bấm nút ✦: sửa chính tả, cải tiến, viết lại, rút
+  gọn, mở rộng, dịch Việt ↔ Anh và viết thành câu từ vài ý, bằng mô hình ngôn ngữ chạy ngay trên máy. Cần macOS 26 trở
+  lên có Apple Intelligence; máy khác không có trợ lý này. Bạn xem kết quả rồi mới thay.
 - **Học từ cách bạn gõ:** nhớ từ bạn muốn giữ nguyên và các cặp từ bạn hay gõ; gõ `lầm lỗi` vài lần thì `lam loi`
   không dấu sẽ được đề nghị sửa thành `lầm lỗi`. Sửa cùng một lỗi hai lần (`goc` thành `gõ`) thì lần sau VNKey gạch
   chân và đề nghị. Dữ liệu chỉ nằm trên máy, xem và xoá được trong Cài đặt.

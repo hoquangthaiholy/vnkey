@@ -372,7 +372,9 @@ final class Proofing {
         let now = Date()
         if let over = marks.first(where: { $0.rects.contains { $0.insetBy(dx: -2, dy: -3).contains(p) } }) {
             leftAt = nil
-            hideHint()
+            // Nút ✦ của câu đang hiện thì GIỮ khi chuột đi vào một từ bị gạch (người dùng yêu cầu 2026-11-26): bảng đề
+            // nghị cho từ và nút ✦ cho câu cùng hiện.
+            hintLeftAt = nil
             if shownIssue == over.issue { return }
             if hovered != over.issue {
                 hovered = over.issue
@@ -397,12 +399,9 @@ final class Proofing {
             return
         }
         guard sentenceOn else { return overlay.highlight([]) }
-        // Nút ✦ đang hiện cho một câu: giữ khi chuột còn trên câu đó hoặc trên đường tới nút; vào nút thì mở bảng AI.
+        // Nút ✦ đang hiện cho một câu: giữ khi chuột còn trên câu đó, trên đường tới nút, hoặc trên nút. Bảng AI chỉ mở
+        // khi BẤM nút (`chip.onOpen`), không mở khi rê chuột vào (người dùng yêu cầu 2026-11-26).
         if let hint {
-            if chip.frame.insetBy(dx: -2, dy: -2).contains(p) {
-                hintLeftAt = nil
-                return openAI(index: hint.index, anchor: hint.rects.first)
-            }
             let zone = hint.rects.reduce(chip.frame) { $0.union($1) }.insetBy(dx: -6, dy: -6)
             if zone.contains(p) {
                 hintLeftAt = nil
@@ -714,7 +713,6 @@ final class Proofing {
         overlay.highlight(mark.rects, mark.color)
         Log.write("PROOF rê chuột loại=\(mark.issue.kind.rawValue) đề nghị=\(mark.issue.suggestions.count)")
         asking += 1
-        hideHint()
         let whole = sentenceOn && SentenceFilter.sentence(in: text, around: mark.issue.range) != nil
         if whole { SentenceFix.warm() }
         popover.show(mark.issue, below: anchor, ai: whole)
@@ -731,6 +729,8 @@ final class Proofing {
         caretOpened = false
         hovered = nil
         overlay.highlight([])
+        // Nút ✦ của câu còn hiện: tô lại nền câu đó.
+        if let hint, !aiOpen { overlay.highlight(hint.rects, .controlAccentColor, alpha: 0.1, clip: lastClip.flatMap(HUD.cocoa)) }
         popover.dismiss()
     }
 
@@ -1660,7 +1660,7 @@ private final class AIPanel: FloatingPanel {
     }
 }
 
-/// Nút ✦ nhỏ hiện cạnh câu mà chuột vừa dừng lên: đưa chuột vào (hoặc bấm) thì mở bảng AI cho câu đó.
+/// Nút ✦ nhỏ hiện cạnh câu mà chuột vừa dừng lên: BẤM thì mở bảng AI cho câu đó (rê chuột vào không mở).
 private final class AIChip {
     var onOpen: () -> Void = {}
     private let panel: NSPanel
