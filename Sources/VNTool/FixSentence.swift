@@ -4,6 +4,20 @@ import Foundation
 import FoundationModels
 import VNEngine
 
+/// Luôn chọn từ có xác suất cao nhất, để cùng một câu luôn cho cùng một kết quả. Tên tham số của Apple đổi giữa hai
+/// SDK: `sampling:` ở SDK macOS 26 (máy dựng bản phát hành), `samplingMode:` từ SDK macOS 27 (đi cùng Swift 6.4).
+/// Viết thẳng một trong hai tên thì bản phát hành không dựng được (đã gặp ở 2.1.0, 2026-11-26).
+@available(macOS 26.0, *)
+extension GenerationOptions {
+    static func greedy(maxTokens: Int) -> GenerationOptions {
+        #if compiler(>=6.4)
+        return GenerationOptions(samplingMode: .greedy, maximumResponseTokens: maxTokens)
+        #else
+        return GenerationOptions(sampling: .greedy, maximumResponseTokens: maxTokens)
+        #endif
+    }
+}
+
 /// THỬ NGHIỆM (2026-11-25): sửa cả câu bằng mô hình ngôn ngữ chạy trên máy của macOS (Foundation Models, từ macOS 26,
 /// cần bật Apple Intelligence). Chỉ là lệnh đo chất lượng và tốc độ trong `vnkey-tool`; ứng dụng chưa dùng. Không có
 /// gì rời khỏi máy.
@@ -24,7 +38,7 @@ enum SentenceFixer {
                 let start = Date()
                 do {
                     let answer = try await LanguageModelSession(instructions: task.instructions(for: text)).respond(
-                        to: task.prompt(for: text), options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 400))
+                        to: task.prompt(for: text), options: .greedy(maxTokens: 400))
                     print(String(format: "%5.0f ms  %@\n          -> %@", Date().timeIntervalSince(start) * 1000, text, task.clean(answer.content, original: text)))
                 } catch {
                     print("LỖI  \(text): \(error)")
@@ -52,7 +66,7 @@ enum SentenceFixer {
                 let start = Date()
                 do {
                     let answer = try await session.respond(
-                        to: text, options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 200))
+                        to: text, options: .greedy(maxTokens: 200))
                     let ms = Date().timeIntervalSince(start) * 1000
                     total += ms
                     let raw = answer.content.trimmingCharacters(in: .whitespacesAndNewlines)

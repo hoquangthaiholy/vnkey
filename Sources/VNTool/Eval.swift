@@ -43,7 +43,7 @@ final class AppleEngine: SentenceEngine {
         // Mỗi câu một phiên mới: câu trước không ảnh hưởng câu sau.
         let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
         let session = LanguageModelSession(model: model, instructions: instructions)
-        let answer = try await session.respond(to: text, options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 200))
+        let answer = try await session.respond(to: text, options: .greedy(maxTokens: 200))
         return answer.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     func fix(_ text: String) async throws -> String {

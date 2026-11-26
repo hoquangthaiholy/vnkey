@@ -6,6 +6,22 @@ import VNKeyCore
 import FoundationModels
 #endif
 
+#if canImport(FoundationModels)
+/// Luôn chọn từ có xác suất cao nhất, để cùng một câu luôn cho cùng một kết quả. Tên tham số của Apple đổi giữa hai
+/// SDK: `sampling:` ở SDK macOS 26 (máy dựng bản phát hành), `samplingMode:` từ SDK macOS 27 (đi cùng Swift 6.4).
+/// Viết thẳng một trong hai tên thì bản phát hành không dựng được (đã gặp ở 2.1.0, 2026-11-26).
+@available(macOS 26.0, *)
+extension GenerationOptions {
+    static func greedy(maxTokens: Int) -> GenerationOptions {
+        #if compiler(>=6.4)
+        return GenerationOptions(samplingMode: .greedy, maximumResponseTokens: maxTokens)
+        #else
+        return GenerationOptions(sampling: .greedy, maximumResponseTokens: maxTokens)
+        #endif
+    }
+}
+#endif
+
 /// Sửa cả câu bằng mô hình ngôn ngữ chạy TRÊN MÁY của macOS (framework Foundation Models: macOS 26 trở lên, cần bật
 /// Apple Intelligence). Không có gì rời khỏi máy. Kết quả của mô hình luôn đi qua `SentenceFilter.merge`: chỉ giữ chỗ
 /// sửa dấu / sửa âm của từng từ; dấu câu, hoa thường và từ tiếng Anh theo câu người dùng đã gõ. VNKey không tự thay:
@@ -61,7 +77,7 @@ enum SentenceFix {
                         to: task.prompt(for: sentence),
                         options: fresh
                             ? GenerationOptions(temperature: 0.9, maximumResponseTokens: 400)
-                            : GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 400))
+                            : .greedy(maxTokens: 400))
                     return task.clean(answer.content, original: sentence)
                 }
                 do {
