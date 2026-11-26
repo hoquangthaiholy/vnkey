@@ -1,6 +1,8 @@
 # Nhật ký thay đổi (CHANGELOG)
 
-## [Chưa phát hành]
+## [2.1.0] - 2026-11-26
+VNKey thôi tự sửa chữ của bạn: từ nghi gõ sai được gạch chân kèm đề nghị. Thêm bảng tạm, trợ lý viết ✦ chạy trên máy và gõ tắt thông minh.
+
 ### Thêm mới
 - **Bảng tạm (lịch sử clipboard)**: nhấn `⌃⌥V` để mở bảng ngay cạnh chỗ đang gõ; gõ để tìm (không cần dấu), `↩` để dán, `⌘1`…`⌘9` dán nhanh, `⌘P` ghim, `⌘⌫` xoá. Lưu 200 mục gần nhất gồm văn bản, đường dẫn, ảnh và tệp, chỉ trên máy. Văn bản chép từ Word, Pages, trình duyệt, Google Docs… giữ nguyên định dạng (RTF, RTFD, HTML) khi dán lại; `⇧↩` dán chữ trơn. Mỗi mục có thẻ nhỏ cho biết định dạng đang lưu (RTF, HTML…), và `⇥` › Markdown dịch định dạng đó thành cú pháp Markdown (`**đậm**`, liên kết, danh sách, bảng, khối mã). Mặc định tắt; bật ở Cài đặt › Bảng tạm. Nội dung mà trình quản lý mật khẩu đánh dấu riêng tư không được lưu.
 - **Chuyển bảng mã ngay khi dán**: văn bản TCVN3 (ABC), VNI Windows hay VIQR được nhận ra và dán thành Unicode; `⌥↩` dán nguyên gốc. Phím `⇥` mở "Dán dạng": Unicode dựng sẵn, Unicode tổ hợp, TCVN3, VNI Windows, VIQR, hoặc không dấu.
@@ -20,7 +22,12 @@
 - Gõ thừa một phím làm từ bị trả về phím gốc (`ddaayy`), xoá phím thừa đi rồi nhấn dấu cách thì từ được hiểu lại (`đây`).
 - `vnkey-tool check`: soát lỗi một đoạn văn bản từ dòng lệnh.
 
+- Các nút chỉ có biểu tượng trong bảng đề nghị và bảng trợ lý ✦ có chú thích khi rê chuột vào.
+- Cài đặt › Gõ tắt: nút "Xem danh sách…" mở bảng các biến dùng được, kèm ý nghĩa và giá trị ngay lúc đó.
+
 ### Sửa lỗi
+- Bảng đề nghị và bảng trợ lý ✦ nuốt phím `↩` / Enter ngay cả khi chưa chọn dòng nào; giờ phím đi thẳng tới ứng dụng.
+- Một câu tự sáng lên khi chuột chỉ đứng ở chỗ trống trong ô nhập, không nằm trên chữ của câu đó.
 - Gõ `Dd`, lỡ gõ một phím dấu (`j`) rồi xoá đi, gõ tiếp `ajt` ra "Đajt" thay vì "Đạt".
 - Sau hai từ tiếng Anh liên tiếp, `cos` bị giữ nguyên thay vì ra "có" (và gõ lại vẫn sai). Từ tiếng Việt rất thông dụng nay luôn được ưu tiên.
 
@@ -29,7 +36,9 @@
 - Thẻ "Việt & Anh" thành thẻ "Ngôn ngữ" với hai nhóm có công tắc chính: Tiếng Anh (gõ xen kẽ, ngữ cảnh, code, chính tả tiếng Anh) và Ngôn ngữ GenZ (chữ teen, bung viết tắt). Tắt công tắc chính thì các tuỳ chọn trong nhóm mất tác dụng.
 - Một công tắc "Ghi lại thói quen gõ" cho mọi việc học, và một bảng duy nhất cho mọi thứ VNKey đã nhớ (từ điển của bạn, từ giữ một dạng, lỗi gõ, cặp từ); chỉ xem và xoá.
 - Phím Đổi từ vừa gõ chỉ còn đổi giữa phím gốc và tiếng Việt.
-- **Cài đặt gọn hơn**: thẻ Đã nhớ nhập vào thẻ Chính tả.
+- **Cài đặt gọn hơn**: thẻ Đã nhớ nhập vào thẻ Chính tả, và thẻ Chính tả đổi tên thành "Gợi ý".
+- Bảng trợ lý ✦: nút "Dùng câu này" thành nút ✓ ở hàng chân, cạnh nút thử lại ↻; nút ✦ hiện nhanh hơn khi chuột dừng trên câu.
+- Biểu tượng trên thanh thẻ của Cài đặt canh đều nhau.
 
 ## [2.0.0] - 2026-11-24
 Bản viết lại hoàn toàn, **chỉ dành cho macOS** (12 trở lên), bằng Swift thuần. Bản 1.x đa nền tảng (Tauri, Rust,

@@ -57,7 +57,7 @@ Yêu cầu: macOS 12 trở lên, máy Apple silicon hoặc Intel.
 - Trên máy bạn, nó lưu: cài đặt, bảng gõ tắt, các từ đã nhớ, và một bảng đếm từ cùng cặp từ bạn hay gõ (không có
   câu) tại `~/Library/Application Support/VNKey/usage.json`.
 - Để soát lỗi, VNKey đọc nội dung ô bạn đang nhập qua quyền Trợ năng. Việc này chỉ diễn ra trên máy, không lưu lại,
-  không đọc ô mật khẩu, và tắt được ở Cài đặt › Chính tả. "Sửa cả câu" đưa câu đó cho mô hình ngôn ngữ của macOS chạy
+  không đọc ô mật khẩu, và tắt được ở Cài đặt › Gợi ý. "Sửa cả câu" đưa câu đó cho mô hình ngôn ngữ của macOS chạy
   trên chính máy bạn; câu không được gửi đi đâu.
 - Nhật ký gỡ lỗi (`~/Library/Logs/VNKey.log`) lưu cả nội dung gõ và **mặc định tắt**; chỉ bật khi cần báo lỗi.
 

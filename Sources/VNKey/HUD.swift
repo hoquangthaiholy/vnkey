@@ -170,7 +170,7 @@ final class HUD {
         if AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
             let focused, CFGetTypeID(focused) == AXUIElementGetTypeID()
         {
-            return (focused as! AXUIElement, nil, "")
+            return ((focused as! AXUIElement), nil, "")
         }
         guard let front = NSWorkspace.shared.frontmostApplication else { return (nil, nil, "không có ứng dụng ở trước") }
         let pid = front.processIdentifier
@@ -179,7 +179,7 @@ final class HUD {
         if AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
             let focused, CFGetTypeID(focused) == AXUIElementGetTypeID()
         {
-            return (focused as! AXUIElement, app, "qua ứng dụng ")
+            return ((focused as! AXUIElement), app, "qua ứng dụng ")
         }
         var note = "ứng dụng không báo ô đang nhập"
         if askedAccessibility.insert(pid).inserted {

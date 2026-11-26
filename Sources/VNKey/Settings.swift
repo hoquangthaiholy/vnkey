@@ -202,7 +202,7 @@ private enum Metrics {
     static let rowInset: CGFloat = 14  // lề trái/phải trong khung
     static let rowPadding: CGFloat = 10  // lề trên/dưới của một dòng
     static let rowMinHeight: CGFloat = 40
-    static let labelGap: CGFloat = 2  // tên -> mô tả
+    static let labelGap: CGFloat = 4  // tên -> mô tả
     static let controlGap: CGFloat = 8
 }
 
@@ -326,6 +326,28 @@ private final class SettingsWindow: NSWindow {
 final class SettingsController: NSObject, NSWindowDelegate {
     static var windowTitle: String { SettingsTabs.windowTitle }
     static let width: CGFloat = 580
+    /// Biểu tượng của một thẻ, vẽ vào khung CÙNG CỠ và canh giữa: các hình SF Symbols cao thấp khác nhau (bóng đèn có
+    /// tia, bảng tạm cao hơn bánh răng), để nguyên thì hình cao chạm sát chữ bên dưới còn hình thấp thì hở. Hình vượt
+    /// vùng vẽ thì thu nhỏ cho vừa.
+    private static func tabIcon(_ symbol: String, _ title: String) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 21, weight: .regular)
+        guard let glyph = NSImage(systemSymbolName: symbol, accessibilityDescription: title)?.withSymbolConfiguration(config) else { return nil }
+        // `gap`: khoảng trống thêm dưới hình, để biểu tượng không sát tên thẻ (người dùng yêu cầu 2026-11-26).
+        let gap: CGFloat = 6
+        let room = NSSize(width: 30, height: 24), canvas = NSSize(width: 30, height: room.height + 1 + gap)
+        let icon = NSImage(size: canvas, flipped: false) { rect in
+            let scale = min(1, room.width / glyph.size.width, room.height / glyph.size.height)
+            let size = NSSize(width: glyph.size.width * scale, height: glyph.size.height * scale)
+            glyph.draw(in: NSRect(x: (rect.width - size.width) / 2, y: gap + (rect.height - gap - size.height) / 2, width: size.width, height: size.height))
+            return true
+        }
+        icon.isTemplate = true
+        icon.accessibilityDescription = title
+        return icon
+    }
+
+    /// Bóng đèn có tia sáng (có từ macOS 14); máy cũ hơn dùng bóng đèn trơn.
+    private static let bulb = NSImage(systemSymbolName: "lightbulb.max", accessibilityDescription: nil) != nil ? "lightbulb.max" : "lightbulb"
     /// Đánh dấu một view cần giãn hết chiều ngang của thẻ.
     fileprivate static let wide = NSUserInterfaceItemIdentifier("wide")
     fileprivate static let titleID = NSUserInterfaceItemIdentifier("title")
@@ -342,7 +364,6 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private var telexSwitches: [NSSwitch] = []
     private var toneControl: NSSegmentedControl?
     private var loginSwitch: NSSwitch?
-    private var removeButton: NSButton?
     private var runningAppsMenu: NSPopUpButton?
     private var updateTitle: NSTextField?
     private var updateDetail: NSTextField?
@@ -354,7 +375,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         tabs.tabStyle = .toolbar
         for (title, symbol, view) in [
             (L("Chung", "General"), "gearshape", general()), (L("Gõ", "Typing"), "keyboard", typing()), (L("Ngôn ngữ", "Languages"), "globe", mixed()),
-            (L("Chính tả", "Spelling"), "textformat.abc.dottedunderline", corrections()), (L("Gõ tắt", "Shortcuts"), "bolt", shortcuts()),
+            (L("Gợi ý", "Suggestions"), SettingsController.bulb, corrections()), (L("Gõ tắt", "Shortcuts"), "bolt", shortcuts()),
             (L("Ứng dụng", "Apps"), "macwindow.on.rectangle", apps()), (L("Bảng tạm", "Clipboard"), "doc.on.clipboard", clipboard()),
             (L("Giới thiệu", "About"), "info.circle", about()),  // luôn ở cuối: `openUpdatePage` chọn thẻ cuối
         ] {
@@ -362,7 +383,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
             controller.view = view
             let item = NSTabViewItem(viewController: controller)
             item.label = title
-            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+            item.image = SettingsController.tabIcon(symbol, title)
             tabs.addTabViewItem(item)
         }
         window.styleMask = [.titled, .closable, .miniaturizable]
@@ -796,7 +817,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
                     L("Giữ nguyên trong ngữ cảnh code", "Leave code alone"), L("Ngay sau @ # / \\ . _ : $ ~ = hoặc chữ số: email, đường dẫn, tên biến.", "Right after @ # / \\ . _ : $ ~ = or a digit: emails, paths, identifiers."),
                     key: Key.codeAware, dependsOn: Key.autoRestore),
                 toggle(
-                    L("Kiểm tra chính tả tiếng Anh", "Check English spelling"), L("Dùng từ điển tiếng Anh của macOS. Cần bật kiểm tra chính tả ở thẻ Chính tả.", "Uses the macOS English dictionary. Needs spell checking turned on in the Spelling tab."),
+                    L("Kiểm tra chính tả tiếng Anh", "Check English spelling"), L("Dùng từ điển tiếng Anh của macOS. Cần bật gợi ý trong khi gõ ở thẻ Gợi ý.", "Uses the macOS English dictionary. Needs suggestions as you type turned on in the Suggestions tab."),
                     key: Key.proofreadEnglish, dependsOn: Key.autoRestore),
             ]),
             title(L("Ngôn ngữ GenZ", "Gen Z slang")),
@@ -815,14 +836,14 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return UsageStore.model.learnedTypos().map { ($0.wrong, $0.right, Engine.shown(forKeys: $0.right, config: config), $0.count) }
     }
 
-    /// Thẻ "Chính tả": VNKey không tự thay chữ (trừ việc trả lại từ tiếng Anh ở thẻ Ngôn ngữ). Nó gạch chân từ nghi
+    /// Thẻ "Gợi ý": VNKey không tự thay chữ (trừ việc trả lại từ tiếng Anh ở thẻ Ngôn ngữ). Nó gạch chân từ nghi
     /// gõ sai trong ô đang nhập và đề nghị chữ thay; bên dưới là việc học từ cách bạn gõ. Mọi thứ đã nhớ nằm trong MỘT
     /// bảng (`showMemory`): từ điển của bạn, từ giữ một dạng, lỗi gõ và cặp từ đã học.
     private func corrections() -> NSView {
         let open = NSButton(title: L("Xem và xoá…", "View and Remove…"), target: self, action: #selector(showMemory))
         open.controlSize = .small
         return page([
-            title(L("Kiểm tra chính tả", "Check spelling")),
+            title(L("Gợi ý trong khi gõ", "Suggestions as you type")),
             Card(rows: [
                 toggle(
                     L("Gạch chân từ nghi gõ sai", "Underline words that look mistyped"),
@@ -901,7 +922,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
         return table.view
     }
 
-    // MARK: - Bảng "đã nhớ" (mở từ thẻ Chính tả)
+    // MARK: - Bảng "đã nhớ" (mở từ thẻ Gợi ý)
 
     private lazy var memoryWindow: NSWindow = {
         let width: CGFloat = 560, inner = width - 2 * Metrics.pageMargin
@@ -1001,16 +1022,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
             })
         tables.append(smart)
         smart.view.identifier = SettingsController.wide
-        let now = Date()
-        let examples = SmartMacro.variables.map { name -> String in
-            let value: String
-            switch name {
-            case "hoten": value = NSFullUserName()
-            case "clipboard": value = L("(thứ vừa sao chép)", "(what you last copied)")
-            default: value = SmartMacro.resolve("[\(name)]", at: now)
-            }
-            return "[\(name)] \(value)"
-        }.joined(separator: "   ·   ")
+        let showVariables = NSButton(title: L("Xem danh sách…", "Show List…"), target: self, action: #selector(showVariables))
+        showVariables.controlSize = .small
         return page([
             title(L("Gõ tắt của bạn", "Your shortcuts")),
             macros.view,
@@ -1020,11 +1033,132 @@ final class SettingsController: NSObject, NSWindowDelegate {
                 toggle(
                     L("Bung khi gõ \\tên", "Expand when I type \\name"),
                     L("Gõ dấu \\ rồi tên, rồi dấu cách hoặc dấu câu: \\homnay ra ngày hôm nay. Dấu \\ để không lẫn với chữ gõ thường.", "Type \\, the name, then space or punctuation: \\homnay gives today's date. The \\ keeps it apart from ordinary typing."),
-                    key: Key.smartMacros)
+                    key: Key.smartMacros),
+                row(
+                    L("Biến dùng được trong nội dung", "Variables you can use"),
+                    L("[ngay], [gio], [hoten]… trong ô Nội dung của cả hai bảng được thay bằng giá trị lúc bung ra.", "[ngay], [gio], [hoten]… in the Expands to column of either table are filled in when the shortcut expands."),
+                    showVariables),
             ]),
             smart.view,
-            note(L("Nội dung của cả hai bảng dùng được các biến sau, thay bằng giá trị lúc bung ra:", "Expansions in both tables can use these variables, filled in when the shortcut expands:") + "\n" + examples),
         ])
+    }
+
+    // MARK: - Cửa sổ "biến dùng được" (mở từ thẻ Gõ tắt)
+
+    /// Ý nghĩa của từng biến trong `SmartMacro.variables`.
+    private static func meaning(ofVariable name: String) -> String {
+        switch name {
+        case "ngay": return L("Ngày hôm nay", "Today’s date")
+        case "gio": return L("Giờ lúc bung ra", "The time right now")
+        case "thu": return L("Thứ trong tuần", "Day of the week")
+        case "thang": return L("Tháng này", "This month")
+        case "nam": return L("Năm nay", "This year")
+        case "ngaydai": return L("Ngày viết đầy đủ", "The date written out")
+        case "homqua": return L("Ngày hôm qua", "Yesterday’s date")
+        case "ngaymai": return L("Ngày mai", "Tomorrow’s date")
+        case "ngay+7": return L("Sau / trước N ngày: [ngay-3]", "N days later / earlier: [ngay-3]")
+        case "tuan": return L("Tuần thứ mấy trong năm", "Week of the year")
+        case "amlich": return L("Ngày âm lịch", "Lunar calendar date")
+        case "hoten": return L("Họ tên của bạn trên máy này", "Your full name on this Mac")
+        case "clipboard": return L("Thứ bạn vừa sao chép", "What you last copied")
+        default: return ""
+        }
+    }
+
+    /// Bảng ba cột: biến, ý nghĩa, giá trị ngay lúc này. Dựng lại mỗi lần mở để giờ và ngày là hiện tại.
+    private func variablesContent() -> NSView {
+        let width = SettingsController.variablesWidth, inner = width - 2 * Metrics.pageMargin
+        let now = Date()
+        func cell(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextField {
+            let l = NSTextField(labelWithString: text)
+            l.font = font
+            l.textColor = color
+            l.lineBreakMode = .byTruncatingTail
+            return l
+        }
+        let small = NSFont.systemFont(ofSize: 11, weight: .medium)
+        var rows: [[NSView]] = [[
+            cell(L("Biến", "Variable").uppercased(), small, .tertiaryLabelColor),
+            cell(L("Ý nghĩa", "Meaning").uppercased(), small, .tertiaryLabelColor),
+            cell(L("Bây giờ là", "Right now").uppercased(), small, .tertiaryLabelColor),
+        ]]
+        for name in SmartMacro.variables {
+            let value: String
+            switch name {
+            case "hoten": value = NSFullUserName()
+            case "clipboard": value = "…"  // không đọc clipboard ra đây
+            default: value = SmartMacro.resolve("[\(name)]", at: now)
+            }
+            let variable = cell("[\(name)]", .monospacedSystemFont(ofSize: 12, weight: .medium), .labelColor)
+            variable.isSelectable = true  // để chép tên biến
+            rows.append([
+                variable, cell(SettingsController.meaning(ofVariable: name), .systemFont(ofSize: 12), .labelColor),
+                cell(value, .systemFont(ofSize: 12), .secondaryLabelColor),
+            ])
+        }
+        let grid = NSGridView(views: rows)
+        grid.rowSpacing = 7
+        grid.columnSpacing = 16
+        grid.column(at: 0).width = 96
+        grid.column(at: 2).width = 180
+        grid.row(at: 0).bottomPadding = 3
+        grid.translatesAutoresizingMaskIntoConstraints = false
+        let holder = NSView()
+        holder.addSubview(grid)
+        let card = Card(rows: [holder])
+        let heading = title(L("Biến dùng được trong gõ tắt", "Variables for shortcuts"))
+        let text = note(L("Viết tên biến trong ngoặc vuông ở ô Nội dung, ví dụ “Hà Nội, [ngaydai]”. Khi gõ tắt bung ra, biến được thay bằng giá trị lúc đó.", "Write a variable in square brackets in the Expands to column, for example “Hà Nội, [ngaydai]”. When the shortcut expands, the variable is replaced with its value at that moment."))
+        text.preferredMaxLayoutWidth = inner
+        let done = NSButton(title: L("Xong", "Done"), target: self, action: #selector(closeVariables))
+        done.keyEquivalent = "\r"
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let buttons = NSStackView(views: [spacer, done])
+        buttons.orientation = .horizontal
+        let stack = NSStackView(views: [heading, text, card, buttons])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = Metrics.controlGap + 4
+        stack.edgeInsets = NSEdgeInsets(top: Metrics.pageTop, left: Metrics.pageMargin, bottom: Metrics.pageTop, right: Metrics.pageMargin)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView()
+        content.addSubview(stack)
+        var constraints = [
+            content.widthAnchor.constraint(equalToConstant: width),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            grid.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: Metrics.rowInset),
+            grid.trailingAnchor.constraint(equalTo: holder.trailingAnchor, constant: -Metrics.rowInset),
+            grid.topAnchor.constraint(equalTo: holder.topAnchor, constant: Metrics.rowPadding + 2),
+            grid.bottomAnchor.constraint(equalTo: holder.bottomAnchor, constant: -(Metrics.rowPadding + 2)),
+        ]
+        for v in [text, card, buttons] as [NSView] { constraints.append(v.widthAnchor.constraint(equalToConstant: inner)) }
+        NSLayoutConstraint.activate(constraints)
+        return content
+    }
+
+    private var variablesWindow: NSWindow?
+    private static let variablesWidth: CGFloat = 600
+
+    /// Nội dung của cửa sổ biến, cho chế độ chụp giao diện.
+    func variablesView() -> NSView {
+        let content = variablesContent()
+        let sheet = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: SettingsController.variablesWidth, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        sheet.contentView = content
+        sheet.setContentSize(content.fittingSize)
+        variablesWindow = sheet
+        return content
+    }
+
+    @objc private func showVariables() {
+        _ = variablesView()
+        if let sheet = variablesWindow { window.beginSheet(sheet) }
+    }
+
+    @objc private func closeVariables() {
+        if let sheet = variablesWindow { window.endSheet(sheet) }
+        variablesWindow = nil
     }
 
     private func apps() -> NSView {
@@ -1040,7 +1174,6 @@ final class SettingsController: NSObject, NSWindowDelegate {
         let remove = NSButton(title: L("Xoá", "Delete"), target: self, action: #selector(removeApps))
         remove.isEnabled = false
         remove.toolTip = L("Xoá các ứng dụng đang chọn (phím Delete)", "Remove the selected apps (Delete key)")
-        removeButton = remove
         list.onSelection = { [weak remove] n in remove?.isEnabled = n > 0 }
         let restore = NSButton(title: L("Về mặc định", "Reset to default"), target: self, action: #selector(restoreApps))
         restore.toolTip = L("Trở lại danh sách ứng dụng terminal ban đầu", "Go back to the original list of terminal apps")

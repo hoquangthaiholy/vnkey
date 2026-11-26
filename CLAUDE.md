@@ -136,10 +136,11 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   `--snapshot`: nét gạch trượt ra, dải sáng khi chữ được thay (`Proofing.pulse`), bảng nổi phóng nhẹ lúc hiện. Nét gạch
   ẩn khi cửa sổ chứa ô nhập dời / đổi cỡ (`AXObserver` + so khung mỗi nhịp). Tất cả CHƯA được kiểm chứng trên app thật.
 - Bảng AI cho câu và đoạn văn (`AIPanel` trong `Proofing.swift`, `SentenceFix.swift`, công tắc `proofreadSentence`),
-  RIÊNG với bảng đề nghị cho từ. Mở bằng cách BẤM nút ✦ (`AIChip`; rê chuột vào không mở, và nút vẫn hiện khi bảng đề nghị của một từ trong câu mở ra: người dùng yêu cầu 2026-11-26, chưa kiểm chứng) hiện ra khi chuột dừng 0,45 giây trên một câu (hỏi ứng dụng
+  RIÊNG với bảng đề nghị cho từ. Mở bằng cách BẤM nút ✦ (`AIChip`; rê chuột vào không mở, và nút vẫn hiện khi bảng đề nghị của một từ trong câu mở ra: người dùng yêu cầu 2026-11-26, chưa kiểm chứng) hiện ra khi chuột dừng 0,2 giây trên một câu (hỏi ứng dụng
   `AXRangeForPosition`), hoặc biểu tượng ✦ trong bảng từ. Bảng được ghim; có thẻ theo `SentenceTask` (fix, improve,
   rewrite, shorten, expand, translate Việt ↔ Anh, compose = viết thành câu từ vài ý), hai nút phạm vi (câu / đoạn),
-  nút thử lại (`fresh`: bỏ bộ đệm, cho mô hình chọn từ ngẫu nhiên hơn), và "Dùng". Không tự thay.
+  hàng chân có nút thử lại (`fresh`: bỏ bộ đệm, cho mô hình chọn từ ngẫu nhiên hơn) và nút "Dùng" (biểu tượng ✓). Nút biểu tượng có
+  chú thích riêng (`PanelTip`, vì `toolTip` của AppKit không hiện khi app không ở trước; chưa kiểm chứng). Không tự thay.
   - Có Apple Intelligence (framework Foundation Models: macOS 26+, chip Apple; liên kết yếu nên app vẫn chạy trên
     macOS 12): mọi việc do mô hình TRÊN MÁY làm. Chỉ `fix` qua `SentenceFilter.merge` (giữ dấu câu, hoa thường, từ tiếng
     Anh của người gõ; mô hình tự thêm dấu chấm, viết hoa và DỊCH tiếng Anh). Các việc khác lấy nguyên câu mô hình viết,
@@ -177,6 +178,9 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   78,7%, `local` 64,5%), nhưng sửa bậy 12–20 âm tiết trên 1.000 (macOS 1,0), nhất là tên riêng và từ hiếm. Mô hình
   nhỏ đoán từ tiếp theo cũng thua bảng đếm bộ ba từ (20% so với 24% đúng ngay). Mã train đã xoá khỏi dự án (còn ở
   commit 40d7e2d). Hướng đi: tối ưu từ điển (bộ soát theo từ) và Apple Intelligence; đừng đề xuất train lại.
+- ĐÃ BỎ (2026-11-26, người dùng chốt): gợi ý kết quả phép tính khi gõ dấu "=" (kiểu Math Notes, ở mọi ứng dụng). Đã làm
+  xong rồi gỡ ngay: lạc khỏi trọng tâm bộ gõ, thêm việc vào đường xử lý phím (nhớ chữ vừa gõ, giữ phím ⇥), Spotlight đã
+  tính được. Đừng đề xuất lại.
 - Thói quen gõ (bảng đếm từ và cặp từ, không có câu) lưu ở `~/Library/Application Support/VNKey/usage.json`.
   Coi nó riêng tư như nhật ký: không đọc ra, không dán vào câu trả lời.
 

@@ -103,7 +103,7 @@ final class Proofing {
     private var restPoint = NSPoint.zero
     private var restSince = Date()
     private var probed = false
-    private static let restDelay = 0.45
+    private static let restDelay = 0.2
     private var settingsSkip: Set<String> = []
     private var sessionSkip: Set<String> = []
     /// Bảng đề nghị vừa mở bằng bàn phím khi chuột đang ở chỗ này: chuột chưa nhúc nhích thì không được đóng bảng.
@@ -225,7 +225,9 @@ final class Proofing {
                 case 125, 126:
                     DispatchQueue.main.async { self.aiPanel.move(code == 125 ? 1 : -1) }
                     return true
-                case 36, 76, 48 where aiPanel.hasSelection:
+                // `where` chỉ áp cho mẫu đứng ngay trước nó, nên phải lặp lại cho từng phím.
+                case 36 where aiPanel.hasSelection, 76 where aiPanel.hasSelection,
+                    48 where aiPanel.hasSelection:  // ↩, Enter, ⇥
                     DispatchQueue.main.async { self.aiPanel.activate() }
                     return true
                 case 53:
@@ -242,7 +244,8 @@ final class Proofing {
             case 125, 126:
                 DispatchQueue.main.async { self.popover.move(code == 125 ? 1 : -1) }
                 return true
-            case 36, 76, 48 where popover.hasSelection:  // ↩, Enter, ⇥
+            case 36 where popover.hasSelection, 76 where popover.hasSelection,
+                48 where popover.hasSelection:  // ↩, Enter, ⇥
                 DispatchQueue.main.async { self.popover.activate() }
                 return true
             case 53:  // Esc
@@ -442,6 +445,12 @@ final class Proofing {
                 let index = at.location - self.base
                 self.locate(index: index, paragraph: false) { found in
                     guard let found, !found.rects.isEmpty, !self.aiOpen, self.shownIssue == nil, let last = found.rects.last else { return }
+                    // Chuột ở chỗ trống của ô (cuối dòng, dưới đoạn chữ) thì ứng dụng vẫn trả về ký tự GẦN NHẤT: phải
+                    // kiểm lại là chuột thật sự nằm trên chữ của câu, nếu không câu sáng lên dù không ai rê chuột vào nó.
+                    guard found.rects.contains(where: { $0.insetBy(dx: -3, dy: -3).contains(p) }) else {
+                        Log.write("PROOF chuột dừng ở chỗ trống của ô, không trên câu: không hiện nút ✦")
+                        return
+                    }
                     self.hint = (index, found.rects)
                     self.hintLeftAt = nil
                     self.overlay.highlight(found.rects, .controlAccentColor, alpha: 0.1, clip: self.lastClip.flatMap(HUD.cocoa))
@@ -1124,51 +1133,22 @@ private protocol PanelItem: NSView {
     func fire()
 }
 
-/// Một dòng chữ trong bảng: đề nghị cho từ (một dòng), hoặc câu đề nghị (xuống dòng được, có biểu tượng đầu dòng).
-/// Dòng đang chọn có nền hiện dần: màu nhấn cho đề nghị, xám cho dòng phụ.
+/// Một dòng đề nghị trong bảng của từ. Dòng đang chọn có nền màu nhấn hiện dần, chữ trắng.
 private final class SuggestionRow: NSView, PanelItem {
     private let label: NSTextField
     private let fill = CALayer()
-    private let primary: Bool
     private let action: () -> Void
-    private let plain: NSAttributedString
-    private let icon: NSImageView?
     var onHover: () -> Void = {}
-    /// Dòng này vừa được chọn / thôi được chọn (bảng dùng để tô nền cả câu trong văn bản).
-    var onFocus: (Bool) -> Void = { _ in }
     static let padding: CGFloat = 8
+    static let height: CGFloat = 26
 
-    init(title: String, primary: Bool, action: @escaping () -> Void) {
+    init(title: String, action: @escaping () -> Void) {
         label = NSTextField(labelWithString: title)
-        plain = NSAttributedString(string: title)
-        icon = nil
-        self.primary = primary
         self.action = action
         super.init(frame: .zero)
-        label.font = primary ? .systemFont(ofSize: NSFont.systemFontSize + 1, weight: .medium) : .systemFont(ofSize: NSFont.smallSystemFontSize)
-        label.textColor = primary ? .labelColor : .secondaryLabelColor
+        label.font = .systemFont(ofSize: NSFont.systemFontSize + 1, weight: .medium)
+        label.textColor = .labelColor
         label.lineBreakMode = .byTruncatingTail
-        setUp(title)
-    }
-
-    /// Dòng nhiều dòng chữ, có biểu tượng đầu dòng (câu đề nghị).
-    init(text: NSAttributedString, symbol: String, action: @escaping () -> Void) {
-        label = NSTextField(wrappingLabelWithString: "")
-        label.attributedStringValue = text
-        label.isSelectable = false
-        plain = text
-        let image = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil) ?? NSImage())
-        image.contentTintColor = .controlAccentColor
-        image.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
-        icon = image
-        primary = true
-        self.action = action
-        super.init(frame: .zero)
-        addSubview(image)
-        setUp(text.string)
-    }
-
-    private func setUp(_ name: String) {
         wantsLayer = true
         fill.cornerRadius = 5
         fill.opacity = 0
@@ -1176,20 +1156,12 @@ private final class SuggestionRow: NSView, PanelItem {
         addSubview(label)
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
-        setAccessibilityLabel(name)
+        setAccessibilityLabel(title)
     }
 
     required init?(coder: NSCoder) { nil }
 
-    private var lead: CGFloat { SuggestionRow.padding + (icon == nil ? 0 : 20) }
-    var fittingWidth: CGFloat { ceil(label.fittingSize.width) + lead + SuggestionRow.padding }
-
-    /// Chiều cao cần có khi dòng rộng `width` (dòng nhiều dòng chữ thì cao theo chữ).
-    func height(forWidth width: CGFloat) -> CGFloat {
-        guard icon != nil else { return primary ? 26 : 22 }
-        let size = label.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width - lead - SuggestionRow.padding, height: 2000)) ?? .zero
-        return max(26, ceil(size.height) + 10)
-    }
+    var fittingWidth: CGFloat { ceil(label.fittingSize.width) + 2 * SuggestionRow.padding }
 
     override func layout() {
         super.layout()
@@ -1197,13 +1169,9 @@ private final class SuggestionRow: NSView, PanelItem {
         CATransaction.setDisableActions(true)
         fill.frame = bounds
         CATransaction.commit()
-        if let icon {
-            icon.frame = NSRect(x: SuggestionRow.padding, y: bounds.height - 21, width: 16, height: 16)
-            label.frame = NSRect(x: lead, y: 5, width: bounds.width - lead - SuggestionRow.padding, height: bounds.height - 10)
-        } else {
-            let h = label.fittingSize.height
-            label.frame = NSRect(x: lead, y: ((bounds.height - h) / 2).rounded(), width: bounds.width - lead - SuggestionRow.padding, height: h)
-        }
+        let h = label.fittingSize.height
+        label.frame = NSRect(
+            x: SuggestionRow.padding, y: ((bounds.height - h) / 2).rounded(), width: bounds.width - 2 * SuggestionRow.padding, height: h)
     }
 
     override func updateTrackingAreas() {
@@ -1213,25 +1181,12 @@ private final class SuggestionRow: NSView, PanelItem {
     }
 
     func setSelected(_ on: Bool, animated: Bool = true) {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            fill.backgroundColor = (primary ? NSColor.controlAccentColor : NSColor.labelColor.withAlphaComponent(0.1)).cgColor
-        }
+        effectiveAppearance.performAsCurrentDrawingAppearance { fill.backgroundColor = NSColor.controlAccentColor.cgColor }
         CATransaction.begin()
         if animated { CATransaction.setAnimationDuration(on ? 0.1 : 0.18) } else { CATransaction.setDisableActions(true) }
         fill.opacity = on ? 1 : 0
         CATransaction.commit()
-        if primary {
-            if icon != nil {
-                // Câu đề nghị: lúc được chọn thì cả dòng chữ trắng trên nền màu nhấn; thôi chọn thì trả lại chữ có tô màu.
-                let white = NSMutableAttributedString(attributedString: plain)
-                white.addAttribute(.foregroundColor, value: NSColor.white, range: NSRange(location: 0, length: white.length))
-                label.attributedStringValue = on ? white : plain
-                icon?.contentTintColor = on ? .white : .controlAccentColor
-            } else {
-                label.textColor = on ? .white : .labelColor
-            }
-        }
-        onFocus(on)
+        label.textColor = on ? .white : .labelColor
     }
 
     func fire() { action() }
@@ -1252,18 +1207,23 @@ private final class IconButton: NSView, PanelItem {
     private let action: () -> Void
     var onHover: () -> Void = {}
     var active = false { didSet { refresh(selected: false) } }
+    /// Việc chính của bảng ("Dùng câu này"): tô đặc màu nhấn, biểu tượng trắng.
+    var solid = false { didSet { refresh(selected: false) } }
+    private let tip: String
     static let size = NSSize(width: 30, height: 24)
 
     init(symbol: String, tip: String, action: @escaping () -> Void) {
         image = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: tip) ?? NSImage())
         image.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
         self.action = action
+        self.tip = tip
         super.init(frame: NSRect(origin: .zero, size: IconButton.size))
         wantsLayer = true
         fill.cornerRadius = 5
         layer?.addSublayer(fill)
         addSubview(image)
-        toolTip = tip
+        // Không dùng `toolTip` của AppKit: nó chỉ hiện khi ứng dụng đang ở trước, mà VNKey không bao giờ ở trước.
+        // Chú thích do `PanelTip` hiện (xem `mouseEntered`).
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
         setAccessibilityLabel(tip)
@@ -1289,10 +1249,13 @@ private final class IconButton: NSView, PanelItem {
 
     private func refresh(selected: Bool) {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            let color: NSColor = active ? NSColor.controlAccentColor.withAlphaComponent(selected ? 0.28 : 0.18) : NSColor.labelColor.withAlphaComponent(selected ? 0.1 : 0)
+            let color: NSColor =
+                solid
+                ? NSColor.controlAccentColor.withAlphaComponent(selected ? 1 : 0.82)
+                : active ? NSColor.controlAccentColor.withAlphaComponent(selected ? 0.28 : 0.18) : NSColor.labelColor.withAlphaComponent(selected ? 0.1 : 0)
             fill.backgroundColor = color.cgColor
         }
-        image.contentTintColor = active ? .controlAccentColor : selected ? .labelColor : .secondaryLabelColor
+        image.contentTintColor = solid ? .white : active ? .controlAccentColor : selected ? .labelColor : .secondaryLabelColor
     }
 
     func setSelected(_ on: Bool, animated: Bool = true) {
@@ -1304,17 +1267,99 @@ private final class IconButton: NSView, PanelItem {
 
     func fire() { action() }
 
-    override func mouseEntered(with event: NSEvent) { onHover() }
-    override func mouseExited(with event: NSEvent) { setSelected(false) }
+    override func mouseEntered(with event: NSEvent) {
+        onHover()
+        PanelTip.shared.schedule(tip, for: self)
+    }
+    override func mouseExited(with event: NSEvent) {
+        setSelected(false)
+        PanelTip.shared.hide()
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { PanelTip.shared.hide() }  // bảng vẽ lại: nút cũ bị gỡ, chú thích của nó phải đi theo
+    }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override func mouseDown(with event: NSEvent) {}
+    override func mouseDown(with event: NSEvent) { PanelTip.shared.hide() }
     override func mouseUp(with event: NSEvent) {
         if bounds.contains(convert(event.locationInWindow, from: nil)) { action() }
     }
 }
 
-/// Nền của bảng đề nghị: một màu đặc, sáng (trắng ở giao diện sáng), bo góc. Không dùng NSVisualEffectView: hiệu
-/// ứng mờ của nó không theo góc bo nên bóng của cửa sổ ra hình chữ nhật (người dùng báo 2026-11-25).
+/// Nền của chú thích: màu đặc, bo góc nhỏ.
+private final class TipBackground: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        layer?.backgroundColor = (dark ? NSColor(white: 0.2, alpha: 1) : NSColor(white: 0.97, alpha: 1)).cgColor
+        layer?.cornerRadius = 7
+        layer?.borderWidth = 0.5
+        layer?.borderColor = (dark ? NSColor(white: 1, alpha: 0.18) : NSColor(white: 0, alpha: 0.14)).cgColor
+    }
+}
+
+/// Chú thích cho nút chỉ có biểu tượng: một nhãn nhỏ hiện ngay dưới nút sau khi chuột dừng trên nó. Tự làm vì chú
+/// thích của AppKit (`toolTip`) không hiện trong cửa sổ của ứng dụng không ở trước. Không nhận chuột, không lấy tiêu điểm.
+private final class PanelTip {
+    static let shared = PanelTip()
+    private static let delay = 0.45
+    private let panel: NSPanel
+    private let back = TipBackground(frame: .zero)
+    private let label = NSTextField(labelWithString: "")
+    private var ticket = 0
+
+    private init() {
+        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = true
+        panel.animationBehavior = .none
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        back.wantsLayer = true
+        label.font = .systemFont(ofSize: NSFont.systemFontSize)
+        label.textColor = .labelColor
+        back.addSubview(label)
+        panel.contentView = back
+    }
+
+    /// Hẹn hiện chú thích cho `view`; chuột rời đi (hoặc nút bị gỡ) trước hạn thì thôi.
+    func schedule(_ text: String, for view: NSView) {
+        ticket += 1
+        let mine = ticket
+        DispatchQueue.main.asyncAfter(deadline: .now() + PanelTip.delay) { [weak self, weak view] in
+            guard let self, mine == self.ticket, let view, let window = view.window, window.isVisible else { return }
+            self.show(text, below: window.convertToScreen(view.convert(view.bounds, to: nil)))
+        }
+    }
+
+    private func show(_ text: String, below button: NSRect) {
+        label.stringValue = text
+        let size = label.fittingSize
+        let width = ceil(size.width) + 20, height = ceil(size.height) + 12
+        var origin = NSPoint(x: (button.midX - width / 2).rounded(), y: button.minY - height - 5)
+        if let v = (NSScreen.screens.first { $0.frame.intersects(button) } ?? NSScreen.main)?.visibleFrame {
+            origin.x = min(max(origin.x, v.minX + 2), v.maxX - width - 2)
+            if origin.y < v.minY + 2 { origin.y = button.maxY + 5 }  // sát đáy màn hình: hiện phía trên nút
+        }
+        panel.setFrame(NSRect(origin: origin, size: NSSize(width: width, height: height)), display: false)
+        label.frame = NSRect(x: 10, y: 6, width: ceil(size.width), height: ceil(size.height))
+        panel.orderFrontRegardless()
+        panel.displayIfNeeded()
+        panel.invalidateShadow()
+        Motion.present(panel, duration: Motion.quick)
+    }
+
+    func hide() {
+        ticket += 1
+        if panel.isVisible { panel.orderOut(nil) }
+    }
+}
+
+/// Nền của các bảng nổi (đề nghị, AI, nút ✦): một màu đặc, sáng (trắng ở giao diện sáng), bo góc. Không dùng nền mờ:
+/// đã thử `NSVisualEffectView` và kính `NSGlassEffectView` 2026-11-26, người dùng thấy bảng khó nhìn nên bỏ.
 private final class PanelBackground: NSView {
     override var wantsUpdateLayer: Bool { true }
 
@@ -1381,6 +1426,11 @@ private class FloatingPanel: NSPanel {
     }
 
     override var canBecomeKey: Bool { false }
+
+    override func orderOut(_ sender: Any?) {
+        PanelTip.shared.hide()
+        super.orderOut(sender)
+    }
 
     func select(_ index: Int?, animated: Bool = true) {
         guard index != selected else { return }
@@ -1485,7 +1535,7 @@ private final class SuggestionPanel: FloatingPanel {
     func show(_ issue: ProofIssue, below anchor: NSRect, ai: Bool = false) {
         self.anchor = anchor
         let inset: CGFloat = 5, pad = SuggestionRow.padding
-        let picks = issue.suggestions.map { s in SuggestionRow(title: s, primary: true) { [weak self] in self?.onPick(s) } }
+        let picks = issue.suggestions.map { s in SuggestionRow(title: s) { [weak self] in self?.onPick(s) } }
         var icons: [IconButton] = []
         if ai {
             icons.append(IconButton(symbol: "sparkles", tip: L("Cả câu: sửa, viết lại, dịch…", "Whole sentence: fix, rewrite, translate…")) { [weak self] in self?.onOpenAI() })
@@ -1512,7 +1562,7 @@ private final class SuggestionPanel: FloatingPanel {
         back.addSubview(line)
         y += 5
         for row in picks.reversed() {
-            let h = row.height(forWidth: rowWidth)
+            let h = SuggestionRow.height
             row.frame = NSRect(x: inset, y: y, width: rowWidth, height: h)
             back.addSubview(row)
             y += h
@@ -1526,8 +1576,9 @@ private final class SuggestionPanel: FloatingPanel {
 }
 
 /// Bảng AI cho một CÂU hoặc ĐOẠN VĂN (riêng với bảng từ; người dùng yêu cầu tách 2026-11-25). Hàng trên: các thẻ việc
-/// (biểu tượng), nút thử lại, nút đóng. Dưới: tên việc và hai nút phạm vi (câu / đoạn), kết quả, rồi "Dùng". Bảng
-/// được GHIM: không tự đóng khi chuột rời đi.
+/// (biểu tượng), nút đóng. Dưới: tên việc và hai nút phạm vi (câu / đoạn), kết quả, rồi hàng chân: nút thử lại bên
+/// trái, nút "Dùng" (biểu tượng ✓ tô đặc) bên phải (người dùng yêu cầu 2026-11-26). Bảng được GHIM: không tự đóng khi
+/// chuột rời đi.
 private final class AIPanel: FloatingPanel {
     var onTask: (SentenceTask) -> Void = { _ in }
     var onRefresh: () -> Void = {}
@@ -1596,7 +1647,7 @@ private final class AIPanel: FloatingPanel {
         whole.active = !paragraph
         block.active = paragraph
         let header = caption(task.title)
-        var use: SuggestionRow?
+        var use: IconButton?
         let body: NSTextField
         switch state {
         case .ready(let fixed):
@@ -1604,9 +1655,11 @@ private final class AIPanel: FloatingPanel {
             label.attributedStringValue = marked(fixed)
             label.isSelectable = false
             body = label
-            use = SuggestionRow(title: paragraph ? L("Dùng đoạn này", "Use This Paragraph") : L("Dùng câu này", "Use This Sentence"), primary: true) { [weak self] in
+            let button = IconButton(symbol: "checkmark", tip: paragraph ? L("Dùng đoạn này (↩)", "Use this paragraph (↩)") : L("Dùng câu này (↩)", "Use this sentence (↩)")) { [weak self] in
                 self?.onUse(fixed)
             }
+            button.solid = true
+            use = button
         case .loading:
             body = note(L("Đang viết…", "Working…"))
         case .nothing:
@@ -1621,10 +1674,18 @@ private final class AIPanel: FloatingPanel {
         let back = PanelBackground(frame: .zero)
         back.wantsLayer = true
         var y = inset
-        if let use {
-            use.frame = NSRect(x: inset, y: y, width: rowWidth, height: 26)
-            back.addSubview(use)
-            y += 26 + 4
+        // Hàng chân: thử lại bên trái, "Dùng" bên phải.
+        if use != nil || canRefresh {
+            if canRefresh {
+                again.frame = NSRect(origin: NSPoint(x: inset, y: y), size: IconButton.size)
+                back.addSubview(again)
+            }
+            if let use {
+                let useWidth: CGFloat = 44
+                use.frame = NSRect(x: width - inset - useWidth, y: y, width: useWidth, height: IconButton.size.height)
+                back.addSubview(use)
+            }
+            y += IconButton.size.height + 4
         }
         body.frame = NSRect(x: inset + pad, y: y + 2, width: rowWidth - 2 * pad, height: bodyHeight)
         back.addSubview(body)
@@ -1649,13 +1710,12 @@ private final class AIPanel: FloatingPanel {
         }
         close.frame = NSRect(origin: NSPoint(x: width - inset - IconButton.size.width, y: y), size: IconButton.size)
         back.addSubview(close)
-        if canRefresh {
-            again.frame = NSRect(origin: NSPoint(x: close.frame.minX - IconButton.size.width - 2, y: y), size: IconButton.size)
-            back.addSubview(again)
-        }
         y += IconButton.size.height + inset
 
-        place(back, width: width, height: y, items: use.map { [$0] } ?? [], animate: animate)
+        var items: [PanelItem] = []
+        if let use { items.append(use) }
+        if canRefresh { items.append(again) }
+        place(back, width: width, height: y, items: items, animate: animate)
         if use != nil { select(0, animated: false) }
     }
 }
@@ -1699,6 +1759,7 @@ private final class AIChip {
     }
 
     func hide() {
+        PanelTip.shared.hide()
         if panel.isVisible { panel.orderOut(nil) }
     }
 }

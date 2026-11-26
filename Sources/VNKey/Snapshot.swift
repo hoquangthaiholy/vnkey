@@ -36,7 +36,7 @@ enum Snapshot {
         }
         window.orderOut(nil)
 
-        // Bảng "đã nhớ" mở từ thẻ Chính tả.
+        // Bảng "đã nhớ" mở từ thẻ Gợi ý.
         for name in ["settings-memory"] {
             let view = settings.memoryView()
             guard let sheet = view.window else { continue }
@@ -46,6 +46,17 @@ enum Snapshot {
             view.layoutSubtreeIfNeeded()
             sheet.displayIfNeeded()
             write(view, dark: dark, to: dir.appendingPathComponent("\(name)\(suffix).png"))
+            sheet.orderOut(nil)
+        }
+        // Cửa sổ "biến dùng được" mở từ thẻ Gõ tắt.
+        let variables = settings.variablesView()
+        if let sheet = variables.window {
+            sheet.appearance = NSApp.appearance
+            sheet.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+            sheet.orderFrontRegardless()
+            variables.layoutSubtreeIfNeeded()
+            sheet.displayIfNeeded()
+            write(variables, dark: dark, to: dir.appendingPathComponent("settings-variables\(suffix).png"))
             sheet.orderOut(nil)
         }
 

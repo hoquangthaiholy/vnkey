@@ -57,7 +57,8 @@ Công tắc gắn thẳng vào UserDefaults bằng Cocoa Bindings, không cần 
   `identifier == SettingsController.wide` tự giãn hết chiều ngang.
 - `title`, `note`: tiêu đề nhóm và chú thích nhỏ.
 - `Card(rows:)`: khung bo góc, tự kẻ đường mảnh giữa các dòng.
-- `row(tên, mô tả, điều khiển…)`: tên bên trái, điều khiển bên phải. `toggle(...)` là `row` với `NSSwitch`.
+- `row(tên, mô tả, điều khiển…)`: tên bên trái, điều khiển bên phải. Mô tả LUÔN HIỆN dưới tên: đã thử gom vào nút ⓘ
+  (2026-11-26), người dùng thấy gọn nhưng mất thông tin nên bỏ. Đừng giấu mô tả sau chú thích. `toggle(...)` là `row` với `NSSwitch`.
 - `ListEditor` (ô văn bản mỗi dòng một mục), `AppList` (bảng ứng dụng), `HotkeyButton`.
 
 Khoảng cách: mọi con số nằm trong `Metrics` (lưới 4pt). Đổi ở đó; đừng viết số lẻ ở nơi dùng.
@@ -122,15 +123,15 @@ mục menu "Cấp quyền Trợ năng…". `update(ready:)` được gọi mỗi
 `Sources/VNKey/EntryTable.swift` (`EntryTable`): bảng sửa ngay trong ô, nút +/−, phím Delete, ô tìm kiếm. Dùng cho
 thẻ "Gõ tắt" (hai cột chữ) và bảng "đã nhớ" (chuỗi phím + cột lựa chọn Phím gốc / Tiếng Việt). Bảng "đã nhớ" KHÔNG còn
 là một thẻ (người dùng yêu cầu gộp và tinh gọn, 2026-11-24): nó là một sheet mở từ dòng "Những gì VNKey đã nhớ" ở thẻ
-Chính tả (`SettingsController.showMemory`, `memoryWindow`), có nút chuyển giữa "Từ đã nhớ" và "Đã học từ cách gõ". Danh
+Gợi ý (`SettingsController.showMemory`, `memoryWindow`), có nút chuyển giữa "Từ đã nhớ" và "Đã học từ cách gõ". Danh
 sách sau là bảng chỉ-đọc (`readOnly: true`: chỉ xem và xoá dòng) gồm lỗi gõ đã học (`UsageModel.learnedTypos()`) rồi
-cặp từ (`learnedPairs()`) — chỉ những mục đã đủ điều kiện sửa; xoá dòng gọi `forgetTypo` / `forget`. Thẻ Chính tả đặt ví
+cặp từ (`learnedPairs()`) — chỉ những mục đã đủ điều kiện sửa; xoá dòng gọi `forgetTypo` / `forget`. Thẻ Gợi ý đặt ví
 dụ ngay trong tên dòng ("Gõ đảo hai phím: tieegns → tiếng") để khỏi cần dòng mô tả. `--snapshot` chụp sheet này ra
 `settings-memory-words.png` và `settings-memory-learned.png`. Định dạng lưu
 trong UserDefaults không đổi (`macros`: từ điển; `preferRaw` / `preferVN`: hai mảng). Luật hợp lệ của từng dòng
 nằm ở `ListFormat.macros(fromRows:)` và `ListFormat.learned(fromRows:)` trong VNKeyCore, có test.
 
-Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Ngôn ngữ, Chính tả, Gõ tắt, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
+Cửa sổ Cài đặt (rộng 580pt) có 8 thẻ: Chung, Gõ, Ngôn ngữ, Gợi ý, Gõ tắt, Ứng dụng, Bảng tạm, Giới thiệu (Giới thiệu luôn ở cuối). Thẻ nào dài quá ~500pt
 thì tách (người dùng đã phàn nàn thẻ Ngôn ngữ dài 650pt). Kiểu gõ chỉ có Telex và VNI; hai
 công tắc của Telex (w đứng riêng, phím [ ]) nằm ngay dưới và mờ đi khi chọn VNI.
 
