@@ -103,6 +103,15 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
 - Văn bản được phát bằng sự kiện phím kèm chuỗi Unicode. Mã phím của sự kiện đó KHÔNG được trùng phím
   người dùng đang giữ: Safari coi nó là phím lặp và bỏ đoạn chữ (gõ "ddia" rồi "j" khi chưa nhả "a" làm
   mất "ịa"). `HeldKeys.carrier` chọn mã phím an toàn.
+- Gõ khựng nhẹ ở ô chat của trang web (người dùng báo 2026-11-28, Gemini trong Safari; callback của tap vẫn nhanh: 62
+  phím, trung bình 0,4 ms). Hai thay đổi cùng ngày: (1) bộ soát lỗi KHÔNG đọc ô nhập khi đang gõ dở mà không có nét
+  gạch nào (`Proofing.tick`), áp cho mọi ứng dụng; (2) kiểu gửi `overwrite` (`SendPlanner.plan`): ở `AXTextArea` trong
+  trình duyệt, phát ⇧← n lần rồi gõ đè thay vì xoá lùi n lần, để trang chỉ sửa nội dung một lần; nằm sau khoá ẩn
+  `overwriteInBrowsers`, mặc định TẮT (`defaults write local.vnkey overwriteInBrowsers -bool true`). Người dùng báo
+  "mượt hơn" với cả hai cùng bật, nhưng nhật ký lúc đó chỉ có 4 lần gửi `overwrite` ở Safari (đều `VERIFY khớp`), còn
+  lại gõ ở ứng dụng khác bằng kiểu `plain`: CHƯA tách được thay đổi nào có tác dụng, và `overwrite` chưa đủ dữ liệu để
+  bật mặc định. Ứng dụng Gemini cho macOS (`com.google.GeminiMacOS`) và web app của Chrome
+  (`com.google.Chrome.app.*`, `role=?`) không thuộc diện `overwrite`.
 - Khi bật nhật ký, sau mỗi lần sửa chữ VNKey đọc lại ô nhập và ghi `VERIFY khớp` / `VERIFY LỆCH`. Tìm
   `VERIFY LỆCH` trước tiên khi người dùng báo chữ ra sai: nó chỉ đúng phím gây lệch.
 
@@ -115,8 +124,48 @@ Hợp đồng giữa engine và app là `Output { backspaces, text, passKey }`. 
   `clipboardSyncFolder` sang thư mục tạm. Đồng bộ qua iCloud thật chưa được kiểm chứng.
 - Soát lỗi (`Proofing.swift`) đọc chữ của ô đang nhập qua Trợ năng mỗi 0,15–0,6 giây ở hàng đợi nền (không nằm
   trong callback của tap), không bao giờ đọc ô mật khẩu, không lưu và không ghi chữ vào nhật ký (dòng `PROOF` chỉ có
-  số lượng, loại, thời gian). Chỉ chạy với ứng dụng trả lời `AXBoundsForRange` theo số ký tự (AppKit); trang web và
-  Electron chưa làm. Thay chữ bằng `AXSelectedText`. TOÀN BỘ phần này chưa được kiểm chứng trên ứng dụng thật.
+  số lượng, loại, thời gian). Ứng dụng AppKit trả lời `AXBoundsForRange` theo số ký tự và cho ghi `AXSelectedText`
+  (người dùng đã xác nhận nét gạch, bảng đề nghị, bảng AI chạy ở ứng dụng chuẩn). Trang web và Electron (làm
+  2026-11-27): `Proofing.bounds` hỏi khung theo ba cách, cách trước không được mới tới cách sau, và cách 2, 3 chỉ được
+  tin khi chữ đọc ra đúng là từ cần gạch. (1) `AXBoundsForRange` trên ô: AppKit, ô nhập của Safari. (2) Chromium /
+  Electron trả khung RỖNG cho câu đó, nhưng phần tử chữ con (`AXStaticText`) của ô trả khung thật: dò chữ của từng
+  phần tử con trong chữ của ô (`leaves`) rồi hỏi phần tử con. Người dùng xác nhận 2026-11-27 ở Claude desktop: có nét gạch
+  (một dòng chữ trơn); ô nhiều đoạn / có định dạng chưa thử. (3) Text marker đánh số theo cả
+  trang (cho WebKit; chưa có ứng dụng nào dùng tới). Ở Chromium, `AXTextMarkerForIndex` và `AXStartTextMarker` hỏi trên
+  ô đều tính từ đầu TRANG và không có `AXStartTextMarkerForTextMarkerRange`, nên cách 3 đọc ra chữ của chỗ khác: đừng
+  thử lại ở Chromium. Thay chữ: ghi `AXSelectedText` rồi ĐỌC LẠI (Chromium báo thành công mà không đổi
+  chữ); chữ không đổi hoặc ứng dụng báo lỗi thì bôi chọn, chờ vùng chọn đúng rồi gõ đè (`KeyTap.typeOutside`). Người
+  dùng xác nhận 2026-11-27 thay đúng ở Claude desktop và Zalo (cả dải sáng sau khi thay, đặt theo vị trí chữ mới chứ
+  không theo con trỏ: `pulse(at:)`); Chrome, thay chữ ở Safari và các ứng dụng Electron khác chưa thử. Ứng dụng Electron được yêu cầu dựng cây trợ năng
+  (`AXManualAccessibility`), TRỪ các trình soạn mã (`Proofing.noTreeRequest`: VS Code, Cursor, Zed…). Trình duyệt nhân Chromium (Chrome, Edge, Brave, Arc…) không nhận
+  cờ đó: phải đặt `AXEnhancedUserInterface` thì chúng mới báo ô nhập của trang web (`Proofing.enhancedBrowsers`; người
+  dùng xác nhận 2026-11-27 Chrome có nét gạch sau khi bật). Cái giá: gõ trong trình duyệt NẶNG hẳn, nhất là ở ô chat với AI
+  (người dùng báo ngay sau đó), nên việc này nằm sau công tắc `proofreadBrowsers` ở thẻ Gợi ý, mặc định TẮT; đừng bật
+  mặc định. Khi công tắc bật, cờ được bật một lần cho mỗi tiến trình và để yên. ĐÃ THỬ, BỎ: chỉ bật lúc ngừng
+  gõ rồi tắt khi gõ tiếp. Đo 2026-11-27 bằng trang thử 3.600 phần tử trong Chrome thật (trang tự chèn 150 ký tự và giả
+  AI trả lời, cờ bật / tắt bằng `VNKey --ax-enhance` / `--ax-unenhance`): khi cờ đã bật sẵn, trong trang KHÔNG đo được
+  khác biệt (chèn 0,65 so với 0,70 ms, khung hình như nhau, không có tác vụ dài), nhưng lần đọc Trợ năng đầu tiên sau
+  khi bật mất 408 ms; bật tắt theo nhịp gõ sẽ trả cái giá đó nhiều lần. Đo thêm bằng PHÍM THẬT (`VNKey --ax-type` phát phím qua
+  event tap, trang ghi lúc nhận): phím → trang nhận trung vị 5,5 / 4,9 / 5,1 ms ở ba pha tắt / bật / tắt, phím → khung
+  hình kế 1,1 ms cả ba. Tức trên trang thử, cờ bật không làm gõ chậm đi; KHÔNG tái hiện được độ nặng người dùng cảm
+  thấy ở trang chat AI thật (trang thật lớn và động hơn nhiều). Chưa đo trên trang thật.
+  Gõ TELEX bằng phím thật ("tooi ddang gox tieesng vieejt " × 4, `--ax-type --keys`) vào ô React có kiểm soát (400 thành
+  phần vẽ lại mỗi phím) và vào ô contenteditable: chữ ra ĐÚNG ở mọi pha, `VERIFY LỆCH` 0. Cờ tắt: VNKey không biết
+  vai trò ô (`role=?`) nên gửi kiểu `emptyChar` (204 sự kiện phím cho 120 phím; phím → trang p95 30 ms ở trang React,
+  15 ms ở contenteditable). Cờ bật: biết `AXTextArea` nên gửi kiểu `plain` (148 sự kiện; p95 12 ms và 8 ms). Tức cờ bật
+  còn làm việc gửi phím gọn hơn. Đây cũng là lần đầu kiểu `emptyChar` được kiểm chứng ở ô nhập trang web trong Chrome.
+  Đo trên một trang chat AI THẬT do người dùng mở (120 phím "thu " rồi xoá lại, `--erase`, `--wait-front`): CPU Chrome
+  trong lúc gõ 5,9 giây khi cờ bật so với 6,3 giây khi tắt; tiến trình chính của Chrome trả lời một câu hỏi Trợ năng
+  vặt sau 0,3 ms (trung vị) ở cả ba pha. Vẫn KHÔNG tái hiện được độ nặng. Chưa đo lúc AI đang trả lời, và chưa đo phím →
+  khung hình trên trang thật.
+  Lưu ý khi tự phát phím thử: sự kiện tạo từ mã phím phải gắn ký tự (`keyboardSetUnicodeString`), nếu không tap coi là
+  "không phải ký tự in được" và cho đi thẳng.
+  `VNKey --ax-unenhance <tệp>` tắt cờ ở các trình duyệt đang chạy. Thanh địa chỉ của Chrome không trả khung chữ: để nguyên.
+  Chẩn đoán: dòng `PROOF không soát: <lý do>` và `PROOF khung web: …` (chỉ số lượng).
+- `VNKey --ax-probe <tệp> [--wait giây]` (`AXProbe.swift`): ghi ra ô đang nhận phím của ứng dụng ở trước trả lời những
+  câu hỏi Trợ năng nào (tên thuộc tính, độ dài, khung, các phép so đúng / sai; KHÔNG có chữ của ô). Phải mở bằng
+  `open -n -g build/VNKey.app --args --ax-probe …` để mang quyền Trợ năng của VNKey; chạy song song với bản đang dùng
+  được. Claude tự chạy được trên chính ô chat của Claude desktop: dùng nó trước khi nhờ người dùng thử từng vòng.
 - Đo bộ soát theo từ 2026-11-26 bằng `vnkey-tool check-eval` (1.461 câu `Eval/`), sau khi thêm luật lặp / đảo chữ và
   chắn tên riêng: chữ không có thật (không Việt, không Anh) gạch được 93,8% và đề nghị đầu đúng 93,0% (trước 80,6% /
   78,3%); 98,7% nét gạch là từ sai thật (trước 94,8%); gạch nhầm 5 lần, 0,7 trên 1.000 từ đúng (trước 21 lần); lỗi

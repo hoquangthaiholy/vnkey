@@ -858,8 +858,12 @@ final class SettingsController: NSObject, NSWindowDelegate {
                     : row(
                         L("Trợ lý cho câu và đoạn văn (✦)", "Sentence and paragraph assistant (✦)"),
                         L("Cần macOS 26 trở lên và Apple Intelligence đang bật. Máy này chưa có nên tính năng này tắt.", "Needs macOS 26 or later with Apple Intelligence turned on. This Mac does not have it, so this feature is off.")),
+                toggle(
+                    L("Gợi ý trên trang web trong Chrome, Edge, Brave, Arc", "Suggestions on web pages in Chrome, Edge, Brave, Arc"),
+                    L("Các trình duyệt này chỉ cho đọc ô nhập khi chế độ trợ năng của chúng được bật, và khi đó gõ trong trình duyệt có thể nặng hơn, nhất là ở trang dài như ô chat với AI. Tắt đi rồi khởi động lại trình duyệt để trở về như cũ. Safari không cần bật.", "These browsers only expose text fields while their accessibility mode is on, and typing in the browser can feel heavier then, most of all on long pages such as AI chats. Turn this off and restart the browser to go back. Safari does not need it."),
+                    key: Key.proofreadBrowsers, dependsOn: Key.proofread),
             ]),
-            note(L("Để kiểm tra, VNKey đọc nội dung ô đang nhập, chỉ trên máy này và không lưu lại. Hiện chạy với ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), chưa chạy trên trang web.", "To check, VNKey reads the text of the field you are typing in, only on this Mac, and stores none of it. It works in standard macOS apps (TextEdit, Notes, Mail) for now, not on web pages.")),
+            note(L("Để kiểm tra, VNKey đọc nội dung ô đang nhập, chỉ trên máy này và không lưu lại. Chạy với ứng dụng macOS chuẩn (TextEdit, Ghi chú, Mail), Safari, và ứng dụng nền web như Zalo, Claude; không chạy trong trình soạn mã (VS Code, Cursor).", "To check, VNKey reads the text of the field you are typing in, only on this Mac, and stores none of it. It works in standard macOS apps (TextEdit, Notes, Mail), Safari, and web-based apps such as Zalo and Claude; not in code editors (VS Code, Cursor).")),
             title(L("Học từ cách bạn gõ", "Learning from your typing")),
             Card(rows: [
                 learnRow(),

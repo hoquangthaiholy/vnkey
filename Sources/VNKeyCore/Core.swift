@@ -113,6 +113,8 @@ public func classifyKey(code: Int, chars: String) -> KeyKind {
 public enum SendStep: Equatable {
     case arrowLeft, arrowRight
     case backspace(Int)
+    /// Bôi chọn lùi chừng này ký tự (⇧←), để đoạn chữ phát ngay sau đó gõ ĐÈ lên thay vì xoá từng ký tự.
+    case selectLeft(Int)
     case text(String)
     /// Phát lại phím gốc của người dùng.
     case original
@@ -138,6 +140,9 @@ public enum SendPlanner {
 
     public static let emptyChar = "\u{202F}"
 
+    /// Trình duyệt: nơi kiểu "bôi chọn rồi gõ đè" được dùng cho vùng soạn thảo của trang web (khi người dùng bật).
+    public static let overwriteApps: Set<String> = emptyCharApps.subtracting(["com.microsoft.Excel"])
+
     /// Ô nhập một dòng (thanh địa chỉ, ô tìm kiếm): nơi gợi ý tự điền nối đuôi thật sự xuất hiện.
     /// Vùng soạn thảo nhiều dòng và nội dung trang web thì không, nên khỏi tốn công hỏi/sửa ở đó.
     public static func isSuggestionField(role: String) -> Bool {
@@ -155,7 +160,7 @@ public enum SendPlanner {
     ///   - role: vai trò Accessibility của ô đang nhận phím, "?" nếu không biết.
     public static func plan(
         backspaces: Int, text: String, passKey: Bool, app: String, selection: Int?, fixAutocomplete: Bool,
-        role: String = "?"
+        role: String = "?", overwrite: Bool = false
     ) -> SendPlan {
         var steps: [SendStep] = []
         var mode = "plain"
@@ -177,6 +182,14 @@ public enum SendPlanner {
                 n += 1
                 mode = "emptyChar"
             }
+        }
+        // Vùng soạn thảo của trang web (ô chat dựng bằng React / Angular…): mỗi phím xoá là một lần trang sửa nội dung
+        // và vẽ lại, nên "xoá 3 rồi chèn" là bốn lần sửa cho một dấu. Bôi chọn lùi rồi gõ đè: trang chỉ sửa MỘT lần.
+        // Chỉ khi có chữ để gõ đè; chỉ xoá thì vẫn xoá như thường.
+        if n > 0, overwrite, mode == "plain", !text.isEmpty, role == "AXTextArea", overwriteApps.contains(app) {
+            steps.append(.selectLeft(n))
+            n = 0
+            mode = "overwrite"
         }
         if n > 0 { steps.append(.backspace(n)) }
         if !text.isEmpty { steps.append(.text(text)) }

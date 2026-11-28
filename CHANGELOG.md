@@ -1,5 +1,19 @@
 # Nhật ký thay đổi (CHANGELOG)
 
+## [2.1.1] - 2026-11-29
+Gợi ý sửa lỗi chạy được trên trang web và ứng dụng nền web; gõ ở ô chat của trang web nhẹ hơn.
+
+### Thêm mới
+- **Gợi ý trên trang web và ứng dụng nền web**: nét gạch chân và bảng đề nghị giờ chạy trong Safari và các ứng dụng như Zalo, Claude. Không chạy trong trình soạn mã (VS Code, Cursor, Zed).
+- **Gợi ý trên trang web trong Chrome, Edge, Brave, Arc** (tuỳ chọn ở Cài đặt › Gợi ý, mặc định tắt): các trình duyệt này chỉ cho đọc ô nhập khi chế độ trợ năng của chúng được bật, và khi đó gõ trong trình duyệt có thể nặng hơn.
+- Chọn một đề nghị ở ứng dụng không cho ghi thẳng vào ô nhập: VNKey bôi chọn từ đó rồi gõ đè lên.
+
+### Sửa lỗi
+- Gõ ở ô chat của trang web (Gemini trong Safari) hơi khựng: bộ soát lỗi không còn đọc ô nhập trong lúc bạn đang gõ dở, chỉ đọc khi bạn ngừng một nhịp.
+
+### Thử nghiệm
+- Kiểu gửi "bôi chọn rồi gõ đè" cho ô soạn thảo của trang web trong trình duyệt, để trang chỉ phải sửa nội dung một lần cho mỗi dấu. Mặc định tắt; bật bằng `defaults write com.hoquangthaiholy.vnkey overwriteInBrowsers -bool true` rồi mở lại VNKey.
+
 ## [2.1.0] - 2026-11-26
 VNKey thôi tự sửa chữ của bạn: từ nghi gõ sai được gạch chân kèm đề nghị. Thêm bảng tạm, trợ lý viết ✦ chạy trên máy và gõ tắt thông minh.
 

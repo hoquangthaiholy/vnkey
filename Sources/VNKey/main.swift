@@ -36,6 +36,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.terminate(nil)
             return
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--ax-type"), i + 1 < CommandLine.arguments.count {
+            let count = CommandLine.arguments.firstIndex(of: "--count").flatMap { $0 + 1 < CommandLine.arguments.count ? Int(CommandLine.arguments[$0 + 1]) : nil } ?? 100
+            let out = URL(fileURLWithPath: CommandLine.arguments[i + 1])
+            DispatchQueue.global().async {
+                let keys = CommandLine.arguments.firstIndex(of: "--keys").flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil }
+                func number(_ flag: String) -> Double? {
+                    CommandLine.arguments.firstIndex(of: flag).flatMap { $0 + 1 < CommandLine.arguments.count ? Double(CommandLine.arguments[$0 + 1]) : nil }
+                }
+                AXProbe.typeKeys(
+                    count: min(count, 400), keys: keys, erase: Int(number("--erase") ?? 0), waitFront: number("--wait-front") ?? 0,
+                    allowed: Proofing.enhancedBrowsers, into: out)
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+            }
+            return
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--ax-enhance"), i + 1 < CommandLine.arguments.count {
+            AXProbe.enhance(Proofing.enhancedBrowsers, into: URL(fileURLWithPath: CommandLine.arguments[i + 1]))
+            NSApp.terminate(nil)
+            return
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--ax-unenhance"), i + 1 < CommandLine.arguments.count {
+            AXProbe.unenhance(Proofing.enhancedBrowsers, into: URL(fileURLWithPath: CommandLine.arguments[i + 1]))
+            NSApp.terminate(nil)
+            return
+        }
+        // Chế độ thăm dò Trợ năng (chẩn đoán, xem `AXProbe`): ghi báo cáo rồi thoát, cũng KHÔNG khởi động event tap.
+        if let i = CommandLine.arguments.firstIndex(of: "--ax-probe"), i + 1 < CommandLine.arguments.count {
+            let wait = CommandLine.arguments.firstIndex(of: "--wait").flatMap { $0 + 1 < CommandLine.arguments.count ? Double(CommandLine.arguments[$0 + 1]) : nil } ?? 0
+            let out = URL(fileURLWithPath: CommandLine.arguments[i + 1])
+            DispatchQueue.global().async {
+                AXProbe.run(into: out, wait: wait)
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+            }
+            return
+        }
         installMainMenu()
         migrateSettings()
         Log.enabled = defaults.bool(forKey: Key.debugLog)
@@ -64,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         tap.onKey = { [unowned self] code, mods in proofing.key(code: code, mods: mods) }
         tap.onMouseDown = { [unowned self] point in proofing.mouseDown(at: point) }
+        proofing.typeText = { [unowned self] text in tap.typeOutside(text) }
         tap.onReplaced = { [unowned self] length, trailing in
             // Đang ở trong callback của event tap, và chữ mới chưa kịp tới ứng dụng: đợi một nhịp rồi mới làm sáng.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) { self.proofing.pulse(length: length, trailing: trailing) }
@@ -304,10 +340,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         proofing.configure(
             on: defaults.bool(forKey: Key.proofread), config: c, lexicon: lexicon, context: UsageStore.model,
             english: english && defaults.bool(forKey: Key.proofreadEnglish), sentence: defaults.bool(forKey: Key.proofreadSentence),
+            browsers: defaults.bool(forKey: Key.proofreadBrowsers),
             skip: raw.union(vn).union(defaults.stringArray(forKey: Key.proofreadIgnored) ?? []))
 
         checkInputSource()  // công tắc "tạm ngưng theo bàn phím hệ thống" có thể vừa đổi
         tap.fixAutocomplete = defaults.bool(forKey: Key.fixBrowser)
+        tap.overwriteInBrowsers = defaults.bool(forKey: Key.overwriteInBrowsers)
         tap.toggleHotkey = Hotkey(string: defaults.string(forKey: Key.toggleHotkey) ?? "") ?? .defaultToggle
         tap.restoreHotkey = Hotkey(string: defaults.string(forKey: Key.restoreHotkey) ?? "") ?? .defaultRestore
         tap.clipboardHotkey = Hotkey(string: defaults.string(forKey: Key.clipboardHotkey) ?? "") ?? .defaultClipboard

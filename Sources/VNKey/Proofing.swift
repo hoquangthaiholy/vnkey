@@ -12,10 +12,12 @@ import VNKeyCore
 /// số lượng, loại lỗi, thời gian). Ô mật khẩu không bao giờ được đọc.
 ///
 /// Giới hạn hiện nay (chưa kiểm chứng trên ứng dụng thật):
-/// - chỉ ứng dụng trả lời theo số thứ tự ký tự (AppKit: TextEdit, Ghi chú, Mail…); trang web và Electron dùng
-///   text marker, chưa làm;
+/// - ứng dụng trả lời theo số thứ tự ký tự (AppKit: TextEdit, Ghi chú, Mail…) hỏi `AXBoundsForRange`; trang web và
+///   Electron không trả lời câu đó nên hỏi qua "text marker" (`bounds(_:_:text:stamp:)`, làm 2026-11-27, CHƯA kiểm
+///   chứng trên ứng dụng thật). Ứng dụng Electron chỉ dựng cây trợ năng khi được yêu cầu (`AXManualAccessibility`);
 /// - không có thông báo cuộn đáng tin nên hỏi lại định kỳ: nét gạch bám theo chữ chậm một nhịp;
-/// - ứng dụng không cho ghi `AXSelectedText` thì không thay được (có ghi nhật ký), chưa có đường dự phòng.
+/// - ứng dụng không cho ghi `AXSelectedText` (web, Electron) thì bôi chọn chữ cũ rồi GÕ chữ mới bằng sự kiện phím
+///   (`typeText`); không bôi chọn được thì không thay (có ghi nhật ký).
 final class Proofing {
     /// Một lần đọc ô đang nhập, làm ở hàng đợi nền.
     private struct Snapshot {
@@ -79,6 +81,10 @@ final class Proofing {
     var isActive: () -> Bool = { true }
     /// Chữ trong ô vừa bị thay ngoài luồng gõ: engine phải quên trạng thái đang theo dõi.
     var didReplace: () -> Void = {}
+    /// Gõ một đoạn chữ vào ứng dụng đang ở trước bằng sự kiện phím (KeyTap), cho ô không cho ghi qua Trợ năng.
+    var typeText: (String) -> Void = { _ in }
+    /// Lý do gần nhất khiến ô đang nhập không được soát; chỉ ghi nhật ký khi lý do đổi.
+    private var lastWhy = ""
     /// Người dùng thêm các từ này (chữ thường) vào từ điển của họ: lưu lại, không bao giờ gạch nữa.
     var ignore: ([String]) -> Void = { _ in }
     /// Từ không soát theo cài đặt, và từ người dùng bảo "bỏ qua lần này" (chỉ tới khi VNKey chạy lại).
@@ -164,7 +170,12 @@ final class Proofing {
 
     // MARK: - Cài đặt
 
-    func configure(on: Bool, config: Config, lexicon: Lexicon, context: ContextModel?, english: Bool, sentence: Bool, skip: Set<String>) {
+    func configure(on: Bool, config: Config, lexicon: Lexicon, context: ContextModel?, english: Bool, sentence: Bool, browsers: Bool, skip: Set<String>) {
+        if browsers != Proofing.allowEnhanced {
+            Proofing.allowEnhanced = browsers
+            Log.write("PROOF gợi ý trong trình duyệt Chromium: \(browsers ? "bật" : "tắt")")
+            if !browsers { queue.async { Proofing.relax("tắt công tắc") } }
+        }
         // Bảng AI chỉ có khi máy có Apple Intelligence; không có thì không hiện nút ✦ và không theo dõi chuột.
         sentenceOn = sentence && SentenceFix.available
         reader.config = config
@@ -333,11 +344,22 @@ final class Proofing {
     /// Quét một dải sáng lên `length` ký tự (UTF-16) đứng trước con trỏ, bỏ qua `trailing` ký tự sát con trỏ (dấu
     /// cách vừa gõ). Dùng khi chữ vừa được thay: Đổi từ vừa gõ, chọn một đề nghị, gõ tắt bung ra. Ứng dụng không cho
     /// biết khung chữ thì không làm gì. Gọi ở luồng chính, sau khi chữ mới đã tới ứng dụng.
-    func pulse(length: Int, trailing: Int = 0) {
+    /// `at`: vị trí tuyệt đối (UTF-16) của chữ mới khi đã biết (chọn một đề nghị): dùng nó thay vì suy từ con trỏ, vì
+    /// ở ứng dụng web con trỏ chưa kịp dời tới sau chữ vừa gõ thay, dải sáng sẽ rơi vào chữ đứng TRƯỚC (người dùng báo
+    /// ở Zalo 2026-11-27).
+    func pulse(length: Int, trailing: Int = 0, at absolute: Int? = nil) {
         guard length > 0 else { return }
         queue.async { [weak self] in
-            guard let snap = Proofing.read(), let caret = snap.caret else { return }
-            let end = caret - trailing - snap.base, start = end - length
+            guard let snap = Proofing.read().snap else { return }
+            let end: Int
+            if let absolute {
+                end = absolute - snap.base + length
+            } else if let caret = snap.caret {
+                end = caret - trailing - snap.base
+            } else {
+                return
+            }
+            let start = end - length
             let units = Array(snap.text.utf16)
             guard start >= 0, end <= units.count else { return }
             let piece = ProofIssue(
@@ -436,10 +458,18 @@ final class Proofing {
         queue.async { [weak self] in
             AXUIElementSetMessagingTimeout(element, 0.1)
             var out: CFTypeRef?
-            guard let value = AXValueCreate(.cgPoint, &point),
-                AXUIElementCopyParameterizedAttributeValue(element, kAXRangeForPositionParameterizedAttribute as CFString, value, &out) == .success,
-                let at = Proofing.range(out)
-            else { return }
+            guard let value = AXValueCreate(.cgPoint, &point) else { return }
+            var at: CFRange?
+            if AXUIElementCopyParameterizedAttributeValue(element, kAXRangeForPositionParameterizedAttribute as CFString, value, &out) == .success {
+                at = Proofing.range(out)
+            }
+            // Trang web / Electron: hỏi text marker dưới điểm đó rồi đổi ra số thứ tự ký tự.
+            if at == nil, let marker = Proofing.askAny(element, "AXTextMarkerForPosition", value),
+                let index = Proofing.askAny(element, "AXIndexForTextMarker", marker) as? Int
+            {
+                at = CFRange(location: index, length: 0)
+            }
+            guard let at else { return }
             DispatchQueue.main.async {
                 guard let self, ticket == self.asking, !self.aiOpen, self.shownIssue == nil, self.hint == nil else { return }
                 let index = at.location - self.base
@@ -476,24 +506,37 @@ final class Proofing {
         guard isActive() else { return clear("VNKey đang tắt hoặc tạm ngưng") }
         // Bảng đề nghị mở do rê chuột: giữ nguyên nét gạch và vị trí. Mở do con trỏ thì vẫn phải theo dõi con trỏ.
         if aiOpen || (shownIssue != nil && !caretOpened) { return }
+        // Đang gõ dở và không có nét gạch nào phải giữ đúng chỗ: KHÔNG đọc ô. Đọc lúc này chẳng để làm gì (chữ đổi mà
+        // còn gõ thì `took` cũng chỉ ghi nhớ rồi đợi), trong khi mỗi lần đọc là chục câu hỏi Trợ năng mà trang web phải
+        // trả lời trên luồng chính của nó, ngay giữa lúc nó đang vẽ chữ vừa gõ (người dùng báo 2026-11-28: gõ ở Gemini
+        // trong Safari hơi khựng). Giữ nhịp nhanh để soát ngay khi ngừng gõ.
+        if issues.isEmpty, shownIssue == nil, lastInput == .typing, Date().timeIntervalSince(lastKey) < 0.4 {
+            stale = true
+            schedule(Proofing.busyInterval)
+            return
+        }
         busy = true
         let known = element, knownText = text, knownBase = base, knownIssues = issues
         queue.async { [weak self] in
             let start = CFAbsoluteTimeGetCurrent()
-            let snap = Proofing.read()
+            let (snap, why) = Proofing.read()
             // Chữ không đổi: hỏi luôn khung của các chỗ đã biết, đỡ một lượt qua lại giữa hai luồng.
             var frames: [[CGRect]]?
             if let snap, let known, CFEqual(snap.element, known), snap.text == knownText, snap.base == knownBase {
                 frames = Proofing.frames(of: knownIssues, in: snap)
             }
             let ms = (CFAbsoluteTimeGetCurrent() - start) * 1000
-            DispatchQueue.main.async { self?.took(snap, frames, readMs: ms) }
+            DispatchQueue.main.async { self?.took(snap, frames, readMs: ms, why: why) }
         }
     }
 
-    private func took(_ snap: Snapshot?, _ frames: [[CGRect]]?, readMs: Double) {
+    private func took(_ snap: Snapshot?, _ frames: [[CGRect]]?, readMs: Double, why: String) {
         busy = false
         guard enabled else { return }
+        if why != lastWhy {
+            lastWhy = why
+            if !why.isEmpty { Log.write("PROOF không soát: \(why)") }
+        }
         guard let snap else { return clear("không ở trong ô nhập soát được") }
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == snap.pid else { return clear("ô không thuộc ứng dụng ở trước") }
         watch(snap.window, pid: snap.pid)
@@ -546,7 +589,11 @@ final class Proofing {
         element = snap.element; text = snap.text; base = snap.base; caret = snap.caret
         issues = Array(found.prefix(Proofing.maxMarks))
         let kinds = Dictionary(grouping: issues, by: \.kind).map { "\($0.key.rawValue)=\($0.value.count)" }.sorted().joined(separator: " ")
-        Log.write(String(format: "PROOF soát %d ký tự: %d chỗ %@ đọc %.1fms soát %.1fms", snap.text.utf16.count, found.count, kinds, readMs, ms))
+        if Log.enabled {
+            // Tên ứng dụng để đọc nhật ký biết dòng này thuộc về đâu (rê chuột và dán không sinh dòng KEY nào).
+            let app = NSRunningApplication(processIdentifier: snap.pid)?.bundleIdentifier ?? "?"
+            Log.write(String(format: "PROOF soát %d ký tự: %d chỗ %@ đọc %.1fms soát %.1fms app=%@", snap.text.utf16.count, found.count, kinds, readMs, ms, app))
+        }
         guard !issues.isEmpty else {
             marks = []
             overlay.hide()
@@ -648,24 +695,125 @@ final class Proofing {
         return CGRect(origin: origin, size: extent)
     }
 
-    /// Ô đang nhận phím và đoạn chữ quanh vùng nhìn thấy của nó. nil nếu không phải ô nhập soát được.
-    private static func read() -> Snapshot? {
+    // Các bảng nhớ dưới đây CHỈ được đụng tới ở hàng đợi nền `queue`.
+    /// Ứng dụng đã được yêu cầu dựng cây trợ năng (mỗi tiến trình một lần).
+    private static var askedTree: Set<pid_t> = []
+    /// Cách đã tìm ra để hỏi khung của một đoạn chữ.
+    private enum Located {
+        /// Đoạn nằm trọn trong một phần tử chữ con (`AXStaticText`), tại khoảng này của nó.
+        case leaf(AXUIElement, CFRange)
+        case marker(CFTypeRef)
+        /// Không cách nào dùng được: khỏi hỏi lại mỗi nhịp.
+        case none
+    }
+    /// Cách hỏi khung của từng đoạn trong lần đọc hiện tại (`stamp` = mã băm của chữ + vị trí). Đoạn đã có trong bảng
+    /// thì khỏi hỏi `AXBoundsForRange` trên ô nữa. (Không nhớ theo tiến trình: trong trình duyệt, thanh địa chỉ và
+    /// trang web cùng một tiến trình nhưng trả lời khác nhau; nhật ký 2026-11-27 ở Chrome.)
+    private static var located: (stamp: Int, found: [String: Located], retried: Bool, rebuilt: Bool) = (0, [:], false, false)
+    /// Các phần tử chữ con của ô và vị trí của chúng trong chữ của ô (số thứ tự tuyệt đối), xem `leaves`.
+    private static var leafCache: (element: AXUIElement, leaves: [(element: AXUIElement, start: Int, length: Int)], at: CFAbsoluteTime)?
+    /// Các vị trí có thể của ô trong cả trang (cái trúng gần nhất đứng đầu), nhớ theo ô: tính lại tốn cả chục câu hỏi.
+    private static var originCache: (element: AXUIElement, candidates: [Int], note: String)?
+    /// Số liệu chẩn đoán (không có chữ): số đoạn phải tìm cách hỏi khác, số tìm được qua phần tử con / qua marker, số
+    /// lệch chữ, số không dựng được; độ dài cần và đọc được ở lần lệch gần nhất (-1 = ứng dụng không trả chữ).
+    private struct MarkerStats: Equatable {
+        var asked = 0, viaLeaf = 0, viaMarker = 0, mismatched = 0, missing = 0, origin = -1, wanted = 0, got = 0, leaves = -1
+        var note = "", origins = ""
+    }
+    private static var markerStats = MarkerStats(), markerReported = MarkerStats()
+    /// Trình duyệt nhân Chromium: phải bật `AXEnhancedUserInterface` thì chúng mới dựng cây trợ năng của trang web
+    /// và báo ô nhập. Người dùng thấy gõ trong Chrome NẶNG hơn khi chế độ đó bật, nhất là ở ô chat với AI
+    /// (2026-11-27), nên chỉ làm khi họ bật công tắc `proofreadBrowsers` (mặc định tắt): `allowEnhanced`. Bật MỘT LẦN
+    /// cho mỗi tiến trình rồi để yên, tắt khi công tắc tắt. Đã thử "chỉ bật lúc ngừng gõ, tắt khi gõ tiếp" rồi bỏ: đo
+    /// 2026-11-27 trên trang thử 3.600 phần tử, lần đọc đầu tiên sau mỗi lần bật mất 0,4 giây (trình duyệt dựng lại cả
+    /// cây), còn khi đã bật sẵn thì trong trang không đo được khác biệt; bật tắt liên tục chỉ trả cái giá đó nhiều lần.
+    /// `enhancedOn`: tiến trình đang bật (chỉ đụng tới ở hàng đợi nền).
+    private static var allowEnhanced = false
+    private static var enhancedOn: Set<pid_t> = []
+
+    /// Tắt chế độ trợ năng ở mọi trình duyệt VNKey đang bật. Gọi ở hàng đợi nền.
+    private static func relax(_ why: String) {
+        guard !enhancedOn.isEmpty else { return }
+        for pid in enhancedOn {
+            AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), "AXEnhancedUserInterface" as CFString, kCFBooleanFalse)
+        }
+        let n = enhancedOn.count
+        enhancedOn = []
+        DispatchQueue.main.async { Log.write("PROOF trình duyệt: tắt trợ năng ở \(n) tiến trình (\(why))") }
+    }
+
+    static let enhancedBrowsers: Set<String> = [
+        "com.google.Chrome", "com.google.Chrome.canary", "org.chromium.Chromium", "com.microsoft.edgemac", "com.brave.Browser",
+        "company.thebrowser.Browser", "com.vivaldi.Vivaldi", "com.operasoftware.Opera",
+    ]
+    /// Trình soạn mã dựng trên Electron: bật cây trợ năng làm chúng chuyển sang chế độ cho trình đọc màn hình (hỏi
+    /// người dùng, đổi cách hiển thị), và soát chính tả tiếng Việt trong mã nguồn không có ích. Không yêu cầu.
+    private static let noTreeRequest: Set<String> = [
+        "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders", "com.vscodium", "com.todesktop.230313mzl4w4u92", "dev.zed.Zed",
+    ]
+
+    private static func askAny(_ element: AXUIElement, _ attribute: String, _ parameter: CFTypeRef) -> CFTypeRef? {
+        var out: CFTypeRef?
+        return AXUIElementCopyParameterizedAttributeValue(element, attribute as CFString, parameter, &out) == .success ? out : nil
+    }
+
+    /// Ô đang nhận phím. Hỏi cả hệ thống trước; ứng dụng Electron / Chromium thường không trả lời vì chưa dựng cây
+    /// trợ năng: khi đó hỏi thẳng ứng dụng ở trước và yêu cầu nó dựng (có hiệu lực cho các nhịp sau).
+    private static func focused() -> (element: AXUIElement?, why: String) {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.1)
-        guard let focused = copy(system, kAXFocusedUIElementAttribute), CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
-        let element = focused as! AXUIElement
+        if let f = copy(system, kAXFocusedUIElementAttribute), CFGetTypeID(f) == AXUIElementGetTypeID() { return ((f as! AXUIElement), "") }
+        guard let front = NSWorkspace.shared.frontmostApplication else { return (nil, "không có ứng dụng ở trước") }
+        let pid = front.processIdentifier, name = front.bundleIdentifier ?? "?"
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.1)
+        if let f = copy(app, kAXFocusedUIElementAttribute), CFGetTypeID(f) == AXUIElementGetTypeID() { return ((f as! AXUIElement), "") }
+        if noTreeRequest.contains(name) { return (nil, "\(name) không báo ô đang nhập; không yêu cầu bật cây trợ năng (trình soạn mã)") }
+        if askedTree.insert(pid).inserted {
+            let err = AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+            return (nil, "\(name) không báo ô đang nhập; đã yêu cầu bật cây trợ năng (\(err.rawValue))")
+        }
+        // Trình duyệt nhân Chromium không nhận `AXManualAccessibility` (đó là của Electron; nhật ký 2026-11-27: Chrome
+        // trả -25205 và vẫn không báo ô nhập của trang web). Chúng chỉ dựng cây trợ năng cho trang web khi một công
+        // cụ trợ năng tự giới thiệu bằng `AXEnhancedUserInterface`. Cái giá: trình duyệt tốn thêm tài nguyên, và vài
+        // trình quản lý cửa sổ dời / đổi cỡ cửa sổ của nó chậm đi. Chỉ làm với các trình duyệt trong danh sách, một
+        // lần cho mỗi tiến trình, và chỉ khi người dùng đã bật công tắc; khởi động lại trình duyệt là hết.
+        if allowEnhanced, enhancedBrowsers.contains(name), enhancedOn.insert(pid).inserted {
+            let err = AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+            return (nil, "\(name) không báo ô đang nhập; đã bật trợ năng của trình duyệt (\(err.rawValue))")
+        }
+        return (nil, "\(name) không báo ô đang nhập")
+    }
+
+    /// Chữ của một đoạn trong ô: hỏi theo đoạn, không được thì cắt từ toàn bộ nội dung (`AXValue`).
+    private static func string(_ element: AXUIElement, _ range: CFRange) -> String? {
+        if let s = ask(element, kAXStringForRangeParameterizedAttribute, range) as? String { return s }
+        guard let whole = copy(element, kAXValueAttribute) as? String else { return nil }
+        let units = Array(whole.utf16)
+        guard range.location >= 0, range.length >= 0, range.location + range.length <= units.count else { return nil }
+        return String(utf16CodeUnits: Array(units[range.location..<(range.location + range.length)]), count: range.length)
+    }
+
+    /// Ô đang nhận phím và đoạn chữ quanh vùng nhìn thấy của nó. Không soát được thì `snap` là nil và `why` nói lý do
+    /// (chỉ có vai trò của ô và tên ứng dụng, không có chữ).
+    private static func read() -> (snap: Snapshot?, why: String) {
+        let found = focused()
+        guard let element = found.element else { return (nil, found.why) }
         AXUIElementSetMessagingTimeout(element, 0.1)
-        guard let role = copy(element, kAXRoleAttribute) as? String, textRoles.contains(role),
-            copy(element, kAXSubroleAttribute) as? String != "AXSecureTextField"  // ô mật khẩu: không bao giờ đọc
-        else { return nil }
-        let total = (copy(element, kAXNumberOfCharactersAttribute) as? Int) ?? 0
-        guard total > 0 else { return nil }
+        let role = copy(element, kAXRoleAttribute) as? String ?? "?"
+        guard textRoles.contains(role) else { return (nil, "không phải ô nhập (role=\(role))") }
+        // Ô mật khẩu: không bao giờ đọc.
+        guard copy(element, kAXSubroleAttribute) as? String != "AXSecureTextField" else { return (nil, "ô mật khẩu") }
+        var total = (copy(element, kAXNumberOfCharactersAttribute) as? Int) ?? 0
+        // Ô của trang web có khi không báo số ký tự: đếm từ toàn bộ nội dung.
+        if total == 0 { total = (copy(element, kAXValueAttribute) as? String)?.utf16.count ?? 0 }
+        guard total > 0 else { return (nil, "") }  // ô trống: bình thường, không cần ghi
         var window = CFRange(location: 0, length: min(total, maxChars))
         if total > maxChars, let visible = range(copy(element, kAXVisibleCharacterRangeAttribute)) {
             let from = max(0, visible.location - margin)
             window = CFRange(location: from, length: min(total - from, min(visible.length + 2 * margin, maxChars)))
         }
-        guard let text = ask(element, kAXStringForRangeParameterizedAttribute, window) as? String else { return nil }
+        guard let text = string(element, window) else { return (nil, "không đọc được chữ của ô (role=\(role))") }
         var pid: pid_t = 0
         AXUIElementGetPid(element, &pid)
         // Ô nằm trong vùng cuộn thì khung của ô là cả văn bản: vùng nhìn thấy là khung của vùng cuộn.
@@ -678,26 +826,217 @@ final class Proofing {
         let selection = range(copy(element, kAXSelectedTextRangeAttribute))
         var host: AXUIElement?
         if let w = copy(element, kAXWindowAttribute), CFGetTypeID(w) == AXUIElementGetTypeID() { host = (w as! AXUIElement) }
-        return Snapshot(element: element, window: host, pid: pid, text: text, base: window.location, caret: selection?.location, clip: clip)
+        return (Snapshot(element: element, window: host, pid: pid, text: text, base: window.location, caret: selection?.location, clip: clip), "")
+    }
+
+    /// Text marker (kiểu định vị của WebKit / Chromium) cho một đoạn tính theo số thứ tự ký tự.
+    private static func markerRange(_ element: AXUIElement, _ range: CFRange) -> CFTypeRef? {
+        guard let from = askAny(element, "AXTextMarkerForIndex", range.location as CFNumber),
+            let to = askAny(element, "AXTextMarkerForIndex", (range.location + range.length) as CFNumber)
+        else { return nil }
+        return askAny(element, "AXTextMarkerRangeForUnorderedTextMarkers", [from, to] as CFArray)
+    }
+
+    /// Các vị trí có thể (số thứ tự ký tự trong CẢ TRANG) của ký tự đầu tiên trong ô. `AXTextMarkerForIndex` của
+    /// WebKit và Chromium đếm từ đầu trang chứ không từ đầu ô, nên phải cộng thêm chừng này. Nhật ký 2026-11-27 ở
+    /// Claude desktop: dựng theo số của ô thì đọc ra chữ khác cùng độ dài, và `AXIndexForTextMarker` của đầu ô trả 0
+    /// (nó đếm trong phần tử chứa marker, không phải trong trang). Cách đáng tin hơn: đo độ dài đoạn từ đầu trang tới
+    /// đầu ô. Trả về mọi ứng viên; `bounds` thử từng cái và chỉ nhận cái đọc ra đúng chữ.
+    private static func origins(of element: AXUIElement) -> (candidates: [Int], note: String) {
+        var out: [Int] = [], note = ""
+        if let whole = askAny(element, "AXTextMarkerRangeForUIElement", element),
+            let first = askAny(element, "AXStartTextMarkerForTextMarkerRange", whole)
+        {
+            // Marker đầu trang: hỏi ô, không có thì leo lên vùng trang web chứa nó.
+            var top = copy(element, "AXStartTextMarker"), node = element, hops = 0
+            while top == nil, hops < 40, let parent = copy(node, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() {
+                node = parent as! AXUIElement
+                hops += 1
+                if copy(node, kAXRoleAttribute) as? String == "AXWebArea" { top = copy(node, "AXStartTextMarker"); break }
+            }
+            if let top, let lead = askAny(element, "AXTextMarkerRangeForUnorderedTextMarkers", [top, first] as CFArray),
+                let n = askAny(element, "AXLengthForTextMarkerRange", lead) as? Int
+            {
+                out.append(n)
+                note += "theo độ dài=\(n)"
+            } else {
+                note += "theo độ dài=không(\(top == nil ? "không có marker đầu trang, leo \(hops) cấp" : "không đo được"))"
+            }
+            if let i = askAny(element, "AXIndexForTextMarker", first) as? Int {
+                out.append(i)
+                note += " theo chỉ số=\(i)"
+            } else {
+                note += " theo chỉ số=không"
+            }
+        } else {
+            note = "ô không trả marker của chính nó"
+        }
+        out.append(0)
+        var seen: Set<Int> = []
+        return (out.filter { seen.insert($0).inserted }, note)
+    }
+
+    /// Các phần tử chữ (`AXStaticText`) nằm trong ô, mỗi cái kèm vị trí chữ của nó trong `text` (cộng `base` thành số
+    /// thứ tự tuyệt đối). Tìm bằng cách dò chữ của từng phần tử trong `text`, lần lượt từ trái sang. Giới hạn số phần
+    /// tử phải hỏi để một văn bản rất dài không làm ứng dụng kia bận.
+    private static func leaves(of element: AXUIElement, text: String, base: Int) -> [(element: AXUIElement, start: Int, length: Int)] {
+        var out: [(element: AXUIElement, start: Int, length: Int)] = []
+        let whole = text as NSString
+        var cursor = 0, visited = 0
+        func walk(_ node: AXUIElement, _ depth: Int) {
+            guard depth <= 8, visited < 300, let kids = copy(node, kAXChildrenAttribute) as? [AXUIElement] else { return }
+            for kid in kids {
+                visited += 1
+                if visited >= 300 { return }
+                if copy(kid, kAXRoleAttribute) as? String == "AXStaticText" {
+                    guard let value = copy(kid, kAXValueAttribute) as? String, !value.isEmpty, cursor < whole.length else { continue }
+                    let at = whole.range(of: value, options: [], range: NSRange(location: cursor, length: whole.length - cursor))
+                    guard at.location != NSNotFound else { continue }
+                    out.append((kid, base + at.location, at.length))
+                    cursor = at.location + at.length
+                } else {
+                    walk(kid, depth + 1)
+                }
+            }
+        }
+        walk(element, 0)
+        return out
+    }
+
+    /// Khung (toạ độ AX) của một đoạn chữ, hỏi theo ba cách, cách trước không được mới tới cách sau:
+    /// 1. `AXBoundsForRange` trên chính ô: ứng dụng AppKit, và ô nhập của Safari.
+    /// 2. Chromium / Electron trả khung RỖNG cho câu trên (đo bằng `VNKey --ax-probe` ở Claude desktop, 2026-11-27),
+    ///    nhưng phần tử chữ con (`AXStaticText`) của ô thì trả khung thật: tìm phần tử con chứa đoạn đó rồi hỏi nó.
+    /// 3. Text marker, đánh số theo cả trang (WebKit). Ở Chromium cách này đọc ra chữ của chỗ khác trong trang.
+    /// Cách 2 và 3 CHỈ được tin khi chữ ứng dụng đọc ra đúng là `text`: lệch thì thà không gạch còn hơn gạch nhầm chữ.
+    private static func bounds(_ element: AXUIElement, _ range: CFRange, text: String, snap: Snapshot, stamp: Int) -> CGRect? {
+        if located.stamp != stamp { located = (stamp, [:], false, false) }
+        let key = "\(range.location):\(range.length)"
+        if located.found[key] == nil {
+            if let r = HUD.rect(ask(element, kAXBoundsForRangeParameterizedAttribute, range)), r.width > 1, r.height > 1 { return r }
+            markerStats.asked += 1
+            let want = text.precomposedStringWithCanonicalMapping
+            var found = Located.none
+
+            // Cách 2: phần tử chữ con. Bảng phần tử dùng lại giữa các lần đọc (dựng lại tốn nhiều câu hỏi); chữ đọc ra
+            // không khớp thì dựng lại một lần cho lần đọc này rồi thử lại.
+            func viaLeaf() -> Bool {
+                guard let cache = leafCache, CFEqual(cache.element, element) else { return false }
+                guard let leaf = cache.leaves.first(where: { $0.start <= range.location && range.location + range.length <= $0.start + $0.length })
+                else { return false }
+                let inside = CFRange(location: range.location - leaf.start, length: range.length)
+                guard (ask(leaf.element, kAXStringForRangeParameterizedAttribute, inside) as? String)?.precomposedStringWithCanonicalMapping == want
+                else { return false }
+                found = .leaf(leaf.element, inside)
+                return true
+            }
+            func rebuildLeaves() {
+                leafCache = (element, leaves(of: element, text: snap.text, base: snap.base), CFAbsoluteTimeGetCurrent())
+                located.rebuilt = true
+                markerStats.leaves = leafCache?.leaves.count ?? 0
+            }
+            if leafCache == nil || !CFEqual(leafCache!.element, element) { rebuildLeaves() }
+            if !viaLeaf(), !located.rebuilt {
+                rebuildLeaves()
+                _ = viaLeaf()
+            }
+
+            // Cách 3: text marker.
+            if case .none = found, leafCache?.leaves.isEmpty ?? true {
+                var built = false
+                func attempt() {
+                    if originCache == nil || !CFEqual(originCache!.element, element) {
+                        let o = origins(of: element)
+                        originCache = (element, o.candidates, o.note)
+                        markerStats.origins = o.note
+                    }
+                    for base in originCache?.candidates ?? [0] {
+                        guard let made = markerRange(element, CFRange(location: base + range.location, length: range.length)) else { continue }
+                        built = true
+                        let read = (askAny(element, "AXStringForTextMarkerRange", made) as? String)?.precomposedStringWithCanonicalMapping
+                        if read == want {
+                            found = .marker(made)
+                            markerStats.origin = base
+                            if var cache = originCache, cache.candidates.first != base {
+                                cache.candidates.removeAll { $0 == base }
+                                cache.candidates.insert(base, at: 0)
+                                originCache = cache
+                            }
+                            return
+                        }
+                        markerStats.wanted = want.utf16.count
+                        markerStats.got = read?.utf16.count ?? -1
+                    }
+                }
+                attempt()
+                // Chữ phía trước ô trong trang có thể vừa đổi: tính lại vị trí gốc một lần cho mỗi lần đọc.
+                if case .none = found, !located.retried {
+                    located.retried = true
+                    originCache = nil
+                    attempt()
+                }
+                if case .none = found { if built { markerStats.mismatched += 1 } else { markerStats.missing += 1 } }
+            }
+            switch found {
+            case .leaf: markerStats.viaLeaf += 1
+            case .marker: markerStats.viaMarker += 1
+            case .none: break
+            }
+            located.found[key] = found
+        }
+        let r: CGRect?
+        switch located.found[key] ?? .none {
+        case .leaf(let leaf, let inside): r = HUD.rect(ask(leaf, kAXBoundsForRangeParameterizedAttribute, inside))
+        case .marker(let span): r = HUD.rect(askAny(element, "AXBoundsForTextMarkerRange", span))
+        case .none: return nil
+        }
+        guard let r, r.width > 1, r.height > 1 else {
+            markerStats.note = "tìm đúng chữ nhưng ứng dụng không trả khung"
+            return nil
+        }
+        return r
     }
 
     /// Khung (toạ độ AX) của từng chỗ. Cụm nhiều từ hỏi riêng từng từ rồi gộp các từ cùng dòng, để cụm vắt qua hai
     /// dòng vẫn gạch đúng. Chỗ nằm ngoài vùng nhìn thấy trả về mảng rỗng.
     private static func frames(of issues: [ProofIssue], in snap: Snapshot) -> [[CGRect]] {
-        issues.map { issue in
-            var pieces: [CFRange] = []
-            var offset = issue.range.lowerBound, start: Int?
-            for unit in issue.text.utf16 {
-                let space = unit == 0x20
-                if !space, start == nil { start = offset }
-                if space, let s = start { pieces.append(CFRange(location: snap.base + s, length: offset - s)); start = nil }
-                offset += 1
+        var hasher = Hasher()
+        hasher.combine(snap.text)
+        hasher.combine(snap.base)
+        let stamp = hasher.finalize()
+        defer {
+            // Lần đầu dùng text marker ở một ô, hoặc khi có đoạn lệch: ghi số lượng (không có chữ) để chẩn đoán.
+            if markerStats != markerReported {
+                markerReported = markerStats
+                let s = markerStats
+                DispatchQueue.main.async {
+                    Log.write(
+                        "PROOF khung web: \(s.asked) đoạn ô không trả khung; qua phần tử con \(s.viaLeaf) (ô có \(s.leaves) phần tử chữ), qua marker \(s.viaMarker), lệch chữ \(s.mismatched) (cần \(s.wanted), đọc \(s.got)), không dựng được \(s.missing) \(s.origins) \(s.note)")
+                }
             }
-            if let s = start { pieces.append(CFRange(location: snap.base + s, length: offset - s)) }
-            let rects = pieces.compactMap { HUD.rect(ask(snap.element, kAXBoundsForRangeParameterizedAttribute, $0)) }
-                .filter { $0.width > 1 && $0.height > 1 }
+        }
+        return issues.map { issue in
+            var pieces: [(range: CFRange, text: String)] = []
+            let units = Array(issue.text.utf16)
+            var start: Int?
+            func close(_ end: Int) {
+                guard let s = start else { return }
+                pieces.append((CFRange(location: snap.base + issue.range.lowerBound + s, length: end - s), String(utf16CodeUnits: Array(units[s..<end]), count: end - s)))
+                start = nil
+            }
+            for (i, unit) in units.enumerated() {
+                if unit == 0x20 { close(i) } else if start == nil { start = i }
+            }
+            close(units.count)
+            let rects = pieces.compactMap { bounds(snap.element, $0.range, text: $0.text, snap: snap, stamp: stamp) }
             guard rects.count == pieces.count else { return [] }
-            if let clip = snap.clip, !rects.allSatisfy({ clip.insetBy(dx: -2, dy: -2).contains($0) }) { return [] }
+            if let clip = snap.clip, !rects.allSatisfy({ clip.insetBy(dx: -2, dy: -2).contains($0) }) {
+                // Toạ độ màn hình, không phải chữ: để biết khung chữ lệch khỏi ô bao xa.
+                if let r = rects.first {
+                    markerStats.note = "khung chữ nằm ngoài vùng nhìn thấy của ô: chữ \(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))x\(Int(r.height)); ô \(Int(clip.minX)),\(Int(clip.minY)) \(Int(clip.width))x\(Int(clip.height))"
+                }
+                return []
+            }
             // Các từ của một cụm nằm cùng dòng thì gộp thành một khung, để nét gạch và nền sáng phủ cả khoảng trống
             // giữa chúng (người dùng yêu cầu 2026-11-25). Từ rớt xuống dòng sau giữ khung riêng.
             var merged: [CGRect] = []
@@ -772,9 +1111,10 @@ final class Proofing {
         guard let range = paragraph ? SentenceFilter.paragraph(in: text, around: at) : SentenceFilter.sentence(in: text, around: at) else { return done(nil) }
         let units = Array(text.utf16)
         let original = String(utf16CodeUnits: Array(units[range]), count: range.count)
-        let knownBase = base, clip = lastClip
+        let knownBase = base, clip = lastClip, knownText = text
         queue.async {
-            let snap = Snapshot(element: element, window: nil, pid: 0, text: "", base: knownBase, caret: nil, clip: clip)
+            // Cùng chữ với lần soát gần nhất, để bảng "cách hỏi khung" (`located`) dùng chung được với vòng soát.
+            let snap = Snapshot(element: element, window: nil, pid: 0, text: knownText, base: knownBase, caret: nil, clip: clip)
             // Hỏi khung theo từng DÒNG của đoạn chữ (cắt ở dấu xuống dòng) thay vì từng từ: đoạn văn dài có cả trăm từ.
             var pieces: [ProofIssue] = []
             var start = range.lowerBound
@@ -868,28 +1208,69 @@ final class Proofing {
             AXUIElementSetMessagingTimeout(element, 0.15)
             var outcome = "đã thay"
             var target = target
-            if Proofing.ask(element, kAXStringForRangeParameterizedAttribute, target) as? String != expected {
+            var typeIt = false
+            if Proofing.string(element, target) != expected {
                 outcome = "chữ đã đổi, không thay"
-            } else if let select = AXValueCreate(.cfRange, &target),
-                AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, select) == .success
-            {
-                let err = AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, replacement as CFString)
-                if err != .success {
-                    outcome = "ứng dụng không cho ghi (\(err.rawValue))"
+            } else {
+                var selected = false
+                if let select = AXValueCreate(.cfRange, &target) {
+                    selected = AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, select) == .success
+                }
+                if !selected, let span = Proofing.markerRange(element, target) {
+                    selected = AXUIElementSetAttributeValue(element, "AXSelectedTextMarkerRange" as CFString, span) == .success
+                }
+                if !selected {
+                    outcome = "không bôi chọn được"
                 } else {
-                    var end = CFRange(location: target.location + replacement.utf16.count, length: 0)
-                    if let v = AXValueCreate(.cfRange, &end) {
-                        AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, v)
+                    func count() -> Int { (Proofing.copy(element, kAXNumberOfCharactersAttribute) as? Int) ?? (Proofing.copy(element, kAXValueAttribute) as? String)?.utf16.count ?? -1 }
+                    let before = count()
+                    let err = AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, replacement as CFString)
+                    // Ứng dụng AppKit ghi ngay. Chromium / Electron BÁO thành công nhưng không đổi gì (nhật ký
+                    // 2026-11-27 ở Claude desktop: "đã thay" mà chữ còn nguyên), nên phải đọc lại: chữ mới nằm đúng chỗ
+                    // và độ dài của ô đổi đúng bằng chênh lệch giữa chữ mới và chữ cũ.
+                    var written = false
+                    if err == .success {
+                        let after = CFRange(location: target.location, length: replacement.utf16.count)
+                        for attempt in 0..<4 where !written {
+                            if attempt > 0 { usleep(50_000) }
+                            written = Proofing.string(element, after) == replacement && count() - before == replacement.utf16.count - expected.utf16.count
+                        }
+                    }
+                    if written {
+                        var end = CFRange(location: target.location + replacement.utf16.count, length: 0)
+                        if let v = AXValueCreate(.cfRange, &end) {
+                            AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, v)
+                        }
+                    } else if Proofing.string(element, target) != expected {
+                        // Chữ đã đổi theo cách không ngờ tới: không gõ thêm gì vào.
+                        outcome = "ghi qua Trợ năng cho kết quả lạ (\(err.rawValue)), không gõ thêm"
+                    } else {
+                        // Chữ cũ còn nguyên và đang được bôi chọn: gõ chữ mới đè lên. Trình duyệt bôi chọn không tức
+                        // thì, nên đợi tới khi vùng chọn ĐÚNG là chữ cũ rồi mới gõ; không thấy đúng thì thôi, để khỏi
+                        // gõ chữ vào sai chỗ.
+                        var seen = "không đọc được vùng chọn"
+                        for attempt in 0..<5 where !typeIt {
+                            if attempt > 0 { usleep(60_000) }
+                            if let now = Proofing.range(Proofing.copy(element, kAXSelectedTextRangeAttribute)) {
+                                typeIt = now.location == target.location && now.length == target.length
+                                seen = "vùng chọn \(now.location)+\(now.length), cần \(target.location)+\(target.length)"
+                            }
+                        }
+                        let why = err == .success ? "ứng dụng báo đã ghi nhưng chữ không đổi" : "ứng dụng không cho ghi (\(err.rawValue))"
+                        outcome = typeIt ? "đã gõ thay (\(why))" : "\(why); không bôi chọn được chữ cũ (\(seen))"
                     }
                 }
-            } else {
-                outcome = "không bôi chọn được"
             }
+            let location = target.location
             DispatchQueue.main.async {
                 Log.write("PROOF thay loại=\(label): \(outcome)")
-                if outcome == "đã thay" {
+                if typeIt { self?.typeText(replacement) }
+                if outcome == "đã thay" || typeIt {
                     self?.didReplace()
-                    self?.pulse(length: replacement.utf16.count)
+                    // Chữ gõ thay cần một nhịp mới tới ứng dụng: đợi rồi mới hỏi khung của chữ mới.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (typeIt ? 0.15 : 0)) {
+                        self?.pulse(length: replacement.utf16.count, at: location)
+                    }
                 } else {
                     NSSound.beep()
                 }

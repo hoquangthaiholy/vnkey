@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${VNKEY_VERSION:-2.1.0}"
+VERSION="${VNKEY_VERSION:-2.1.1}"
 BUILD="${VNKEY_BUILD:-1}"
 BUNDLE_ID="${VNKEY_BUNDLE_ID:-local.vnkey}"
 IDENTITY="${VNKEY_SIGN_IDENTITY:-VNKey Dev}"

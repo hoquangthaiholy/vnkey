@@ -6,6 +6,8 @@ enum Key {
     static let standaloneW = "standaloneW", bracketKeys = "bracketKeys"
     static let teen = "teenInitials", autoRestore = "autoRestore", expandTeen = "expandTeen"
     static let perApp = "perAppLanguage", appStates = "appStates", fixBrowser = "fixAutocomplete"
+    /// Khoá ẩn, thử nghiệm: ở vùng soạn thảo của trang web, bôi chọn lùi rồi gõ đè thay vì xoá lùi (`SendPlanner.plan`).
+    static let overwriteInBrowsers = "overwriteInBrowsers"
     static let preferRaw = "preferRaw", preferVN = "preferVN", macros = "macros"
     static let codeAware = "codeAware", contextAware = "contextAware"
     static let autoCapitalize = "autoCapitalize", tidyPunctuation = "tidyPunctuation", showHUD = "showHUD"
@@ -24,13 +26,15 @@ enum Key {
     static let proofread = "proofread", proofreadEnglish = "proofreadEnglish", proofreadIgnored = "proofreadIgnored"
     /// Thêm dòng "Sửa cả câu…" vào bảng đề nghị (mô hình chạy trên máy của macOS; xem `SentenceFix`).
     static let proofreadSentence = "proofreadSentence"
+    /// Gợi ý trên trang web trong trình duyệt nhân Chromium: phải bật chế độ trợ năng của trình duyệt, làm nó nặng hơn.
+    static let proofreadBrowsers = "proofreadBrowsers"
     static let clipboardEnabled = "clipboardEnabled", clipboardHotkey = "clipboardHotkey", clipboardSync = "clipboardSync"
     static let clipboardExcludedApps = "clipboardExcludedApps"
     /// Khoá ẩn (không có trong Cài đặt): trỏ thư mục đồng bộ sang chỗ khác khi thử nghiệm.
     static let clipboardSyncFolder = "clipboardSyncFolder"
 
     static let registered: [String: Any] = [
-        enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true,
+        enabled: true, method: "telex", standaloneW: true, bracketKeys: false, teen: true, autoRestore: true, fixBrowser: true, overwriteInBrowsers: false,
         codeAware: true, contextAware: true, showHUD: true,
         modernTone: false, expandTeen: false, perApp: false, autoCapitalize: false, tidyPunctuation: false,
         // Nhật ký gỡ lỗi lưu cả nội dung gõ: mặc định TẮT ở mọi bản dựng. Bật trong Cài đặt › Chung khi cần
@@ -42,7 +46,7 @@ enum Key {
         ],
         // Hai gõ tắt thường làm mẫu, chỉ có khi người dùng chưa từng lưu bảng nào.
         macros: ["vn": "Việt Nam", "tphcm": "Thành phố Hồ Chí Minh"], autoUpdateCheck: true, language: "auto", learnUsage: true,
-        proofread: true, proofreadEnglish: false, proofreadSentence: true,
+        proofread: true, proofreadEnglish: false, proofreadSentence: true, proofreadBrowsers: false,
         toggleHotkey: Hotkey.defaultToggle.string, restoreHotkey: Hotkey.defaultRestore.string,
         // Lịch sử clipboard ghi mọi thứ đã sao chép xuống đĩa: mặc định TẮT, người dùng tự bật.
         clipboardEnabled: false, clipboardSync: false, clipboardHotkey: Hotkey.defaultClipboard.string,

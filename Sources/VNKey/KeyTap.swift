@@ -24,6 +24,8 @@ final class KeyTap {
     /// Bundle ID của app đang ở trước (cập nhật từ AppDelegate).
     var frontApp = ""
     var fixAutocomplete = true
+    /// Thử nghiệm (khoá ẩn `overwriteInBrowsers`): ở vùng soạn thảo của trang web, bôi chọn lùi rồi gõ đè thay vì xoá lùi.
+    var overwriteInBrowsers = false
     var onToggle: (() -> Void)?
     /// Cho bộ soát lỗi: một phím vừa được gõ (mã phím, phím bổ trợ; trả về true nếu bộ soát lỗi đã dùng phím đó, khi
     /// ấy phím bị nuốt); chuột trái vừa bấm ở toạ độ màn hình này. Gọi ngay trong callback của event tap nên bên nhận
@@ -431,7 +433,7 @@ final class KeyTap {
         let f = out.backspaces > 0 && fixAutocomplete ? focus() : Focus(app: frontApp)
         let plan = SendPlanner.plan(
             backspaces: out.backspaces, text: out.text, passKey: out.passKey, app: f.app, selection: f.selection,
-            fixAutocomplete: fixAutocomplete, role: f.role)
+            fixAutocomplete: fixAutocomplete, role: f.role, overwrite: overwriteInBrowsers)
         Log.write(
             "  SEND mode=\(plan.mode) \(plan.steps) focus=\(f.app) role=\(f.role) sel=\(f.selection.map(String.init) ?? "nil") \(f.note)"
         )
@@ -441,6 +443,7 @@ final class KeyTap {
             case .arrowLeft: postKey(123, proxy, flags: arrow)
             case .arrowRight: postKey(124, proxy, flags: arrow)
             case .backspace(let n): for _ in 0..<n { postKey(51, proxy) }
+            case .selectLeft(let n): for _ in 0..<n { postKey(123, proxy, flags: arrow.union(.maskShift)) }
             case .text(let t): postText(t, proxy)
             case .original:
                 if let copy = original?.copy() {
@@ -512,6 +515,22 @@ final class KeyTap {
             e.post(tap: .cgSessionEventTap)
         }
         Log.write("CLIP phát ⌘V app=\(frontApp)")
+    }
+
+    /// Gõ một đoạn chữ vào ứng dụng đang ở trước, từ NGOÀI callback của tap (bộ soát lỗi thay chữ ở ô không cho ghi qua
+    /// Trợ năng: chữ cũ đã được bôi chọn, chữ gõ vào sẽ đè lên). Phát thẳng vào luồng sự kiện của phiên, gắn `kMagic`.
+    func typeOutside(_ text: String) {
+        let carrier = CGKeyCode(held.carrier)
+        for chunk in SendPlanner.chunks(text) {
+            for down in [true, false] {
+                guard let e = CGEvent(keyboardEventSource: source, virtualKey: carrier, keyDown: down) else { continue }
+                e.setIntegerValueField(.keyboardEventAutorepeat, value: 0)
+                e.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+                e.setIntegerValueField(.eventSourceUserData, value: kMagic)
+                e.post(tap: .cgSessionEventTap)
+            }
+        }
+        Log.write("PROOF gõ thay \(text.utf16.count) ký tự app=\(frontApp)")
     }
 
     private func postKey(_ code: CGKeyCode, _ proxy: CGEventTapProxy, flags: CGEventFlags = []) {

@@ -230,6 +230,7 @@ struct Field {
     var caret = 0  // tính theo ký tự, từ đầu
     var suggestion = false  // kiểu Spotlight
     var selected = ""  // kiểu trình duyệt: phần gợi ý đang bôi chọn sau con trỏ
+    var marked = 0  // số ký tự ngay TRƯỚC con trỏ đang được bôi chọn bằng ⇧←; chữ gõ vào sẽ đè lên
 
     var app: String {
         switch kind {
@@ -247,8 +248,15 @@ struct Field {
 
     private var index: String.Index { text.index(text.startIndex, offsetBy: caret) }
 
+    mutating func selectLeft() { marked = min(caret, marked + 1) }
+
     mutating func insert(_ s: String) {
         selected = ""
+        for _ in 0..<marked {
+            caret -= 1
+            text.remove(at: index)
+        }
+        marked = 0
         text.insert(contentsOf: s, at: index)
         caret += s.count
         guard caret == text.count, let last = s.last, last.isLetter else { suggestion = false; return }
@@ -283,7 +291,7 @@ struct Field {
 }
 
 /// Gõ một chuỗi phím qua engine và kế hoạch gửi, áp lên ô nhập giả. "<" = Backspace.
-func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
+func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true, overwrite: Bool = false, modes: UnsafeMutablePointer<Set<String>>? = nil) -> String {
     let engine = Engine()
     var field = Field(kind: kind)
     for ch in keys {
@@ -303,12 +311,14 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
         if out.isPass { original(); continue }
         let plan = SendPlanner.plan(
             backspaces: out.backspaces, text: out.text, passKey: out.passKey, app: field.app,
-            selection: out.backspaces > 0 && fix ? field.axSelection : nil, fixAutocomplete: fix, role: field.role)
+            selection: out.backspaces > 0 && fix ? field.axSelection : nil, fixAutocomplete: fix, role: field.role, overwrite: overwrite)
+        modes?.pointee.insert(plan.mode)
         for step in plan.steps {
             switch step {
             case .arrowLeft: field.left()
             case .arrowRight: field.right()
             case .backspace(let n): for _ in 0..<n { field.backspace() }
+            case .selectLeft(let n): for _ in 0..<n { field.selectLeft() }
             case .text(let t): if t == SendPlanner.emptyChar { field.selected = ""; field.text.insert(contentsOf: t, at: field.text.index(field.text.startIndex, offsetBy: field.caret)); field.caret += 1 } else { field.insert(t) }
             case .original: original()
             }
@@ -354,6 +364,30 @@ func typeInto(_ kind: Field.Kind, _ keys: String, fix: Bool = true) -> String {
 
     @Test(arguments: cases) func browserPageContent(keys: String, want: String) {
         #expect(typeInto(.browserPage, keys) == want)
+    }
+
+    /// Kiểu thử nghiệm "bôi chọn rồi gõ đè" ở vùng soạn thảo của trang web: chữ ra y như kiểu xoá lùi.
+    @Test(arguments: cases) func browserPageOverwrite(keys: String, want: String) {
+        #expect(typeInto(.browserPage, keys, overwrite: true) == want)
+    }
+
+    /// Gõ đè chỉ dùng ở vùng soạn thảo của trang web trong trình duyệt, và chỉ khi được bật.
+    @Test func overwriteScope() {
+        func modes(_ kind: Field.Kind, _ on: Bool) -> Set<String> {
+            var seen: Set<String> = []
+            _ = typeInto(kind, "tieengs vieetj", overwrite: on, modes: &seen)
+            return seen
+        }
+        #expect(modes(.browserPage, true) == ["overwrite"])
+        #expect(modes(.browserPage, false) == ["plain"])
+        #expect(!modes(.browser, true).contains("overwrite"))
+        #expect(!modes(.plain, true).contains("overwrite"))
+        #expect(!modes(.spotlight(leftAbsorbed: true), true).contains("overwrite"))
+        // Chỉ xoá, không có chữ gõ đè: vẫn xoá lùi như thường.
+        let p = SendPlanner.plan(backspaces: 2, text: "", passKey: false, app: "com.apple.Safari", selection: nil, fixAutocomplete: true, role: "AXTextArea", overwrite: true)
+        #expect(p.steps == [.backspace(2)])
+        let q = SendPlanner.plan(backspaces: 2, text: "ế", passKey: true, app: "com.apple.Safari", selection: nil, fixAutocomplete: true, role: "AXTextArea", overwrite: true)
+        #expect(q == SendPlan(mode: "overwrite", steps: [.selectLeft(2), .text("ế"), .original]))
     }
 
     @Test func backspaceRoutes() {
